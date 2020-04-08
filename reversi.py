@@ -10,7 +10,7 @@ dist_sq = lambda p1,p2: (p1[0]-p2[0])**2+(p1[1]-p2[1])**2
 # distance from the line p1-p2 to x
 dist_to_line = lambda p1, p2, x: abs(p1[0]*p2[1]+p2[0]*x[1]+x[0]*p1[1]-p1[1]*p2[0]-p2[1]*x[0]-x[1]*p1[0]) / dist_sq(p1,p2)**.5
 # is a piece centered at x on the path between pieces centered at p1 and p2?
-in_path = lambda p1, p2, x: dist_to_line(p1, p2, x) < piece_rad and abs(dist_sq(p1,x)-dist_sq(p2,x)) < dist_sq(p1,p2)
+in_path = lambda p1, p2, x: p1 != p2 and dist_to_line(p1, p2, x) < piece_rad and abs(dist_sq(p1,x)-dist_sq(p2,x)) < dist_sq(p1,p2)
 # do pieces centered at p1 and p2 overlap?
 overlap = lambda p1, p2: dist_sq(p1,p2) < (2*piece_rad)**2
 # combat floating point errors. In particular, tangent circles shouldn't intersect
@@ -41,7 +41,10 @@ safe_tangents = lambda pts: (lambda near_pts:
     {x for p in pts for q in near_pts[p] for x in double_tangents(p,q)
         if not any(overlap(x,r) for r in near_pts[p] & near_pts[q])
     }) ({p:{q for q in pts if dist_sq(p,q) < (4*piece_rad)**2} for p in pts})
-# set of pieces which cause lines to flip if player t (str) places a piece at pt ((float,float)) given pieces pcs ([ReversiPiece])
+# suppose player t (str) places a piece at pt ((float,float)) given pieces pcs ([ReversiPiece])
+# pivots(pcs, t, pt) is the set of tuples (pv, flipped) where 
+#   pv is a "pivot"
+#   flipped is the list of pieces along the line from pt to pv; i.e. pieces that would flip because of pv
 # THE RULE: a piece at P is a "pivot" for your move M if
 #               1. P is on your team
 #               2. there's at least one piece, and only pieces on the opposite team, intersecting the line segment PM
