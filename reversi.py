@@ -91,7 +91,7 @@ class Colors:
     blocker     = (255,0,0)
     guide       = (0,255,255)
     background  = (0,130,30)
-    text        = (90,60,90)
+    text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
@@ -121,8 +121,8 @@ game = Game(
     backgroundColor=Colors.background
 )
 
-pieceCount = FixedText(game, Layers.COUNT, Colors.text, font, 0, game.width-30,30, *'rt')
-pieceCount.GETtext = lambda g: len(g.layers[Layers.PIECES])
+setattr(FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
+setattr(FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']))
 
 game.mousePos = None
 game.makePiece = lambda t, x, y: ReversiGuide(game, ReversiPiece(game, t, x, y))
