@@ -35,15 +35,12 @@ on_line_tangents = lambda p1, p2, x: (lambda d:
             (2*piece_rad*(p2[0]-p1[0])/dist_sq(p1,p2)**.5,2*piece_rad*(p2[1]-p1[1])/dist_sq(p1,p2)**.5) if d < 3 else
         ()
     )(dist_to_line(p1,p2,x)/piece_rad)
-
 # given locations of pieces [(float, float)] pts, the set of locations you could place a piece tangent to multiple existing pieces
 # near_pts is a dictionary {(float,flot): {(float,float)}} giving the set of pieces close enough to each piece to be relevant
 safe_tangents = lambda pts: (lambda near_pts:
     {x for p in pts for q in near_pts[p] for x in double_tangents(p,q)
         if not any(overlap(x,r) for r in near_pts[p] & near_pts[q])
     }) ({p:{q for q in pts if dist_sq(p,q) < (4*piece_rad)**2} for p in pts})
-
-
 # set of pieces which cause lines to flip if player t (str) places a piece at pt ((float,float)) given pieces pcs ([ReversiPiece])
 # THE RULE: a piece at P is a "pivot" for your move M if
 #               1. P is on your team
@@ -75,24 +72,25 @@ pivots = lambda pcs, t, pt: (lambda s_t:[
                 and not any(in_path(pt, (pv.x,pv.y), p) for p in s_t)
     ]) (safe_tangents([(p.x,p.y) for p in pcs]+[pt]))
 
-printr = lambda x: (print(x),x)[1]
-
-
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
 
 class Layers:
     GUIDES      = 2
     PIECES      = 3
     NEWPIECE    = 4
+    COUNT       = 5
 
 class Colors:
-    fill        = {'WHITE': (255,255,255), 'BLACK': (0,  0,  0  )}
-    border      = {'WHITE': (40, 40, 40 ), 'BLACK': (215,215,215)}
+    fill        = {'WHITE': (235,235,235), 'BLACK': (30, 30, 30 )}
+    border      = {'WHITE': (80, 80, 80 ), 'BLACK': (135,135,135)}
+    newfill     = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
     flipper     = (0,255,0)
     blocker     = (255,0,0)
-    guide       = (0,0,255)
-    pivot       = (0,255,255)
-    newborder   = (255,100,100)
+    guide       = (0,255,255)
+    background  = (0,130,30)
+    text        = (90,60,90)
+
+font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
 class ReversiPiece(BorderDisk):
     def __init__(self, game, team, x, y, layer=Layers.PIECES):
@@ -117,8 +115,11 @@ start_state = ('WHITE',[
 
 game = Game(
     initialState=start_state,
-    backgroundColor=(128,128,128)
+    backgroundColor=Colors.background
 )
+
+pieceCount = FixedText(game, Layers.COUNT, Colors.text, font, 0, game.width-30,30, *'rt')
+pieceCount.GETtext = lambda g: len(g.layers[Layers.PIECES])
 
 game.mousePos = None
 game.makePiece = lambda t, x, y: ReversiGuide(game, ReversiPiece(game, t, x, y))
@@ -128,7 +129,8 @@ nextPiece.GETteam = lambda g: g.turn
 nextPiece.GETvisible = lambda g: g.mousePos
 nextPiece.GETx = lambda g: g.mousePos[0]
 nextPiece.GETy = lambda g: g.mousePos[1]
-nextPiece.border_color = Colors.newborder
+nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
+nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
 game.save_state = lambda: (game.turn, [(p.team, p.x, p.y) for p in game.layers[Layers.PIECES]])
 game.load_state = lambda x: (lambda turn, pieces:(
@@ -141,14 +143,11 @@ game.load_state = lambda x: (lambda turn, pieces:(
     setattr(game, 'turn', turn),
     ))(*x)
 
-
 game.load_state(start_state)
 
 def attemptMove(game, pos):
     updateMove(game, pos)
-    if game.blockers: return
-    if not game.pivots: return
-    
+    if game.blockers or not game.pivots: return
     game.record_state()
     game.makePiece(game.turn, *pos)
     for p in game.flippers: p.team = inc_turn[p.team]

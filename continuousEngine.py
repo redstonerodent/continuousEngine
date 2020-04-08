@@ -233,12 +233,17 @@ class CachedImg(Renderable):
 
 
 class Text(Renderable):
-    # centered at x,y
-    def __init__(self, game, layer, color, font, text, x, y):
+    # default centered at x,y
+    def __init__(self, game, layer, color, font, text, x, y, halign='c', valign='c'):
         super().__init__(game, layer)
-        self.font, self.text, self.x, self.y, self.color = font, text, x, y, color
+        self.font, self.text, self.x, self.y, self.color, self.halign, self.valign = font, text, x, y, color, halign, valign
     def render(self):
-        write(self.game.screen, self.font, self.text, *self.game.pixel(self.x, self.y), self.color)
+        write(self.game.screen, self.font, self.text, *self.game.pixel(self.x, self.y), self.color, self.halign, self.valign)
+
+class FixedText(Text):
+    # text centered at pixel (x,y); fixed on screen. doesn't move with zoom/pan
+    def render(self):
+        write(self.game.screen, self.font, self.text, self.x, self.y, self.color, self.halign, self.valign)
 
 class Rectangle(Renderable):
     def __init__(self, game, layer, color, x, y, dx, dy):
@@ -263,8 +268,20 @@ class BorderDisk(Renderable):
         pygame.draw.circle(self.game.screen, self.border_color, self.game.pixel(self.x, self.y), int(self.r*self.game.scale)+self.width, self.width)
 
 
-def write(screen, font, text, x, y, color): # x and y are pixel values for center
+def write(screen, font, text, x, y, color, halign='c', valign='c'):
+    # x and y are pixel values
+    # halign is horizontal alignment:
+    #   c -> centered around x
+    #   l -> left edge at x
+    #   r -> right edge at x
+    # valign is vertical alignment:
+    #   c -> centered around y
+    #   t -> top edge at y
+    #   b -> bottom edge at y
     text = str(text)
     written = font.render(text,True,color)
     width, height = font.size(text)
-    screen.blit(written, (x-width//2, y-height//2))
+    if halign not in 'lcr' or valign not in 'tcb': raise ValueError
+    shiftx = {'l':0,'c':width//2,'r':width}[halign]
+    shifty = {'t':0,'c':height//2,'b':height}[valign]
+    screen.blit(written, (x-shiftx, y-shifty))
