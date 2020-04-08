@@ -329,7 +329,7 @@ def attemptMove(mouse_pos):
             game.layers[Layers.PIECES].remove(piece)
 
         if isinstance(game.active_piece, Pawn) and abs(game.active_piece.y)>=3.5: # pawn promotes
-            Queen(game, Layers.PIECES, game.active_piece.color, game.active_piece.x, game.active_piece.y)
+            Queen(game, game.active_piece.color, game.active_piece.x, game.active_piece.y)
             game.layers[Layers.PIECES].remove(game.active_piece)
 
         game.active_piece = None
