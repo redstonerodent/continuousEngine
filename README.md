@@ -4,7 +4,7 @@ So far it has:
 
 * Chess: `chess.py`
 * `sky.py` (Determining what it is is a fun puzzle so I won't spoil it here. The answer is a 4x4 Latin square, and controls are in sky-control.txt; the contents of `sky.py` obviously have spoilers.)
-* (in progress) Reversi: `reversi.py`
+* Reversi: `reversi.py`
 
 `continuousEngine.py` is a module I wrote to help with this. The `Game` class implements view navigation (panning, zooming), undo/redo, and provides a more convenient interface for taking interactive input. The `Renderable` class should be used for game objects, and a handful of subclasses (roughly the ones which were useful for things I've already made) are available.
 

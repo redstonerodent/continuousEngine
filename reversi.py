@@ -155,6 +155,7 @@ def attemptMove(game, pos):
     game.makePiece(game.turn, *pos)
     for p in game.flippers: p.team = inc_turn[p.team]
     game.turn = inc_turn[game.turn]
+    updateMove(game, pos)
 
 def updateMove(game, pos):
     game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
