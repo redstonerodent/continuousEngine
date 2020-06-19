@@ -5,7 +5,7 @@ from continuousEngine import *
 # needs to be more than 1/sqrt(6)~=0.408 for diagonals to work the same as in the discrete game
 piece_rad = .45
 
-board_rad = 5
+board_rad = 2
 # is this piece within the (circular) board?
 on_board = lambda p: dist_sq(p,(0,0)) < (board_rad - piece_rad)**2
 
@@ -96,7 +96,7 @@ class Colors:
     blocker     = (255,0,0)
     guide       = (0,255,255)
     background  = (0,130,30)
-    text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
+    text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0), 'GAMEOVER':(230,20,128)}
     boundary    = (0,0,0)
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
@@ -112,15 +112,16 @@ class ReversiGuide(Segment):
     def __init__(self, game, piece):
         super().__init__(game, Layers.GUIDES, Colors.guide, (piece.x, piece.y), None)
         self.piece = piece
-        self.GETvisible = lambda g: g.mousePos and g.turn == self.piece.team and self.piece in g.pivots
+        self.GETvisible = lambda g: g.mousePos and not g.over and g.turn == self.piece.team and self.piece in g.pivots
         self.GETp2 = lambda g: g.mousePos
 
-start_state = ('WHITE',[
-    ('WHITE', .5, .5),
+start_state = ('WHITE',
+    [('WHITE', .5, .5),
     ('WHITE',-.5,-.5),
     ('BLACK', .5,-.5),
-    ('BLACK',-.5, .5),
-])
+    ('BLACK',-.5, .5)],
+    False
+    )
 
 game = Game(
     initialState=start_state,
@@ -132,19 +133,25 @@ Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3)
 setattr(FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
 setattr(FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']))
 
+gameOverMessage = FixedText(game, Layers.COUNT, Colors.text['GAMEOVER'], font, "", game.width//2, game.height//2, *'cc')
+gameOverMessage.GETvisible = lambda g: g.over
+gameOverMessage.GETtext = lambda g: "Game Over!  "+(
+    lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(
+    len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']), len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
+
 game.mousePos = None
 game.makePiece = lambda t, x, y: ReversiGuide(game, ReversiPiece(game, t, x, y))
 
 nextPiece = ReversiPiece(game, None, None, None, Layers.NEWPIECE)
 nextPiece.GETteam = lambda g: g.turn
-nextPiece.GETvisible = lambda g: g.mousePos
+nextPiece.GETvisible = lambda g: g.mousePos and not g.over
 nextPiece.GETx = lambda g: g.mousePos[0]
 nextPiece.GETy = lambda g: g.mousePos[1]
 nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
 nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
-game.save_state = lambda: (game.turn, [(p.team, p.x, p.y) for p in game.layers[Layers.PIECES]])
-game.load_state = lambda x: (lambda turn, pieces:(
+game.save_state = lambda: (game.turn, [(p.team, p.x, p.y) for p in game.layers[Layers.PIECES]], game.over)
+game.load_state = lambda x: (lambda turn, pieces, over:(
     game.clearLayer(Layers.PIECES),
     game.clearLayer(Layers.GUIDES),
     [game.makePiece(*p) for p in pieces],
@@ -152,6 +159,7 @@ game.load_state = lambda x: (lambda turn, pieces:(
     setattr(game, 'blockers', set()),
     setattr(game, 'pivots', set()),
     setattr(game, 'turn', turn),
+    setattr(game, 'over', over)
     ))(*x)
 
 game.load_state(start_state)
@@ -163,11 +171,15 @@ def attemptMove(game, pos):
     game.makePiece(game.turn, *pos)
     for p in game.flippers: p.team = inc_turn[p.team]
     game.turn = inc_turn[game.turn]
+    # game is over if there's nowhere to fit another piece
+    # note: this does NOT detect when none of the places a piece fits flip anything, so you can get "stuck"
+    if not safe_tangents([(p.x,p.y) for p in game.layers[Layers.PIECES]]):
+        game.over = True
     updateMove(game, pos)
 
 def updateMove(game, pos):
     game.mousePos = pos
-    if on_board(pos):
+    if not game.over and on_board(pos):
         game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
         game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
         game.flippers = {p for ps in flipped for p in ps}
