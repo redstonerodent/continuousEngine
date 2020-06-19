@@ -252,6 +252,14 @@ class Rectangle(Renderable):
     def render(self):
         pygame.draw.rect(self.game.screen, self.color, pygame.Rect(*self.game.pixel(self.x, self.y), int(self.dx*self.game.scale), int(self.dy*self.game.scale)))
 
+class Circle(Renderable):
+    def __init__(self, game, layer, color, x, y, r, width):
+        super().__init__(game, layer)
+        self.color, self.x, self.y, self.r, self.width = color, x, y, r, width
+    def render(self):
+        pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale), self.width)
+
+
 class Disk(Renderable):
     def __init__(self, game, layer, color, x, y, r):
         super().__init__(game, layer)

@@ -2,8 +2,12 @@ from continuousEngine import *
 
 # Note to anyone reading this code: sometimes p (or p1 or p2 or pt or pv) is a pair of floats representing a point, and sometimes it's a ReversiPiece. I'm sorry.
 
-# needs to be more than 1/sqrt(6)~=0.408 for diagonals to work the same as in the discreet game
+# needs to be more than 1/sqrt(6)~=0.408 for diagonals to work the same as in the discrete game
 piece_rad = .45
+
+board_rad = 5
+# is this piece within the (circular) board?
+on_board = lambda p: dist_sq(p,(0,0)) < (board_rad - piece_rad)**2
 
 # squared distance
 dist_sq = lambda p1,p2: (p1[0]-p2[0])**2+(p1[1]-p2[1])**2
@@ -22,8 +26,8 @@ double_tangents = lambda p1, p2: (lambda d:
         (((4*piece_rad**2-d/4))**.5*(p2[1]-p1[1])/d**.5,
          ((4*piece_rad**2-d/4))**.5*(p1[0]-p2[0])/d**.5 )
     if 0<d**.5 < 4*piece_rad else ())(dist_sq(p1,p2))
-# centers of some circles tangent to circle centered at x on opposite sides,
-#   such that one intersects the line from p1 to p2 in each region of angles such a tangent circle can intersect the line
+# centers of some circles tangent to the circle centered at x on opposite sides,
+#   such that one intersects the line from p1 to p2 in each region of angles in which a tangent circle can intersect the line
 # if the circle intersects the line, gives one on each side in the direction parallel to the line
 # if the circle doesn't intersect the line, gives one on each side in the direction perpendicular to the line
 # if the circle is far away, gives nothing
@@ -39,7 +43,7 @@ on_line_tangents = lambda p1, p2, x: (lambda d:
 # near_pts is a dictionary {(float,flot): {(float,float)}} giving the set of pieces close enough to each piece to be relevant
 safe_tangents = lambda pts: (lambda near_pts:
     {x for p in pts for q in near_pts[p] for x in double_tangents(p,q)
-        if not any(overlap(x,r) for r in near_pts[p] & near_pts[q])
+        if not any(overlap(x,r) for r in near_pts[p] & near_pts[q]) and on_board(x)
     }) ({p:{q for q in pts if dist_sq(p,q) < (4*piece_rad)**2} for p in pts})
 # suppose player t (str) places a piece at pt ((float,float)) given pieces pcs ([ReversiPiece])
 # pivots(pcs, t, pt) is the set of tuples (pv, flipped) where 
@@ -69,7 +73,7 @@ pivots = lambda pcs, t, pt: (lambda s_t:[
                 # 3. you can't fit another piece on the line without overlap: try some potential locations
                     # 3.1. tangent to one piece, in the direction (parrallel|perpendicular) to the line
                 and (lambda closePieces: 
-                        all(not in_path(pt, (pv.x,pv.y), p) or any(overlap(p,(q.x,q.y)) for q in closePieces) or overlap(p,pt) for p1 in closePieces for p in on_line_tangents(pt, (pv.x,pv.y), (p1.x,p1.y)))
+                        all(not on_board(p) or not in_path(pt, (pv.x,pv.y), p) or any(overlap(p,(q.x,q.y)) for q in closePieces) or overlap(p,pt) for p1 in closePieces for p in on_line_tangents(pt, (pv.x,pv.y), (p1.x,p1.y)))
                     ) ({p for p in pcs if dist_to_line(pt, (pv.x,pv.y), (p.x,p.y)) < 3*piece_rad}) # save time by only looking at pieces nearish the line
                     # 3.2. tangent to two pieces
                 and not any(in_path(pt, (pv.x,pv.y), p) for p in s_t)
@@ -78,6 +82,7 @@ pivots = lambda pcs, t, pt: (lambda s_t:[
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
 
 class Layers:
+    BOUNDARY    = 1
     GUIDES      = 2
     PIECES      = 3
     NEWPIECE    = 4
@@ -92,6 +97,7 @@ class Colors:
     guide       = (0,255,255)
     background  = (0,130,30)
     text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
+    boundary    = (0,0,0)
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
@@ -120,6 +126,8 @@ game = Game(
     initialState=start_state,
     backgroundColor=Colors.background
 )
+
+Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3)
 
 setattr(FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
 setattr(FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']))
@@ -158,10 +166,12 @@ def attemptMove(game, pos):
     updateMove(game, pos)
 
 def updateMove(game, pos):
-    game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
-    game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
-    game.flippers = {p for ps in flipped for p in ps}
     game.mousePos = pos
+    if on_board(pos):
+        game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
+        game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
+        game.flippers = {p for ps in flipped for p in ps}
+    else: game.blockers, game.pivots, game.flippers = {}, [], {}
 
 # test speed:
 if 0:
