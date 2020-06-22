@@ -5,7 +5,7 @@ from continuousEngine import *
 # needs to be more than 1/sqrt(6)~=0.408 for diagonals to work the same as in the discrete game
 piece_rad = .45
 
-board_rad = 2
+board_rad = 5
 # is this piece within the (circular) board?
 on_board = lambda p: dist_sq(p,(0,0)) < (board_rad - piece_rad)**2
 
@@ -39,14 +39,8 @@ on_line_tangents = lambda p1, p2, x: (lambda d:
             (2*piece_rad*(p2[0]-p1[0])/dist_sq(p1,p2)**.5,2*piece_rad*(p2[1]-p1[1])/dist_sq(p1,p2)**.5) if d < 3 else
         ()
     )(dist_to_line(p1,p2,x)/piece_rad)
-# given locations of pieces [(float, float)] pts, the set of locations you could place a piece tangent to multiple existing pieces
-# near_pts is a dictionary {(float,flot): {(float,float)}} giving the set of pieces close enough to each piece to be relevant
-safe_tangents = lambda pts: (lambda near_pts:
-    {x for p in pts for q in near_pts[p] for x in double_tangents(p,q)
-        if not any(overlap(x,r) for r in near_pts[p] & near_pts[q]) and on_board(x)
-    }) ({p:{q for q in pts if dist_sq(p,q) < (4*piece_rad)**2} for p in pts})
 # suppose player t (str) places a piece at pt ((float,float)) given pieces pcs ([ReversiPiece])
-# pivots(pcs, t, pt) is the set of tuples (pv, flipped) where 
+# pivots(pcs, t, pt) is the list of tuples (pv, flipped) where 
 #   pv is a "pivot"
 #   flipped is the list of pieces along the line from pt to pv; i.e. pieces that would flip because of pv
 # THE RULE: a piece at P is a "pivot" for your move M if
@@ -60,24 +54,21 @@ safe_tangents = lambda pts: (lambda near_pts:
 #   these potential placements are:
 #       3.1. tangent to one existing piece in a particular direction (on_line_tangents). each piece close to the line gives 2 of these
 #               the direction is parallel to the line if the piece intersects it, and perpendicular otherwise
-#       3.2. tangent to two existing pieces (safe_tangents)
+#       3.2. tangent to two existing pieces (from p.valid_tangents)
 # we save some time by only considering pieces close enough to the line to matter (i.e. within 3*piece_rad)
 # it's slowest when finding real pivots, since it has to check every potential location (and can be lazy when it fails to find a pivot)
 # there are pathological cases meaning you can't just look at pieces on the line or something clever like that
-# s_t is the result of safe_tangents
-pivots = lambda pcs, t, pt: (lambda s_t:[
-        (pv,flipped) for pv,flipped in ((pv,[pc for pc in pcs if in_path(pt, (pv.x,pv.y), (pc.x,pc.y))]) for pv in pcs)
+pivots = lambda pcs, t, pt: [(pv,[pc for pc in pcs if in_path(pt, (pv.x,pv.y), (pc.x,pc.y))]) for pv in pcs
             if pv.team==t # 1. pv is on right team
-                and flipped # 2. there's a piece on the line
-                and all(p.team !=t for p in flipped) # 2. there are only opposite-team pieces
-                # 3. you can't fit another piece on the line without overlap: try some potential locations
-                    # 3.1. tangent to one piece, in the direction (parrallel|perpendicular) to the line
-                and (lambda closePieces: 
-                        all(not on_board(p) or not in_path(pt, (pv.x,pv.y), p) or any(overlap(p,(q.x,q.y)) for q in closePieces) or overlap(p,pt) for p1 in closePieces for p in on_line_tangents(pt, (pv.x,pv.y), (p1.x,p1.y)))
-                    ) ({p for p in pcs if dist_to_line(pt, (pv.x,pv.y), (p.x,p.y)) < 3*piece_rad}) # save time by only looking at pieces nearish the line
-                    # 3.2. tangent to two pieces
-                and not any(in_path(pt, (pv.x,pv.y), p) for p in s_t)
-    ]) (safe_tangents([(p.x,p.y) for p in pcs]+[pt]))
+            and any(in_path(pt, (pv.x, pv.y), (pc.x, pc.y)) for pc in pcs) # 2. there's a piece on the line
+            and all(pc.team !=t for pc in pcs if in_path(pt, (pv.x, pv.y), (pc.x, pc.y))) # 2. there are only opposite-team pieces
+            # 3. you can't fit another piece on the line without overlap: try some potential locations for each piece near the line
+            and (lambda closePieces: 
+                # 3.1. tangent to one piece, in the direction (parrallel|perpendicular) to the line
+                not any(on_board(p) and in_path(pt, (pv.x,pv.y), p) and not any(overlap(p,(q.x,q.y)) for q in closePieces) and not overlap(p,pt) for pc in closePieces for p in on_line_tangents(pt, (pv.x,pv.y), (pc.x,pc.y)))
+                # 3.2. tangent to two pieces
+                and not any(in_path(pt, (pv.x,pv.y), p) and not overlap(p,pt) for pc in closePieces for p in pc.valid_tangents)
+                ) ({p for p in pcs if dist_to_line(pt, (pv.x,pv.y), (p.x,p.y)) < 3*piece_rad})]
 
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
 
@@ -98,6 +89,7 @@ class Colors:
     background  = (0,130,30)
     text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0), 'GAMEOVER':(230,20,128)}
     boundary    = (0,0,0)
+    debug       = (255,0,0)
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
@@ -105,8 +97,15 @@ class ReversiPiece(BorderDisk):
     def __init__(self, game, team, x, y, layer=Layers.PIECES):
         super().__init__(game, layer, None, None, x, y, piece_rad)
         self.team = team
-        self.GETfill_color      = lambda g: Colors.fill[self.team]
-        self.GETborder_color    = lambda g: Colors.blocker if self in g.blockers else Colors.flipper if self in g.flippers else Colors.border[self.team]
+        self.GETfill_color = lambda g: Colors.fill[self.team]
+        self.GETborder_color = lambda g: Colors.blocker if self in g.blockers else Colors.flipper if self in g.flippers else Colors.border[self.team]
+        self.valid_tangents = {}
+    if 0:
+        def render(self):
+            super().render()
+            for pt in self.valid_tangents:
+                pygame.draw.line(self.game.screen, Colors.debug, self.game.pixel(self.x,self.y), self.game.pixel(*pt), 3)
+
 
 class ReversiGuide(Segment):
     def __init__(self, game, piece):
@@ -130,8 +129,8 @@ game = Game(
 
 Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3)
 
-setattr(FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
-setattr(FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt'), 'GETtext', lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']))
+FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK'])
+FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE'])
 
 gameOverMessage = FixedText(game, Layers.COUNT, Colors.text['GAMEOVER'], font, "", game.width//2, game.height//2, *'cc')
 gameOverMessage.GETvisible = lambda g: g.over
@@ -140,7 +139,18 @@ gameOverMessage.GETtext = lambda g: "Game Over!  "+(
     len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']), len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
 
 game.mousePos = None
-game.makePiece = lambda t, x, y: ReversiGuide(game, ReversiPiece(game, t, x, y))
+
+# game.makePiece = lambda t, x, y: ReversiGuide(game, ReversiPiece(game, t, x, y))
+game.makePiece = lambda t,x,y: (lambda pieces,new: (
+    ReversiGuide(game, new),
+    # we keep track of the locations a piece could fit tangent to two existing pieces
+    # this is only updated when a new piece is placed, for speed
+    # each such locations is in the set 'p.valid_tangents,' where p is the later of the two pieces it's tangent to
+    # when we add a piece, we need to compute all the new valid tangents:
+    setattr(new, 'valid_tangents', {pt for pc in pieces for pt in double_tangents((x,y),pc) if on_board(pt) and all(dist_sq(pt, p)>(2*piece_rad)**2 for p in pieces)}),
+    # and remove any points the new piece overlaps:
+    [setattr(p, 'valid_tangents', {pt for pt in p.valid_tangents if dist_sq(pt, (x,y))>(2*piece_rad)**2}) for p in game.layers[Layers.PIECES]]
+    ))([(p.x,p.y) for p in game.layers[Layers.PIECES]], ReversiPiece(game, t, x, y))
 
 nextPiece = ReversiPiece(game, None, None, None, Layers.NEWPIECE)
 nextPiece.GETteam = lambda g: g.turn
@@ -149,6 +159,30 @@ nextPiece.GETx = lambda g: g.mousePos[0]
 nextPiece.GETy = lambda g: g.mousePos[1]
 nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
 nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
+
+def attemptMove(game, pos):
+    updateMove(game, pos)
+    if game.blockers or not game.pivots: return
+    game.record_state()
+    game.makePiece(game.turn, *pos)
+    for p in game.flippers: p.team = inc_turn[p.team]
+    game.turn = inc_turn[game.turn]
+    # game is over if there's nowhere to fit another piece
+    # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
+    if not any(p.valid_tangents for p in game.layers[Layers.PIECES]):
+        game.over = True
+    updateMove(game, pos)
+
+def updateMove(game, pos=None):
+    if pos:
+        game.mousePos = pos
+    else:
+        pos = game.mousePos
+    if not game.over and pos and on_board(pos):
+        game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
+        game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
+        game.flippers = {p for ps in flipped for p in ps}
+    else: game.blockers, game.pivots, game.flippers = {}, [], {}
 
 game.save_state = lambda: (game.turn, [(p.team, p.x, p.y) for p in game.layers[Layers.PIECES]], game.over)
 game.load_state = lambda x: (lambda turn, pieces, over:(
@@ -159,42 +193,26 @@ game.load_state = lambda x: (lambda turn, pieces, over:(
     setattr(game, 'blockers', set()),
     setattr(game, 'pivots', set()),
     setattr(game, 'turn', turn),
-    setattr(game, 'over', over)
+    setattr(game, 'over', over),
+    updateMove(game)
     ))(*x)
 
 game.load_state(start_state)
-
-def attemptMove(game, pos):
-    updateMove(game, pos)
-    if game.blockers or not game.pivots: return
-    game.record_state()
-    game.makePiece(game.turn, *pos)
-    for p in game.flippers: p.team = inc_turn[p.team]
-    game.turn = inc_turn[game.turn]
-    # game is over if there's nowhere to fit another piece
-    # note: this does NOT detect when none of the places a piece fits flip anything, so you can get "stuck"
-    if not safe_tangents([(p.x,p.y) for p in game.layers[Layers.PIECES]]):
-        game.over = True
-    updateMove(game, pos)
-
-def updateMove(game, pos):
-    game.mousePos = pos
-    if not game.over and on_board(pos):
-        game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
-        game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
-        game.flippers = {p for ps in flipped for p in ps}
-    else: game.blockers, game.pivots, game.flippers = {}, [], {}
 
 # test speed:
 if 0:
     import random
     spread = 10
-    count = 30
-    [game.makePiece(random.choice(['WHITE','BLACK']),random.random()*spread,random.random()*spread) for _ in range(count)]
+    count = 70
+    [game.makePiece(random.choice(['WHITE','BLACK']),random.random()*spread-spread/2,random.random()*spread-spread/2) for _ in range(count)]
 
 game.click[1] = lambda e: attemptMove(game, game.point(*e.pos))
 # this says if there are more MOUSEMOTION events in the queue, go through them only running the right click (pan) handler, and skip computing pivots and flippers
 game.drag[-1] = lambda e: [game.drag[2](ev) for ev in pygame.event.get(pygame.MOUSEMOTION) if ev.buttons[2]] if pygame.event.peek(pygame.MOUSEMOTION) else updateMove(game, game.point(*e.pos))
+
+game.keys.skipTurn = 117 # f
+
+game.keyPress[game.keys.skipTurn] = lambda _: (setattr(game, 'turn', inc_turn[game.turn]), updateMove(game))
 
 while 1: 
     game.update()

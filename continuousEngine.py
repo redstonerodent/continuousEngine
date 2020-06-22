@@ -106,8 +106,10 @@ class Game:
             self.layers[layer].append(obj)
 
     def clearLayer(self, layer):
-        if layer in self.layerlist:
-            self.layers[layer] = []
+        self.layers[layer] = []
+        if layer not in self.layerlist:
+            self.layerlist.append(layer)
+            self.layerlist.sort()
 
     def handle(self, event):
         if event.type in self.handlers:
