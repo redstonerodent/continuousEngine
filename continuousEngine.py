@@ -20,7 +20,7 @@ class Game:
             pygame.QUIT: lambda e: sys.exit(),
             pygame.MOUSEBUTTONDOWN: lambda e: self.click[e.button](e) if e.button in self.click else print('unknown click:',e.button),
             pygame.MOUSEMOTION: lambda e: ([self.drag[k](e) if k in self.drag else print('unknown motion:',k) for k in range(-1,3) if k<0 or e.buttons[k]]),
-            pygame.KEYDOWN: lambda e: self.keyPress[e.key](e) if e.key in self.keyPress else self.numKey(e.key%208-48) if 256<=e.key<=265 or 48<=e.key<=57 else print('unknown key: ',e.key)
+            pygame.KEYDOWN: lambda e: self.keyPress[e.key](e) if e.key in self.keyPress else self.numKey(e.key%208-48) if 256<=e.key<=265 or 48<=e.key<=57 else print('unknown key:',e.key)
         }
 
         self.panDist = 100
