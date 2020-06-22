@@ -31,12 +31,12 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 * Move selected square: arrow keys
 * Enter number: `1`-`9`
 * Delete number: backspace or `0`
-
+#
 * Run trial: left click (outside grid)
 * Run many trials: middle click and drag
 * Change trial colors: `j`(c)
 * Clear trials: `esc`
-
+#
 * Toggle grid: `i`(g)
 
 ## Reversi
