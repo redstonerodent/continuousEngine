@@ -165,6 +165,8 @@ class Renderable:
         self.visible = True
     def render(self):
         pass
+    def debugLine(self, color, p1, p2, width=3):
+        pygame.draw.line(self.game.screen, color, self.game.pixel(*p1), self.game.pixel(*p2), width)
 
 class Background(Renderable):
     def __init__(self, game, color):

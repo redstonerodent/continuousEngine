@@ -39,7 +39,7 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 
 * Toggle grid: `i`(g)
 
-## Reversi
+## Reversi & Go
 
 * Place piece: left click
 * Skip turn: `u`(f)

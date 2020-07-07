@@ -167,7 +167,6 @@ Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3).GETcolor = la
 FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK'])
 FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE'])
 
-game.over = False
 gameOverMessage = FixedText(game, Layers.COUNT, Colors.text['GAMEOVER'], font, "", game.width//2, game.height//2, *'cc')
 gameOverMessage.GETvisible = lambda g: g.over
 gameOverMessage.GETtext = lambda g: "Game Over!  "+(
