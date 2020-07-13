@@ -76,10 +76,16 @@ class Game:
         self.save_state = lambda :None # returns description of state
         self.load_state = lambda _:None # implements description of state
 
+        # for anything that should be recomputed before each render
+        self.process = lambda: None
+
 
 
     # screen borders
-    x_min, x_max, y_min, y_max = lambda self:-self.x_offset, lambda self:self.width/self.scale-self.x_offset, lambda self:-self.y_offset, lambda self:self.width/self.scale-self.y_offset
+    x_min = lambda self:-self.x_offset
+    x_max = lambda self:self.width/self.scale-self.x_offset
+    y_min = lambda self:-self.y_offset
+    y_max = lambda self:self.width/self.scale-self.y_offset
 
     # convert between pixels on screen and points in abstract game space
     pixel = lambda self,x,y: (int((x+self.x_offset)*self.scale), int((y+self.y_offset)*self.scale))
@@ -128,7 +134,7 @@ class Game:
         while event:
             self.handle(event)
             event = pygame.event.poll()
-
+        self.process()
         self.render()
 
 def drawSegment(game, color, p1, p2, width=4, realWidth=False): 
@@ -257,11 +263,11 @@ class Rectangle(Renderable):
         pygame.draw.rect(self.game.screen, self.color, pygame.Rect(*self.game.pixel(self.x, self.y), int(self.dx*self.game.scale), int(self.dy*self.game.scale)))
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, x, y, r, width):
+    def __init__(self, game, layer, color, x, y, r, width=3):
         super().__init__(game, layer)
         self.color, self.x, self.y, self.r, self.width = color, x, y, r, width
     def render(self):
-        pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale), self.width)
+        pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale)+self.width, self.width)
 
 
 class Disk(Renderable):
@@ -272,7 +278,7 @@ class Disk(Renderable):
         pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale))
 
 class BorderDisk(Renderable):
-    def __init__(self, game, layer, fill_color, border_color, x, y, r, width=2):
+    def __init__(self, game, layer, fill_color, border_color, x, y, r, width=3):
         super().__init__(game, layer)
         self.fill_color, self.border_color, self.x, self.y, self.r, self.width = fill_color, border_color, x, y, r, width
     def render(self):

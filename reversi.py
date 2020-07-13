@@ -133,8 +133,8 @@ class ReversiGuide(Segment):
     def __init__(self, game, piece):
         super().__init__(game, Layers.GUIDES, Colors.guide, (piece.x, piece.y), None)
         self.piece = piece
-        self.GETvisible = lambda g: g.mousePos and self.piece in g.pivots # todo: remove conditions
-        self.GETp2 = lambda g: g.mousePos
+        self.GETvisible = lambda g: g.getMousePos() and self.piece in g.pivots # todo: remove conditions
+        self.GETp2 = lambda g: g.getMousePos()
 
 start_state = ('WHITE',
     [('WHITE', .5, .5),
@@ -158,11 +158,10 @@ game.load_state = lambda x: (lambda turn, pieces:(
     setattr(game, 'blockers', set()),
     setattr(game, 'pivots', []),
     setattr(game, 'turn', turn),
-    setattr(game, 'over', not any(p.valid_tangents for p in game.layers[Layers.PIECES])),
-    updateMove(game)
+    setattr(game, 'over', not any(p.valid_tangents for p in game.layers[Layers.PIECES]))
     ))(*x)
 
-Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.mousePos == None or game.over or on_board(game.mousePos) else Colors.blocker
+Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or game.over or on_board(game.getMousePos()) else Colors.blocker
 
 FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK'])
 FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE'])
@@ -173,7 +172,8 @@ gameOverMessage.GETtext = lambda g: "Game Over!  "+(
     lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(
     len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']), len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
 
-game.mousePos = None
+game.rawMousePos = None
+game.getMousePos = lambda: game.rawMousePos and game.point(*game.rawMousePos)
 
 game.makePiece = lambda t,x,y: (lambda pieces,new: (
     # we keep track of the locations a piece could fit tangent to two existing pieces
@@ -187,35 +187,35 @@ game.makePiece = lambda t,x,y: (lambda pieces,new: (
 
 nextPiece = ReversiPiece(game, None, None, None, Layers.NEWPIECE)
 nextPiece.GETteam = lambda g: g.turn
-nextPiece.GETvisible = lambda g: g.mousePos and not g.over
-nextPiece.GETx = lambda g: g.mousePos[0]
-nextPiece.GETy = lambda g: g.mousePos[1]
+nextPiece.GETvisible = lambda g: g.getMousePos() and not g.over
+nextPiece.GETx = lambda g: g.getMousePos()[0]
+nextPiece.GETy = lambda g: g.getMousePos()[1]
 nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
 nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
-def attemptMove(game, pos):
-    updateMove(game, pos)
+def attemptMove(game):
+    updateMove(game)
     if game.blockers or not game.pivots: return
     game.record_state()
-    game.makePiece(game.turn, *pos)
+    game.makePiece(game.turn, *game.getMousePos())
     for p in game.flippers: p.team = inc_turn[p.team]
     game.turn = inc_turn[game.turn]
     # game is over if there's nowhere to fit another piece
     # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
     if not any(p.valid_tangents for p in game.layers[Layers.PIECES]):
         game.over = True
-    updateMove(game, pos)
 
 def updateMove(game, pos=None):
     if pos:
-        game.mousePos = pos
-    else:
-        pos = game.mousePos
+        game.rawMousePos = pos
+    pos = game.getMousePos()
     if not game.over and pos and on_board(pos):
         game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, (p.x,p.y))}
         game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
         game.flippers = {p for ps in flipped for p in ps}
     else: game.blockers, game.pivots, game.flippers = set(), [], set()
+
+game.process = lambda: updateMove(game)
 
 game.load_state(start_state)
 
@@ -223,16 +223,15 @@ game.load_state(start_state)
 if 0:
     import random
     spread = 10
-    count = 70
+    count = 100
     [game.makePiece(random.choice(['WHITE','BLACK']),random.random()*spread-spread/2,random.random()*spread-spread/2) for _ in range(count)]
 
-game.click[1] = lambda e: attemptMove(game, game.point(*e.pos))
-# this says if there are more MOUSEMOTION events in the queue, go through them only running the right click (pan) handler, and skip computing pivots and flippers
-game.drag[-1] = lambda e: [game.drag[2](ev) for ev in pygame.event.get(pygame.MOUSEMOTION) if ev.buttons[2]] if pygame.event.peek(pygame.MOUSEMOTION) else updateMove(game, game.point(*e.pos))
+game.click[1] = lambda e: attemptMove(game)
+game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
 game.keys.skipTurn = 117 # f
 
-game.keyPress[game.keys.skipTurn] = lambda _: (setattr(game, 'turn', inc_turn[game.turn]), updateMove(game))
+game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
 
 while 1: 
     game.update()
