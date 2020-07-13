@@ -43,3 +43,9 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 
 * Place piece: left click
 * Skip turn: `u`(f)
+
+## Go (but not Reversi)
+
+* Place ghost piece: space
+* Clear ghost pieces: `esc`
+* Debug tools: right shift, enter, numbers

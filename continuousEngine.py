@@ -266,24 +266,22 @@ class Circle(Renderable):
     def __init__(self, game, layer, color, x, y, r, width=3):
         super().__init__(game, layer)
         self.color, self.x, self.y, self.r, self.width = color, x, y, r, width
-    def render(self):
-        pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale)+self.width, self.width)
+        self.GETloc = lambda g: (self.x, self.y)
+    def render(self, color=None, width=None):
+        if width == None: width = self.width
+        pygame.draw.circle(self.game.screen, self.color or color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale)+width, width)
 
-
-class Disk(Renderable):
+class Disk(Circle):
     def __init__(self, game, layer, color, x, y, r):
-        super().__init__(game, layer)
-        self.color, self.x, self.y, self.r = color, x, y, r
-    def render(self):
-        pygame.draw.circle(self.game.screen, self.color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale))
+        super().__init__(game, layer, color, x, y, r, 0)
 
-class BorderDisk(Renderable):
+class BorderDisk(Circle):
     def __init__(self, game, layer, fill_color, border_color, x, y, r, width=3):
-        super().__init__(game, layer)
-        self.fill_color, self.border_color, self.x, self.y, self.r, self.width = fill_color, border_color, x, y, r, width
+        super().__init__(game, layer, border_color, x, y, r, width)
+        self.fill_color, self.border_color = fill_color, border_color
     def render(self):
-        pygame.draw.circle(self.game.screen, self.fill_color, self.game.pixel(self.x, self.y), int(self.r*self.game.scale))
-        pygame.draw.circle(self.game.screen, self.border_color, self.game.pixel(self.x, self.y), int(self.r*self.game.scale)+self.width, self.width)
+        super().render(self.fill_color, 0)
+        super().render(self.border_color, self.width)
 
 
 def write(screen, font, text, x, y, color, halign='c', valign='c'):
