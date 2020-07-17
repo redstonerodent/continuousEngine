@@ -137,13 +137,20 @@ class Game:
         self.process()
         self.render()
 
-def drawSegment(game, color, p1, p2, width=4, realWidth=False): 
+def drawSegment(game, color, p1, p2, width=3, realWidth=False): 
     # draws a line with ends capped by circles, better than pygame.draw.line
     # realWidth=True  -> width given in pixels (on screen) 
     # realWidth=False -> width given in points (in-game distance)
+
     if realWidth: width *= game.scale
+
     x1,y1 = game.pixel(*p1)
     x2,y2 = game.pixel(*p2)
+
+    if (x1,y1) == (x2,y2):
+        pygame.draw.circle(game.screen, color, (x1,y1), int(width/2))
+        return
+    
     dx, dy = y2-y1, x1-x2 # rotated by 90 degrees
     dx, dy = int(dx*width/2/(dx**2+dy**2)**.5), int(dy*width/2/(dx**2+dy**2)**.5)
     

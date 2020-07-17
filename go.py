@@ -1,6 +1,7 @@
 from continuousEngine import *
 import random
 import time
+from math import atan2, pi
 
 piece_rad = 1
 
@@ -13,10 +14,15 @@ board_rad = 10
 dist_sq = lambda p1,p2: (p1[0]-p2[0])**2+(p1[1]-p2[1])**2
 # is this piece within the (circular) board?
 on_board = lambda p: dist_sq(p,(0,0)) < (board_rad - piece_rad)**2
+# is this point on the board?
+on_board_pt = lambda p: dist_sq(p,(0,0)) < board_rad**2
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
 above_line = lambda p1, p2, x: (p2[0]-p1[0])*(x[1]-p1[1]) > (p2[1]-p1[1])*(x[0]-p1[0])
 # do line segments a-b and x-y intersect?
 intersect = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
+# is the segment from p1 to p2 at all on the board?
+intersect_board = lambda p1, p2:(on_board_pt(p1) or on_board_pt(p2)
+                        or (lambda nearest: on_board_pt(nearest) and (p1[0]-nearest[0])*(p2[0]-nearest[0]) <= 0 and (p1[1]-nearest[1])*(p2[1]-nearest[1]) <= 0 )(nearest_origin(p1,p2)))
 # which pieces (among xs) are close enough to p1 and p2 to possibly get in the way?
 # those which intersect a circle at the same distance as p1 from p2; i.e. within max_dist_sq**.5 of p2 (and symmetrically of p1)
 chokepoints = lambda p1, p2, xs: (lambda max_dist_sq:{x for x in xs if dist_sq(p1,x) < max_dist_sq and dist_sq(p2,x) < max_dist_sq})((dist_sq(p1,p2)**0.5 + 2*piece_rad)**2)
@@ -33,10 +39,12 @@ weak_edges = lambda pieces: {(p1,p2) for p1 in pieces for p2 in pieces if p1 != 
 boundary_cuts = lambda pieces: {((x,y),(2*x,2*y)) for x,y in pieces if dist_sq((0,0),(x,y)) > (board_rad-3*piece_rad)**2}
 # given {(p,p)} edges and {(p,p)} cuts, gives the set of edges which don't cross a cut
 filter_edges = lambda edges, cuts: {edge for edge in edges if not any(intersect(*edge, *cut) for cut in cuts)}
+# union: expects an iterator of sets
+union = lambda ss: (lambda s: set() if s is None else s | union(ss))(next(ss,None))
 # given {p} vertices and [(p1,p2)] edges, give the partition of vertices into connected components [{p}]
 # requires edges to be a list
 components = lambda vertices, edges, cmps=None: components(vertices, edges, [{p} for p in vertices]) if cmps==None else \
-    (lambda e: components(vertices, edges[1:], [s for s in cmps if not s&e]+[set(sum((list(s) for s in cmps if s&e),[]))]))(set(edges[0])) if edges else cmps
+    (lambda e: components(vertices, edges[1:], [s for s in cmps if not s&e]+[union(s for s in cmps if s&e)]))(set(edges[0])) if edges else cmps
 # do pieces centered at p1 and p2 overlap?
 overlap = lambda p1, p2: dist_sq(p1,p2) < (2*piece_rad)**2
 # are pieces centered at p1 p2 close enough to block movement between them?
@@ -52,7 +60,148 @@ double_tangents = lambda p1, p2: (lambda d:
         (((4*piece_rad**2-d/4))**.5*(p2[1]-p1[1])/d**.5,
          ((4*piece_rad**2-d/4))**.5*(p1[0]-p2[0])/d**.5 )
     if 0<d**.5 < 4*piece_rad else ())(dist_sq(p1,p2))
+# point on line p1-p2 closest to origin
+nearest_origin = lambda p1, p2: ((p2[1]-p1[1]) * (p1[0]*p2[1]-p1[1]*p2[0]) / dist_sq(p1,p2), (p1[0]-p2[0]) * (p1[0]*p2[1]-p1[1]*p2[0]) / dist_sq(p1,p2))
+# the result of moving p1 towards p2 until it's on the board
+snap_to_circle = lambda p1, p2: p1 if on_board_pt(p1) else (lambda nearest: (nearest[0] + (p1[0]-p2[0]) / dist_sq(p1,p2)**.5 * (board_rad**2 - dist_sq(nearest, (0,0)))**.5, nearest[1] + (p1[1]-p2[1]) / dist_sq(p1,p2)**.5 * (board_rad**2 - dist_sq(nearest, (0,0)))**.5))(nearest_origin(p1,p2))
+# area of polygon with vertices pts
+# assumes points are in the order stored in Voronoi (counterclockwise, I think)
+polygon_area = lambda pts: sum((lambda a,b: a[0]*b[1]-a[1]*b[0])(pts[i], pts[(i+1)%len(pts)]) for i in range(len(pts))) / 2
+# area of the region of the board on the side of chord a-b opposite point p
+sliver_area = lambda a, b: (atan2(*b)-atan2(*a))%(2*pi) * board_rad**2 / 2 - polygon_area([(0,0), b, a])
+# area of the intersection of the polygon with vertices pts and the board
+cell_area = lambda pts: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1]) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or board_rad**2*pi)(
+    [[snap_to_circle(pts[i], pts[(i+1)%len(pts)]), snap_to_circle(pts[(i+1)%len(pts)], pts[i])] for i in range(len(pts)) if intersect_board(pts[i], pts[(i+1)%len(pts)])])
 
+## for computing voronoi diagrams
+## by josh brunner
+
+def circumcenter(p1,p2,p3):
+    #rotate and sum helper function because you do it alot
+    f = lambda g:g(p1,p2,p3)+g(p2,p3,p1)+g(p3,p1,p2)
+    num = lambda i:f(lambda a,b,c: (a[1-i]-b[1-i])*a[1-i]*b[1-i] + a[1-i]*c[i]*c[i] - c[1-i]*a[i]*a[i])
+    denom = lambda i:f(lambda a,b,c: 2 * (a[i]*b[1-i] - a[i]*c[1-i]))
+    return (num(0)/denom(0), num(1)/denom(1))
+class Voronoi:
+    def __init__(self, p1, p2):
+        """
+        p1, p2 are points that define a bounding box which you guarentee that all of the points of your voronoi diagram lie within
+        Behavior is undefined for inserted points outside this bounding box. """
+        center = ((p1[0]+p2[0])/2,(p1[1]+p2[1])/2)
+        a,b = ((p1[0]-center[0])* 8+center[0],center[1]),(center[0],(p1[1]-center[1])* 8+center[1])
+        c,d = ((p1[0]-center[0])*-8+center[0],center[1]),(center[0],(p1[1]-center[1])*-8+center[1])
+        if (abs(p1[0]-p2[0])<abs(p1[1]-p2[1])):
+            a,b,c,d = b,c,d,a
+        #note: to be technically correct, we actually need to scale abc to be farther from the center.
+        self.points = [a,b,c,d]
+        #for each point, a list of points whose voronoi cells are adjacent.
+        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
+        self.contiguities = {a:[b,d,"inf"], b:[c,d,a,"inf"], c:[d,b,"inf"],d:[a,b,c,"inf"]}
+        #for each point, the list of vertices which make up its voronoi cell.
+        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
+        #voronoi_vertices[a][n] is the circumcenter of the points a, contiguities[a][n], contiguities[a][n+1] (taking modulo as necessary to make the indicies work out)
+        f = lambda x,y,i:((x[i]+y[i])/2-center[i])*10+center[i]
+        lc = circumcenter(a,b,d)
+        rc = circumcenter(b,c,d)
+        inf_ab = (f(a,b,0),f(a,b,1))
+        inf_bc = (f(b,c,0),f(b,c,1))
+        inf_cd = (f(c,d,0),f(c,d,1))
+        inf_da = (f(d,a,0),f(d,a,1))
+        self.voronoi_vertices = {a:[lc,inf_da,inf_ab],b:[rc,lc,inf_ab,inf_bc],c:[rc,inf_bc,inf_cd],d:[lc,rc,inf_cd,inf_da]}
+    def nearest(self, p):
+        return min(self.points, key=lambda q:dist_sq(p,q))
+    def add(self, p):
+        """add a point to the voronoi diagram. The algorithm outline is at the top of the file."""
+        self.contiguities[p] = []
+        #This is a list of pairs. For entry in self.contiguities[p], we will have one entry in to_delete, which consists of two indices for which we need to remove the voronoi vertices bewteen.
+        q_0 = self.nearest(p)
+        q = q_0
+        while True:
+            i = 0
+            k = len(self.contiguities[q])
+            #this is the range of indices of q's contiguities that should be removed due to the addition of p
+            #this range is exclusive: we want to keep both endpoints of the range in q's contiguities
+            d = [0,0]
+            while i<k:
+                r = self.voronoi_vertices[q][i%k]
+                i+=1
+                s = self.voronoi_vertices[q][i%k]
+                #the perpendicular bisector of pq crosses the segment rs in the r->s direction
+                #in otherwords, the unique adjacent pair r,s with the property that r is closer to q and s is closer to p
+                r_dist = ((p[0]-q[0])*(p[0]-r[0]) + (p[1]-q[1])*(p[1]-r[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
+                s_dist = ((p[0]-q[0])*(p[0]-s[0]) + (p[1]-q[1])*(p[1]-s[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
+                if  r_dist > .5 >= s_dist:
+                    d[0] = i%k
+                    self.contiguities[p].append(self.contiguities[q][i%k])
+                    q_next = self.contiguities[q][i%k]
+                    #print("i="+str(i)+", q_next = "+str(q_next))
+                    #now we check the other direction; i.e. r,s such that s is closer to q and r is closer to p
+                elif r_dist < .5 <= s_dist:
+                    d[1]=i%k
+        #now we clean up q's edges that no longer should exist using to_delete
+            l = self.contiguities[q]
+            r0 = l[d[0]]
+            r1 = l[d[1]]
+            self.contiguities[q] = l[0:d[0]+1]+[p]+l[d[1]:] if d[1]>d[0] else l[d[1]:d[0]+1]+[p]
+            l = self.voronoi_vertices[q]
+            self.voronoi_vertices[q] = l[0:d[0]]+[circumcenter(p,q,r0),circumcenter(p,q,r1)]+l[d[1]:] if d[1]>d[0] else l[d[1]:d[0]]+[circumcenter(p,q,r0),circumcenter(p,q,r1)]
+            q = q_next
+            if q_next == q_0:
+                break
+        #finally, we need to add p's voronoi vertices to the list
+        l = self.contiguities[p]
+        self.voronoi_vertices[p] = [circumcenter(p,l[i],l[(i+1)%len(l)]) for i in range(len(l))]
+        self.points.append(p)
+    def remove(self,p):
+        """remove a point from the diagram. The algorithm outline is at the top of the file."""
+        l = self.contiguities[p]
+        #this function cleans up all the loose ends of a point b that used to neighbor p by joining the two broken edges of the voronoi diagram at the common point center
+        def f(b, center):
+            m = self.contiguities[b]
+            i_p = m.index(p)
+            self.contiguities[b] = m[:i_p]+m[i_p+1:]
+            m = self.voronoi_vertices[b]
+            if i_p > 0:
+                self.voronoi_vertices[b] = m[:i_p-1] + [center] + m[i_p+1:]
+            else:
+                self.voronoi_vertices[b] = m[1:-1] + [center]            
+        while len(l) > 3:
+            for i in range(len(l)):
+                a,b,c = l[(i-1)%len(l)],l[(i+0)%len(l)],l[(i+1)%len(l)]
+                center = circumcenter(a,b,c)
+                r = dist_sq(center,a)
+                #if no other point is in the circumcircle, so this is a valid triangle in the delaunay triagulation.
+                if all(q in {a,b,c} or dist_sq(q,center) >= r for q in l):
+                    #fixing the first point in clockwise order of this triangle
+                    m = self.contiguities[a]
+                    i_p = m.index(p)
+                    self.contiguities[a] = m[:i_p]+[c]+m[i_p:]
+                    m = self.voronoi_vertices[a]
+                    if i_p > 0:
+                        self.voronoi_vertices[a] = m[:i_p-1] + [center] + m[i_p-1:]
+                    else:
+                        self.voronoi_vertices[a] = m + [center]
+                    #fixing the third point in clockwise order
+                    m = self.contiguities[c]
+                    i_p = m.index(p)
+                    self.contiguities[c] = m[:i_p+1]+[a]+m[i_p+1:]
+                    m = self.voronoi_vertices[c]
+                    self.voronoi_vertices[c] = m[:i_p+1] + [center] + m[i_p+1:]
+                    #fixing the middle point. Note that we have found all of the new contiguities of this point, so we clean it up with f.
+                    f(b,center)
+
+                    l = l[:i]+l[i+1:]
+                    break
+        #Now there are only three points left, so we just need to add the circumcenter and clean up the loose ends
+        a,b,c = l[0],l[1],l[2]
+        center = circumcenter(a,b,c)
+        f(a,center)
+        f(b,center)
+        f(c,center)
+        del self.contiguities[p]
+        del self.voronoi_vertices[p]
+        i_p = self.points.index(p)
+        self.points = self.points[:i_p]+self.points[i_p+1:]
 
 teams = ['WHITE', 'BLACK']
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
@@ -61,6 +210,7 @@ class Layers:
     BOUNDARY    = 1
     GUIDES      = 1.5
     PIECES      = {'WHITE':2, 'BLACK':2.1, 'GHOST':2.2, 'NEW':5}
+    TERRITORY   = 3
     COUNT       = 10
     DEBUG       = 20
 
@@ -77,7 +227,7 @@ class Colors:
     boundary    = (0,0,0)
     debug       = [(255,0,0),(0,255,0),(0,0,255)]
     ghost       = (128,128,128)
-
+    territory   = (90,50,255)
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
@@ -98,6 +248,17 @@ class GoPieceGuide(Circle):
         self.GETcolor = lambda _: Colors.guide[self.piece.team]
         self.GETvisible = lambda g: self.piece in g.guides
 
+class GoVoronoi(Renderable):
+    def render(self):
+        ws, bs = [{p.loc for p in game.layers[Layers.PIECES[t]]} for t in teams]
+        for p in ws:
+            l = self.diagram.voronoi_vertices[p]
+            for i in range(len(l)):
+                p1, p2 = l[i], l[(i+1)%len(l)]
+                if self.diagram.contiguities[p][(i+1)%len(l)] in bs and intersect_board(p1, p2):
+                    drawSegment(self.game, Colors.territory, snap_to_circle(p1,p2), snap_to_circle(p2,p1))
+                # elif self.diagram.contiguities[p][(i+1)%len(l)] in ws:
+                #     drawSegment(self.game, (0,0,0), p1, p2)
 
 class GoDebugger(Renderable):
     render = lambda self: (
@@ -118,20 +279,21 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
     game.clearLayer(Layers.GUIDES),
     game.add(game.nextPiece.guide, Layers.GUIDES),
     setattr(game.nextPiece.guide, 'visible', False),
+    setattr(game.voronoi, 'diagram', Voronoi((-board_rad, -board_rad), (board_rad, board_rad))),
     [game.clearLayer(Layers.PIECES[team]) for team in teams+['GHOST']],
     [game.makePiece(team, *p) for team in teams for p in pieces[team]],
     setattr(game, 'turn', turn),
     setattr(game, 'capturedCount', capCount),
     setattr(game, 'guides', set()),
     updateLiberties(game),
-    updateGraph(game)
+    updateGraph(game),
+    updateTerritory(game)
     ))(*x)
 
-Circle(game, Layers.BOUNDARY, Colors.boundary, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
+Circle(game, Layers.BOUNDARY, None, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
 
-FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: g.capturedCount['WHITE']
-FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: g.capturedCount['BLACK']
-
+FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, None, game.width-30,30, *'rt').GETtext = lambda g: '{} + {:5.1f} = {:5.1f}'.format(g.capturedCount['WHITE'], g.territory['BLACK'], g.capturedCount['WHITE'] + g.territory['BLACK'])
+FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, None, game.width-30,60, *'rt').GETtext = lambda g: '{} + {:5.1f} = {:5.1f}'.format(g.capturedCount['BLACK'], g.territory['WHITE'], g.capturedCount['BLACK'] + g.territory['WHITE'])
 game.debugger = GoDebugger(game, Layers.DEBUG)
 game.debugger.visible = False
 
@@ -144,10 +306,15 @@ game.components = {t:[] for t in teams}
 game.captures = set()
 
 # make a piece on team t at (x,y)
-game.makePiece = lambda t,x,y: GoPiece(game, t, x, y)
+game.makePiece = lambda t,x,y: (GoPiece(game, t, x, y), game.voronoi.diagram.add((x,y)))
 
 # remove pieces at {(x,y)} ps
-game.removePieces = lambda ps: (lambda pcs:[(game.layers[Layers.PIECES[pc.team]].remove(pc), game.layers[Layers.GUIDES].remove(pc.guide), game.capturedCount.__setitem__(pc.team, game.capturedCount[pc.team]+1)) for pc in pcs])([pc for t in teams for pc in game.layers[Layers.PIECES[t]] if pc.loc in ps])
+game.removePieces = lambda ps: (lambda pcs: [(
+    game.layers[Layers.PIECES[pc.team]].remove(pc), game.layers[Layers.GUIDES].remove(pc.guide),
+    game.capturedCount.__setitem__(pc.team, game.capturedCount[pc.team]+1),
+    game.voronoi.diagram.remove(pc.loc)
+    ) for pc in pcs
+    ])([pc for t in teams for pc in game.layers[Layers.PIECES[t]] if pc.loc in ps])
 
 game.nextPiece = GoPiece(game, 'NEW', None, None)
 game.nextPiece.GETteam = lambda g: g.turn
@@ -156,6 +323,8 @@ game.nextPiece.GETx = lambda g: g.getMousePos()[0]
 game.nextPiece.GETy = lambda g: g.getMousePos()[1]
 game.nextPiece.GETborder_color = lambda g: Colors.blocker if g.blockers or not on_board(game.getMousePos()) else Colors.capture if game.getMousePos() in game.captures else Colors.legal
 game.nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
+
+game.voronoi = GoVoronoi(game, Layers.TERRITORY)
 
 def attemptMove(game):
     updateMove(game)
@@ -168,19 +337,17 @@ def attemptMove(game):
     game.clearLayer(Layers.PIECES['GHOST'])
     game.nextPiece.guide.visible = False
 
-    times = []
-    times.append(time.perf_counter())
+    # times = []
+    # times.append(time.perf_counter())
     updateLiberties(game)
-    times.append(time.perf_counter())
+    # times.append(time.perf_counter())
     updateGraph(game)
-    times.append(time.perf_counter())
-    print(*[times[i]-times[i-1] for i in range(1,len(times))], sep='\n')
-    print()
+    updateTerritory(game)
+    # times.append(time.perf_counter())
+    # print(*[times[i]-times[i-1] for i in range(1,len(times))], sep='\n')
+    # print()
 
 updateLiberties = lambda game: setattr(game, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in teams for pc2 in game.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in game.layers[Layers.PIECES[inc_turn[t]]] if sorta_nearby(pc2.loc, pc.loc)]) for t in teams for pc in game.layers[Layers.PIECES[t]]})
-
-# expects an iterator
-union = lambda ss: (lambda s: set() if s is None else s | union(ss))(next(ss,None))
 
 def updateMove(game, pos=None):
     if pos:
@@ -254,6 +421,9 @@ def updateGraph(game):
     game.potentialEdges = {t:w_es[t]-game.edges[t] for t in teams}
     game.components = {t:components(pieces[t], list(game.edges[t])) for t in teams}
 
+def updateTerritory(game):
+    game.territory = {t:sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for pc in game.layers[Layers.PIECES[t]]) for t in teams}
+
 piece_at = lambda pos, game: (lambda ps: ps[0] if ps else game.nextPiece)([p for t in teams for p in game.layers[Layers.PIECES[t]] if dist_sq(pos, p.loc) < piece_rad**2])
 
 game.process = lambda: updateMove(game)
@@ -280,6 +450,14 @@ testGames = [
     ,
     ('BLACK', {'WHITE': 1, 'BLACK': 1}, {'WHITE': [(-3.430099999999997, -6.7109000000000005), (3.3316999999999997, -1.6439000000000092), (6.963699999999999, -1.6599000000000093), (5.1396999999999995, -4.61990000000001), (3.2996999999999996, 0.644099999999991), (5.1236999999999995, 2.1160999999999905), (7.075699999999999, 0.580099999999991), (-1.7483000000000066, 1.7200999999999929), (-2.068300000000007, 5.854499999999993), (0.46609999999999374, 4.024099999999994), (-3.962700000000007, 3.5760999999999927)], 'BLACK': [(-5.426899999999994, -4.12529999999999), (-1.5612999999999975, -4.099700000000001), (-5.593299999999996, -6.480500000000003), (-1.1132999999999953, -6.454900000000003), (-2.226899999999996, -8.554100000000004), (-5.094099999999997, -1.6037), (-1.9452999999999978, -1.5269000000000004), (2.499699999999999, -3.49990000000001), (7.491699999999998, -3.62790000000001), (3.7156999999999982, -6.13990000000001), (5.747699999999998, -6.55590000000001), (-3.924300000000007, 1.5024999999999928), (-4.205900000000007, 5.611299999999993), (-6.151500000000007, 3.371299999999993)]})
     ,
+    ('WHITE', {'WHITE': 1, 'BLACK': 0}, {'WHITE': [], 'BLACK': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-0.6803124999999728, -5.4562500000000265)]})
+    ,
+    ('BLACK', {'WHITE': 0, 'BLACK': 0}, {'WHITE': [(1.3331250000000239, -4.4271875000000165)], 'BLACK': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804)]})
+    ,
+    ('BLACK', {'BLACK': 1, 'WHITE': 0}, {'BLACK': [], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-0.6803124999999728, -5.4562500000000265)]})
+    ,
+    ('WHITE', {'BLACK': 0, 'WHITE': 0}, {'BLACK': [(1.3331250000000239, -4.4271875000000165)], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804)]})
+
 ]
 
 game.numKey = lambda n: (game.record_state(), game.load_state(testGames[n])) if n<len(testGames) else print(str(n)+' not saved') # load presaved game for debugging
@@ -292,3 +470,5 @@ game.keyPress[game.keys.toggleDebug] = lambda _: setattr(game.debugger, 'visible
 
 while 1: 
     game.update()
+    print(sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]))
+    # print([cell_area( game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]] )
