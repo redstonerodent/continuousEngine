@@ -296,8 +296,8 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
 
 Circle(game, Layers.BOUNDARY, None, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
 
-FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, None, game.width-30,30, *'rt').GETtext = lambda g: '{} + {:5.1f} = {:5.1f}'.format(g.capturedCount['WHITE'], g.territory['BLACK'], g.capturedCount['WHITE'] + g.territory['BLACK'])
-FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, None, game.width-30,60, *'rt').GETtext = lambda g: '{} + {:5.1f} = {:5.1f}'.format(g.capturedCount['BLACK'], g.territory['WHITE'], g.capturedCount['BLACK'] + g.territory['WHITE'])
+FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, None, game.width-30,30, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['WHITE'], g.territory['BLACK'], g.capturedCount['WHITE'] + g.territory['BLACK'])
+FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, None, game.width-30,60, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['BLACK'], g.territory['WHITE'], g.capturedCount['BLACK'] + g.territory['WHITE'])
 game.debugger = GoDebugger(game, Layers.DEBUG)
 game.debugger.visible = False
 
