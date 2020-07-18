@@ -67,7 +67,7 @@ snap_to_circle = lambda p1, p2: p1 if on_board_pt(p1) else (lambda nearest: (nea
 # area of polygon with vertices pts
 # assumes points are in the order stored in Voronoi (counterclockwise, I think)
 polygon_area = lambda pts: sum((lambda a,b: a[0]*b[1]-a[1]*b[0])(pts[i], pts[(i+1)%len(pts)]) for i in range(len(pts))) / 2
-# area of the region of the board on the side of chord a-b opposite point p
+# area of the region of the board on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b: (atan2(*b)-atan2(*a))%(2*pi) * board_rad**2 / 2 - polygon_area([(0,0), b, a])
 # area of the intersection of the polygon with vertices pts and the board
 cell_area = lambda pts: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1]) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or board_rad**2*pi)(
@@ -87,6 +87,7 @@ class Voronoi:
         """
         p1, p2 are points that define a bounding box which you guarentee that all of the points of your voronoi diagram lie within
         Behavior is undefined for inserted points outside this bounding box. """
+        self.box = (p1,p2)
         center = ((p1[0]+p2[0])/2,(p1[1]+p2[1])/2)
         a,b = ((p1[0]-center[0])* 8+center[0],center[1]),(center[0],(p1[1]-center[1])* 8+center[1])
         c,d = ((p1[0]-center[0])*-8+center[0],center[1]),(center[0],(p1[1]-center[1])*-8+center[1])
@@ -130,6 +131,7 @@ class Voronoi:
                 #in otherwords, the unique adjacent pair r,s with the property that r is closer to q and s is closer to p
                 r_dist = ((p[0]-q[0])*(p[0]-r[0]) + (p[1]-q[1])*(p[1]-r[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
                 s_dist = ((p[0]-q[0])*(p[0]-s[0]) + (p[1]-q[1])*(p[1]-s[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
+                #print("p={}, q={}, r={}, s={}, r_dist={}, s_dist={}".format(p,q,r,s,r_dist,s_dist))
                 if  r_dist > .5 >= s_dist:
                     d[0] = i%k
                     self.contiguities[p].append(self.contiguities[q][i%k])
@@ -138,7 +140,7 @@ class Voronoi:
                     #now we check the other direction; i.e. r,s such that s is closer to q and r is closer to p
                 elif r_dist < .5 <= s_dist:
                     d[1]=i%k
-        #now we clean up q's edges that no longer should exist using to_delete
+        #now we clean up q's edges that no longer should exist using d
             l = self.contiguities[q]
             r0 = l[d[0]]
             r1 = l[d[1]]
@@ -164,14 +166,17 @@ class Voronoi:
             if i_p > 0:
                 self.voronoi_vertices[b] = m[:i_p-1] + [center] + m[i_p+1:]
             else:
-                self.voronoi_vertices[b] = m[1:-1] + [center]            
+                self.voronoi_vertices[b] = m[1:-1] + [center]
         while len(l) > 3:
             for i in range(len(l)):
                 a,b,c = l[(i-1)%len(l)],l[(i+0)%len(l)],l[(i+1)%len(l)]
                 center = circumcenter(a,b,c)
                 r = dist_sq(center,a)
                 #if no other point is in the circumcircle, so this is a valid triangle in the delaunay triagulation.
-                if all(q in {a,b,c} or dist_sq(q,center) >= r for q in l):
+                v = (a[1]-c[1],c[0]-a[0])
+                m = ((a[0]+c[0])/2,(a[1]+c[1])/2)
+                flag = ((p[0]-m[0])*v[0] + (p[1]-m[1])*v[1])*((b[0]-m[0])*v[0] + (b[1]-m[1])*v[1]) < 0
+                if all(q in {a,b,c} or dist_sq(q,center) >= r for q in l) and flag:
                     #fixing the first point in clockwise order of this triangle
                     m = self.contiguities[a]
                     i_p = m.index(p)
@@ -180,7 +185,7 @@ class Voronoi:
                     if i_p > 0:
                         self.voronoi_vertices[a] = m[:i_p-1] + [center] + m[i_p-1:]
                     else:
-                        self.voronoi_vertices[a] = m + [center]
+                        self.voronoi_vertices[a] = [m[-1]] + m[:-1] + [center]
                     #fixing the third point in clockwise order
                     m = self.contiguities[c]
                     i_p = m.index(p)
@@ -257,8 +262,7 @@ class GoVoronoi(Renderable):
                 p1, p2 = l[i], l[(i+1)%len(l)]
                 if self.diagram.contiguities[p][(i+1)%len(l)] in bs and intersect_board(p1, p2):
                     drawSegment(self.game, Colors.territory, snap_to_circle(p1,p2), snap_to_circle(p2,p1))
-                # elif self.diagram.contiguities[p][(i+1)%len(l)] in ws:
-                #     drawSegment(self.game, (0,0,0), p1, p2)
+                # drawSegment(self.game, (0,0,0), p1,p2)
 
 class GoDebugger(Renderable):
     render = lambda self: (
@@ -283,7 +287,7 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
     [game.clearLayer(Layers.PIECES[team]) for team in teams+['GHOST']],
     [game.makePiece(team, *p) for team in teams for p in pieces[team]],
     setattr(game, 'turn', turn),
-    setattr(game, 'capturedCount', capCount),
+    setattr(game, 'capturedCount', capCount.copy()),
     setattr(game, 'guides', set()),
     updateLiberties(game),
     updateGraph(game),
@@ -422,7 +426,7 @@ def updateGraph(game):
     game.components = {t:components(pieces[t], list(game.edges[t])) for t in teams}
 
 def updateTerritory(game):
-    game.territory = {t:sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for pc in game.layers[Layers.PIECES[t]]) for t in teams}
+    game.territory = {t:sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for pc in game.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in teams}
 
 piece_at = lambda pos, game: (lambda ps: ps[0] if ps else game.nextPiece)([p for t in teams for p in game.layers[Layers.PIECES[t]] if dist_sq(pos, p.loc) < piece_rad**2])
 
@@ -457,7 +461,11 @@ testGames = [
     ('BLACK', {'BLACK': 1, 'WHITE': 0}, {'BLACK': [], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-0.6803124999999728, -5.4562500000000265)]})
     ,
     ('WHITE', {'BLACK': 0, 'WHITE': 0}, {'BLACK': [(1.3331250000000239, -4.4271875000000165)], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804)]})
-
+    ,
+    ('WHITE', {'BLACK': 0, 'WHITE': 1}, {'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-2.0, 1.5999999999999996), (4.4399999999999995, 5.24), (-4.08, -3.2199999999999998), (-4.86, -5.58), (-4.744999999999996, 5.1650000000000045), (1.2050000000000036, 6.690000000000005), (5.155000000000003, -1.7849999999999966), (7.905000000000003, -2.1599999999999966), (-6.894999999999996, -4.009999999999996), (-0.2949999999999964, 0.31500000000000483), (4.555000000000005, 0.4150000000000045), (-3.6199999999999957, 7.765000000000004)], 'BLACK': [(1.3331250000000239, -4.4271875000000165), (-1.42, 5.619999999999999), (6.940000000000001, 0.8599999999999994), (-7.04, -1.5199999999999996), (-2.8600000000000003, -7.6), (-3.5599999999999996, -0.6799999999999997), (-6.744999999999996, 2.9650000000000034), (0.855000000000004, 4.115000000000004), (6.480000000000006, 4.7900000000000045), (5.880000000000004, -5.634999999999996), (3.0050000000000043, -7.934999999999996), (-5.994999999999996, 0.4650000000000034), (3.8300000000000036, 2.6650000000000045), (-1.269999999999996, 7.940000000000005), (-4.144999999999996, 2.765000000000004), (-8.48, 0.7799999999999994)]})
+    ,
+    ('WHITE', {'BLACK': 0, 'WHITE': 1}, {'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-2.0, 1.5999999999999996), (4.4399999999999995, 5.24), (-4.08, -3.2199999999999998), (-4.86, -5.58), (-4.744999999999996, 5.1650000000000045), (1.2050000000000036, 6.690000000000005), (5.155000000000003, -1.7849999999999966), (7.905000000000003, -2.1599999999999966), (-6.894999999999996, -4.009999999999996), (-0.2949999999999964, 0.31500000000000483), (4.555000000000005, 0.4150000000000045), (-3.6199999999999957, 7.765000000000004)], 'BLACK': [(1.3331250000000239, -4.4271875000000165), (-1.42, 5.619999999999999), (6.940000000000001, 0.8599999999999994), (-7.04, -1.5199999999999996), (-2.8600000000000003, -7.6), (-3.5599999999999996, -0.6799999999999997), (-6.744999999999996, 2.9650000000000034), (0.855000000000004, 4.115000000000004), (6.480000000000006, 4.7900000000000045), (5.880000000000004, -5.634999999999996), (3.0050000000000043, -7.934999999999996), (-5.994999999999996, 0.4650000000000034), (3.8300000000000036, 2.6650000000000045), (-1.269999999999996, 7.940000000000005), (-4.144999999999996, 2.765000000000004)]})
+    ,
 ]
 
 game.numKey = lambda n: (game.record_state(), game.load_state(testGames[n])) if n<len(testGames) else print(str(n)+' not saved') # load presaved game for debugging
@@ -470,5 +478,5 @@ game.keyPress[game.keys.toggleDebug] = lambda _: setattr(game.debugger, 'visible
 
 while 1: 
     game.update()
-    print(sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]))
+    # print(sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]))
     # print([cell_area( game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]] )
