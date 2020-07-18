@@ -30,8 +30,10 @@ chokepoints = lambda p1, p2, xs: (lambda max_dist_sq:{x for x in xs if dist_sq(p
 split_chokepoints = lambda p1, p2, xs: (lambda cps: ({x for x in cps if above_line(p1,p2,x)},{x for x in cps if not above_line(p1,p2,x)}))(chokepoints(p1,p2,xs))
 # can you locally slide from p1 to p2, without touching pieces at xs?
 # assumes p1 and p2 are nearby (within 4r)
-# the only way this fails is if there's a pair of chokepoints within 4r and between p1 and p2, in the sense that p1 and p2 are on opposite sides of the line
-connected = lambda p1, p2, xs: (lambda tops, bots: not any(nearby(top,bot) and intersect(p1,p2,top,bot) for top in tops for bot in bots))(*split_chokepoints(p1,p2,xs))
+# this fails if there's a pair of chokepoints within 4r and between p1 and p2, in the sense that p1 and p2 are on opposite sides of the line
+#   or if there's a chokepoint within 3r of the boundary that blocks movement
+connected = lambda p1, p2, xs: (lambda tops, bots: not any(nearby(top,bot) and intersect(p1,p2,top,bot) for top in tops for bot in bots)
+                                                    and not any(intersect(p1,p2,*cut) for cut in boundary_cuts(tops|bots)))(*split_chokepoints(p1,p2,xs))
 # given {p} pieces, give {(p1,p2)} of pairs of points within 4r
 weak_edges = lambda pieces: {(p1,p2) for p1 in pieces for p2 in pieces if p1 != p2 and nearby(p1,p2)}
 # given [p] pieces, give {(p1,b)} of lines to the boundary which might prevent movement (i.e. less than 3r)
@@ -69,9 +71,10 @@ snap_to_circle = lambda p1, p2: p1 if on_board_pt(p1) else (lambda nearest: (nea
 polygon_area = lambda pts: sum((lambda a,b: a[0]*b[1]-a[1]*b[0])(pts[i], pts[(i+1)%len(pts)]) for i in range(len(pts))) / 2
 # area of the region of the board on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b: (atan2(*b)-atan2(*a))%(2*pi) * board_rad**2 / 2 - polygon_area([(0,0), b, a])
+# given a polygon pts, give the list [[p1,p2]] of line segments on the board
+segments_on_board = lambda pts: [[snap_to_circle(pts[i], pts[(i+1)%len(pts)]), snap_to_circle(pts[(i+1)%len(pts)], pts[i])] for i in range(len(pts)) if intersect_board(pts[i], pts[(i+1)%len(pts)])]
 # area of the intersection of the polygon with vertices pts and the board
-cell_area = lambda pts: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1]) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or board_rad**2*pi)(
-    [[snap_to_circle(pts[i], pts[(i+1)%len(pts)]), snap_to_circle(pts[(i+1)%len(pts)], pts[i])] for i in range(len(pts)) if intersect_board(pts[i], pts[(i+1)%len(pts)])])
+cell_area = lambda pts: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1]) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or board_rad**2*pi)(segments_on_board(pts))
 
 ## for computing voronoi diagrams
 ## by josh brunner
@@ -212,27 +215,27 @@ teams = ['WHITE', 'BLACK']
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
 
 class Layers:
+    TERRITORY   = 0.5
     BOUNDARY    = 1
     GUIDES      = 1.5
     PIECES      = {'WHITE':2, 'BLACK':2.1, 'GHOST':2.2, 'NEW':5}
-    TERRITORY   = 3
     COUNT       = 10
     DEBUG       = 20
 
 class Colors:
     fill        = {'WHITE': (205,205,205), 'BLACK': (50, 50, 50 )}
     guide       = {'WHITE': (225,225,225), 'BLACK': (30, 30, 30 )}
-    border      = {'WHITE': (80, 80, 80 ), 'BLACK': (135,135,135)}
-    newfill     = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
+    border      = {'WHITE': (80, 80, 80 ), 'BLACK': (160,160,160)}
+    newfill     = {'WHITE': (255,255,255), 'BLACK': (0,0,0)}
     legal       = (0,255,0)
     blocker     = (255,0,0)
     capture     = (0,180,255)
     background  = (212,154,61)
-    text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0), 'GAMEOVER':(230,20,128)}
+    text        = {'WHITE': (255,255,255), 'BLACK': (0,0,0), 'GAMEOVER': (230,20,128)}
     boundary    = (0,0,0)
     debug       = [(255,0,0),(0,255,0),(0,0,255)]
     ghost       = (128,128,128)
-    territory   = (90,50,255)
+    territory   = {'WHITE': (222,174,81), 'BLACK': (192,134,41)}
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
@@ -251,18 +254,23 @@ class GoPieceGuide(Circle):
         self.GETx = lambda _: self.piece.x
         self.GETy = lambda _: self.piece.y
         self.GETcolor = lambda _: Colors.guide[self.piece.team]
-        self.GETvisible = lambda g: self.piece in g.guides
+        self.visible = False
 
-class GoVoronoi(Renderable):
-    def render(self):
-        ws, bs = [{p.loc for p in game.layers[Layers.PIECES[t]]} for t in teams]
-        for p in ws:
-            l = self.diagram.voronoi_vertices[p]
-            for i in range(len(l)):
-                p1, p2 = l[i], l[(i+1)%len(l)]
-                if self.diagram.contiguities[p][(i+1)%len(l)] in bs and intersect_board(p1, p2):
-                    drawSegment(self.game, Colors.territory, snap_to_circle(p1,p2), snap_to_circle(p2,p1))
-                # drawSegment(self.game, (0,0,0), p1,p2)
+class GoVoronoi(CachedImg):
+    def __init__(self, game, layer):
+        def gen(_):
+            self.mask.fill((0,0,0,0))
+            self.scratch.fill((0,0,0,0))
+            drawCircle(self.game, (255,255,255), (0,0), board_rad, surface=self.mask)
+            for t in teams:
+                  for p in game.layers[Layers.PIECES[t]]:
+                    drawPolygon(self.game, Colors.territory[t], self.diagram.voronoi_vertices[p.loc], surface=self.scratch)
+            self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
+            return self.mask
+        super().__init__(game, layer, None, gen)
+        self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
+        self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
+
 
 class GoDebugger(Renderable):
     render = lambda self: (
@@ -291,7 +299,8 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
     setattr(game, 'guides', set()),
     updateLiberties(game),
     updateGraph(game),
-    updateTerritory(game)
+    updateTerritory(game),
+    game.clearCache()
     ))(*x)
 
 Circle(game, Layers.BOUNDARY, None, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
@@ -329,6 +338,7 @@ game.nextPiece.GETborder_color = lambda g: Colors.blocker if g.blockers or not o
 game.nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
 game.voronoi = GoVoronoi(game, Layers.TERRITORY)
+game.viewChange = lambda: game.clearCache()
 
 def attemptMove(game):
     updateMove(game)
@@ -338,8 +348,8 @@ def attemptMove(game):
     game.removePieces(game.captures)
     game.turn = inc_turn[game.turn]
     [setattr(p.guide, 'visible', False) for t in teams for p in game.layers[Layers.PIECES[t]]]
-    game.clearLayer(Layers.PIECES['GHOST'])
     game.nextPiece.guide.visible = False
+    game.clearLayer(Layers.PIECES['GHOST'])
 
     # times = []
     # times.append(time.perf_counter())
@@ -350,6 +360,7 @@ def attemptMove(game):
     # times.append(time.perf_counter())
     # print(*[times[i]-times[i-1] for i in range(1,len(times))], sep='\n')
     # print()
+    game.clearCache()
 
 updateLiberties = lambda game: setattr(game, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in teams for pc2 in game.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in game.layers[Layers.PIECES[inc_turn[t]]] if sorta_nearby(pc2.loc, pc.loc)]) for t in teams for pc in game.layers[Layers.PIECES[t]]})
 
@@ -442,11 +453,13 @@ game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
 game.keys.skipTurn = 117 # f
 game.keys.placeGhost = 32 # space
-game.keys.clearGhosts = 27 # escape
+game.keys.clearGuides = 27 # escape
 
 game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
-game.keyPress[game.keys.placeGhost] = lambda _: None if game.blockers else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(game, Layers.PIECES['GHOST'], Colors.ghost, *game.getMousePos(), piece_rad))
-game.keyPress[game.keys.clearGhosts] = lambda _: game.clearLayer(Layers.PIECES['GHOST'])
+game.keyPress[game.keys.placeGhost] = lambda _: None if game.blockers or not on_board(game.getMousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(game, Layers.PIECES['GHOST'], Colors.ghost, *game.getMousePos(), piece_rad))
+game.keyPress[game.keys.clearGuides] = lambda _: ([setattr(p.guide, 'visible', False) for t in teams for p in game.layers[Layers.PIECES[t]]],
+                                                    setattr(game.nextPiece.guide, 'visible', False),
+                                                    game.clearLayer(Layers.PIECES['GHOST']))
 
 # debug tools
 testGames = [
@@ -458,14 +471,8 @@ testGames = [
     ,
     ('BLACK', {'WHITE': 0, 'BLACK': 0}, {'WHITE': [(1.3331250000000239, -4.4271875000000165)], 'BLACK': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804)]})
     ,
-    ('BLACK', {'BLACK': 1, 'WHITE': 0}, {'BLACK': [], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-0.6803124999999728, -5.4562500000000265)]})
-    ,
-    ('WHITE', {'BLACK': 0, 'WHITE': 0}, {'BLACK': [(1.3331250000000239, -4.4271875000000165)], 'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804)]})
-    ,
-    ('WHITE', {'BLACK': 0, 'WHITE': 1}, {'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-2.0, 1.5999999999999996), (4.4399999999999995, 5.24), (-4.08, -3.2199999999999998), (-4.86, -5.58), (-4.744999999999996, 5.1650000000000045), (1.2050000000000036, 6.690000000000005), (5.155000000000003, -1.7849999999999966), (7.905000000000003, -2.1599999999999966), (-6.894999999999996, -4.009999999999996), (-0.2949999999999964, 0.31500000000000483), (4.555000000000005, 0.4150000000000045), (-3.6199999999999957, 7.765000000000004)], 'BLACK': [(1.3331250000000239, -4.4271875000000165), (-1.42, 5.619999999999999), (6.940000000000001, 0.8599999999999994), (-7.04, -1.5199999999999996), (-2.8600000000000003, -7.6), (-3.5599999999999996, -0.6799999999999997), (-6.744999999999996, 2.9650000000000034), (0.855000000000004, 4.115000000000004), (6.480000000000006, 4.7900000000000045), (5.880000000000004, -5.634999999999996), (3.0050000000000043, -7.934999999999996), (-5.994999999999996, 0.4650000000000034), (3.8300000000000036, 2.6650000000000045), (-1.269999999999996, 7.940000000000005), (-4.144999999999996, 2.765000000000004), (-8.48, 0.7799999999999994)]})
-    ,
-    ('WHITE', {'BLACK': 0, 'WHITE': 1}, {'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-2.0, 1.5999999999999996), (4.4399999999999995, 5.24), (-4.08, -3.2199999999999998), (-4.86, -5.58), (-4.744999999999996, 5.1650000000000045), (1.2050000000000036, 6.690000000000005), (5.155000000000003, -1.7849999999999966), (7.905000000000003, -2.1599999999999966), (-6.894999999999996, -4.009999999999996), (-0.2949999999999964, 0.31500000000000483), (4.555000000000005, 0.4150000000000045), (-3.6199999999999957, 7.765000000000004)], 'BLACK': [(1.3331250000000239, -4.4271875000000165), (-1.42, 5.619999999999999), (6.940000000000001, 0.8599999999999994), (-7.04, -1.5199999999999996), (-2.8600000000000003, -7.6), (-3.5599999999999996, -0.6799999999999997), (-6.744999999999996, 2.9650000000000034), (0.855000000000004, 4.115000000000004), (6.480000000000006, 4.7900000000000045), (5.880000000000004, -5.634999999999996), (3.0050000000000043, -7.934999999999996), (-5.994999999999996, 0.4650000000000034), (3.8300000000000036, 2.6650000000000045), (-1.269999999999996, 7.940000000000005), (-4.144999999999996, 2.765000000000004)]})
-    ,
+    ('BLACK', {'BLACK': 1, 'WHITE': 0}, {'WHITE': [(1.2159375000000239, -6.6146875000000165), (3.442500000000024, -5.6381250000000165), (3.364375000000024, -3.4115625000000165), (1.6456250000000239, -1.9271875000000165), (-0.5028124999999761, -2.5131250000000165), (1.9996875000000234, 0.7637499999999804), (-0.6803124999999728, -5.4562500000000265), (-5.1189940000000025, -4.789850000000011), (-0.2439940000000025, 7.160149999999987), (3.781005999999996, 4.085149999999988), (3.031005999999996, 6.335149999999988), (-4.643994000000003, -1.414850000000012), (-7.793994000000002, -2.339850000000011), (-4.068994000000002, 1.1851499999999895), (-3.543994000000003, 7.010149999999989), (-6.2439940000000025, 5.86014999999999), (1.2810059999999979, -4.264850000000012)], 'BLACK': [(-5.7439940000000025, 3.285149999999989), (-0.9439940000000018, 2.285149999999989), (6.781005999999996, -1.4398500000000105), (5.331005999999997, 2.585149999999988), (-1.4439940000000018, 4.285149999999989), (-2.6189940000000025, -7.714850000000011), (-8.418994000000001, 1.8601499999999884), (6.406005999999996, 5.535149999999987), (6.181005999999998, -4.664850000000011), (2.906005999999996, -8.364850000000011), (-2.893994000000003, -3.8148500000000114), (-2.0203334775390793, -0.7476746459961028)]})
+
 ]
 
 game.numKey = lambda n: (game.record_state(), game.load_state(testGames[n])) if n<len(testGames) else print(str(n)+' not saved') # load presaved game for debugging

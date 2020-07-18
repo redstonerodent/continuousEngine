@@ -66,6 +66,7 @@ class Game:
         self.numKey = lambda _:None
 
         self.cache = {}
+        self.clearCache = lambda: setattr(self, 'cache', {})
 
         self.history = [initialState]
         self.future = []
@@ -78,6 +79,8 @@ class Game:
 
         # for anything that should be recomputed before each render
         self.process = lambda: None
+        # for anything that should be recomputed whenever the camera moves
+        self.viewChange = lambda: None
 
 
 
@@ -94,13 +97,16 @@ class Game:
     def pan(self, dx, dy): # in pixels
         self.x_offset += dx/self.scale
         self.y_offset += dy/self.scale
+        self.needViewChange = True
 
     def zoom(self,factor,x,y): # in gamespace
         if self.scale_min <= self.scale/factor <= self.scale_max:
             self.scale, self.x_offset, self.y_offset = self.scale/factor, (self.x_offset+x)*factor-x, self.y_offset*factor + y*(factor-1)
+            self.needViewChange = True
 
     def resetView(self):
         self.scale, self.x_offset, self.y_offset = self.scale_home, self.x_offset_home, self.y_offset_home
+        self.needViewChange = True
 
  
     def add(self, obj, layer=0):
@@ -131,32 +137,60 @@ class Game:
 
     def update(self):
         event = pygame.event.wait()
+        self.needViewChange = False
         while event:
             self.handle(event)
             event = pygame.event.poll()
+        if self.needViewChange:
+            self.viewChange()
         self.process()
         self.render()
 
-def drawSegment(game, color, p1, p2, width=3, realWidth=False): 
+def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None): 
     # draws a line with ends capped by circles, better than pygame.draw.line
     # realWidth=True  -> width given in pixels (on screen) 
     # realWidth=False -> width given in points (in-game distance)
-
+    if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
     x1,y1 = game.pixel(*p1)
     x2,y2 = game.pixel(*p2)
 
     if (x1,y1) == (x2,y2):
-        pygame.draw.circle(game.screen, color, (x1,y1), int(width/2))
+        pygame.draw.circle(surface, color, (x1,y1), int(width/2))
         return
     
     dx, dy = y2-y1, x1-x2 # rotated by 90 degrees
     dx, dy = int(dx*width/2/(dx**2+dy**2)**.5), int(dy*width/2/(dx**2+dy**2)**.5)
     
-    pygame.draw.polygon(game.screen, color, [(x1+dx,y1+dy), (x1-dx,y1-dy), (x2-dx,y2-dy), (x2+dx,y2+dy)])
-    pygame.draw.circle(game.screen, color, (x2,y2), int(width/2))
-    pygame.draw.circle(game.screen, color, (x1,y1), int(width/2))
+    pygame.draw.polygon(surface, color, [(x1+dx,y1+dy), (x1-dx,y1-dy), (x2-dx,y2-dy), (x2+dx,y2+dy)])
+    pygame.draw.circle(surface, color, (x2,y2), int(width/2))
+    pygame.draw.circle(surface, color, (x1,y1), int(width/2))
+
+def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
+    # draws a polygon with vertices ps
+    # if width is given, draws the boundary; if width is 0, fills the polygon
+    # realWidth=True  -> width given in pixels (on screen) 
+    # realWidth=False -> width given in points (in-game distance)
+    if surface == None: surface = game.screen
+    if width == 0:
+        pygame.draw.polygon(surface, color, [game.pixel(*p) for p in ps])
+    
+    else:
+        for i in range(len(ps)):
+            drawSegment(game, color, ps[i], ps[(i+1)%len(ps)], width, realWidth, surface)
+
+def drawCircle(game, color, center, radius, width=0, realWidth=False, surface=None):
+    # draws a circle with given center and radius
+    # if width is given, draws the boundary; if width is 0, fills the circle
+    # realWidth=True  -> width given in pixels (on screen) 
+    # realWidth=False -> width given in points (in-game distance)
+    if surface == None: surface = game.screen
+    if realWidth: width *= game.scale
+
+    pygame.draw.circle(surface, color, game.pixel(*center), int(radius*game.scale+width), int(width))
+
+
 
 class Renderable:
     # this modifies setting and getting attributes to be more convenient
@@ -237,16 +271,21 @@ class InfiniteGrid(Renderable):
 class CachedImg(Renderable):
     # gen(key) creates image which is saved at self.game.cache[key]
     # rendered with center at x,y
-    def __init__(self, game, layer, key, gen, x, y):
+    def __init__(self, game, layer, key, gen, loc=None, halign='c', valign='c'):
         super().__init__(game, layer)
-        self.key, self.gen, self.x, self.y = key, gen, x, y
+        self.key, self.gen, self.loc, self.halign, self.valign = key, gen, loc, halign, valign
     def render(self):
         if self.key not in self.game.cache:
             self.game.cache[self.key] = self.gen(self.key)
         surf = self.game.cache[self.key]
-        px,py = self.game.pixel(self.x,self.y)
-        if -surf.get_width() <= px <= self.game.width+surf.get_width() and -surf.get_height() <= py <= self.game.height+surf.get_height():
-            self.game.screen.blit(surf, (px-surf.get_width()//2, py-surf.get_height()//2))
+        if self.loc:
+            px,py = self.game.pixel(*self.loc)
+            if -surf.get_width() <= px <= self.game.width+surf.get_width() and -surf.get_height() <= py <= self.game.height+surf.get_height():
+                shiftx = {'l':0,'c':surf.get_width()//2,'r':surf.get_width()}[self.halign]
+                shifty = {'t':0,'c':surf.get_height()//2,'b':surf.get_height()}[self.valign]
+                self.game.screen.blit(surf, (px-shiftx, py-shifty))
+        else:
+            self.game.screen.blit(surf, (0,0))
 
 
 class Text(Renderable):
@@ -274,21 +313,20 @@ class Circle(Renderable):
         super().__init__(game, layer)
         self.color, self.x, self.y, self.r, self.width = color, x, y, r, width
         self.GETloc = lambda g: (self.x, self.y)
-    def render(self, color=None, width=None):
-        if width == None: width = self.width
-        pygame.draw.circle(self.game.screen, self.color or color, self.game.pixel(self.x,self.y), int(self.r*self.game.scale)+width, width)
+    def render(self):
+        drawCircle(self.game, self.color, self.loc, self.r, self.width)
 
 class Disk(Circle):
     def __init__(self, game, layer, color, x, y, r):
-        super().__init__(game, layer, color, x, y, r, 0)
+        drawCircle(self.game, self.color, self.loc, self.r, 0)
 
 class BorderDisk(Circle):
     def __init__(self, game, layer, fill_color, border_color, x, y, r, width=3):
         super().__init__(game, layer, border_color, x, y, r, width)
         self.fill_color, self.border_color = fill_color, border_color
     def render(self):
-        super().render(self.fill_color, 0)
-        super().render(self.border_color, self.width)
+        drawCircle(self.game, self.fill_color, self.loc, self.r, 0)
+        drawCircle(self.game, self.border_color, self.loc, self.r, self.width)
 
 
 def write(screen, font, text, x, y, color, halign='c', valign='c'):

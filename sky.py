@@ -73,7 +73,7 @@ def makeDot(c):
     pygame.draw.circle(dot, countColor(c), (dot_rad,)*2, dot_rad)
     write(dot, font, c, dot_rad, dot_rad, text_color)
     return dot
-addDot = lambda x,y: CachedImg(game, Layers.TRIALS, countVisible(solution,x,y), makeDot, x, y) if any([x<0,y<0,x>n,y>n]) else None
+addDot = lambda x,y: CachedImg(game, Layers.TRIALS, countVisible(solution,x,y), makeDot, (x, y)) if any([x<0,y<0,x>n,y>n]) else None
     
 game = Game([[0]*n for _ in range(n)], center=(n/2,n/2))
 
@@ -152,7 +152,7 @@ game.keyPress[game.keys.moveDown]       = lambda _: setattr(selector,'y',(select
 game.keyPress[game.keys.moveLeft]       = lambda _: setattr(selector,'x',(selector.x-1)%n)
 game.keyPress[game.keys.moveRight]      = lambda _: setattr(selector,'x',(selector.x+1)%n)
 game.keyPress[game.keys.delete]         = lambda _: (game.record_state(), setattr(guess[selector.x][selector.y],'text',0))
-game.keyPress[game.keys.resetColors]    = lambda _: setattr(game,'cache',{})
+game.keyPress[game.keys.resetColors]    = lambda _: game.clearCache()
 game.keyPress[game.keys.clearTrials]    = lambda _: game.clearLayer(Layers.TRIALS)
 game.keyPress[game.keys.toggleGrid]     = lambda _: setattr(game.grid,'visible',not game.grid.visible)
 
