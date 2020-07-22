@@ -344,12 +344,12 @@ class Circle(Renderable):
         drawCircle(self.game, self.color, self.loc, self.r, self.width)
 
 class Disk(Circle):
-    def __init__(self, game, layer, color, x, y, r):
+    def render(self):
         drawCircle(self.game, self.color, self.loc, self.r, 0)
 
 class BorderDisk(Circle):
     def __init__(self, game, layer, fill_color, border_color, x, y, r, width=3):
-        super().__init__(game, layer, border_color, x, y, r, width)
+        super().__init__(game, layer, None, x, y, r, width)
         self.fill_color, self.border_color = fill_color, border_color
     def render(self):
         drawCircle(self.game, self.fill_color, self.loc, self.r, 0)

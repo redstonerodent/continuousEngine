@@ -1,6 +1,5 @@
 from continuousEngine import *
 import random
-import time
 from math import atan2, pi
 
 piece_rad = 1
@@ -134,12 +133,10 @@ class Voronoi:
                 #in otherwords, the unique adjacent pair r,s with the property that r is closer to q and s is closer to p
                 r_dist = ((p[0]-q[0])*(p[0]-r[0]) + (p[1]-q[1])*(p[1]-r[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
                 s_dist = ((p[0]-q[0])*(p[0]-s[0]) + (p[1]-q[1])*(p[1]-s[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
-                #print("p={}, q={}, r={}, s={}, r_dist={}, s_dist={}".format(p,q,r,s,r_dist,s_dist))
                 if  r_dist > .5 >= s_dist:
                     d[0] = i%k
                     self.contiguities[p].append(self.contiguities[q][i%k])
                     q_next = self.contiguities[q][i%k]
-                    #print("i="+str(i)+", q_next = "+str(q_next))
                     #now we check the other direction; i.e. r,s such that s is closer to q and r is closer to p
                 elif r_dist < .5 <= s_dist:
                     d[1]=i%k
@@ -350,16 +347,9 @@ def attemptMove(game):
     [setattr(p.guide, 'visible', False) for t in teams for p in game.layers[Layers.PIECES[t]]]
     game.nextPiece.guide.visible = False
     game.clearLayer(Layers.PIECES['GHOST'])
-
-    # times = []
-    # times.append(time.perf_counter())
     updateLiberties(game)
-    # times.append(time.perf_counter())
     updateGraph(game)
     updateTerritory(game)
-    # times.append(time.perf_counter())
-    # print(*[times[i]-times[i-1] for i in range(1,len(times))], sep='\n')
-    # print()
     game.clearCache()
 
 updateLiberties = lambda game: setattr(game, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in teams for pc2 in game.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in game.layers[Layers.PIECES[inc_turn[t]]] if sorta_nearby(pc2.loc, pc.loc)]) for t in teams for pc in game.layers[Layers.PIECES[t]]})
@@ -485,5 +475,3 @@ game.keyPress[game.keys.toggleDebug] = lambda _: setattr(game.debugger, 'visible
 
 while 1: 
     game.update()
-    # print(sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]))
-    # print([cell_area( game.voronoi.diagram.voronoi_vertices[pc.loc]) for t in teams for pc in game.layers[Layers.PIECES[t]]] )
