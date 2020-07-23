@@ -441,9 +441,9 @@ game.click[1] = lambda e: attemptMove(game)
 game.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(piece_at(game.point(*e.pos), game).guide)
 game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
-game.keys.skipTurn = 117 # f
-game.keys.placeGhost = 32 # space
-game.keys.clearGuides = 27 # escape
+game.keys.skipTurn = pygame.K_u
+game.keys.placeGhost = pygame.K_SPACE
+game.keys.clearGuides = pygame.K_ESCAPE
 
 game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
 game.keyPress[game.keys.placeGhost] = lambda _: None if game.blockers or not on_board(game.getMousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(game, Layers.PIECES['GHOST'], Colors.ghost, *game.getMousePos(), piece_rad))
@@ -467,8 +467,8 @@ testGames = [
 
 game.numKey = lambda n: (game.record_state(), game.load_state(testGames[n])) if n<len(testGames) else print(str(n)+' not saved') # load presaved game for debugging
 
-game.keys.printState = 13 # enter
-game.keys.toggleDebug = 303 # right shift
+game.keys.printState = pygame.K_RETURN
+game.keys.toggleDebug = pygame.K_RSHIFT
 
 game.keyPress[game.keys.printState] = lambda _: print(game.save_state())
 game.keyPress[game.keys.toggleDebug] = lambda _: setattr(game.debugger, 'visible', not game.debugger.visible)

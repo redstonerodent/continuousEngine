@@ -138,14 +138,14 @@ if 0:
 if 0:
     [[Text(game, Layers.GUESS, text_color,font,solution[i][j],i+.25,j+.25) for j in range(n)] for i in range(n)]
 
-game.keys.moveUp = 273 # arrow keys
-game.keys.moveDown = 274
-game.keys.moveLeft = 276
-game.keys.moveRight = 275
-game.keys.delete = 8 # backspace
-game.keys.resetColors = 106 # j
-game.keys.clearTrials = 27 # escape
-game.keys.toggleGrid = 105 # i
+game.keys.moveUp = pygame.K_UP
+game.keys.moveDown = pygame.K_DOWN
+game.keys.moveLeft = pygame.K_LEFT
+game.keys.moveRight = pygame.K_RIGHT
+game.keys.delete = pygame.K_BACKSPACE
+game.keys.resetColors = pygame.K_j
+game.keys.clearTrials = pygame.K_ESCAPE
+game.keys.toggleGrid = pygame.K_i
 
 game.keyPress[game.keys.moveUp]         = lambda _: setattr(selector,'y',(selector.y-1)%n)
 game.keyPress[game.keys.moveDown]       = lambda _: setattr(selector,'y',(selector.y+1)%n)

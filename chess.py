@@ -370,8 +370,8 @@ def toggleShown(mouse_pos):
 
 game.drag[-1] = lambda e: updateMove(game.point(*e.pos))
 
-game.keys.cancel = 27 # escape
-game.keys.printHistory = 32 # space
+game.keys.cancel = pygame.K_ESCAPE # escape
+game.keys.printHistory = pygame.K_SPACE # space
 
 game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), game.clearLayer(Layers.CAPBLOCK))
 game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))

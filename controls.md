@@ -1,6 +1,6 @@
 # Controls
 
-*These controls are designed with a Dvorak keyboard in mind. If you use QWERTY (or another layout), they won't make much sense but should still work. Controls are listed as the key to press, and the key which is in the same location on QWERTY&mdash;for instance, "`;`(z)" means you should press the semicolon key, which in Dvorak is in the same location as the z key in QWERTY (i.e. the leftmost key in the bottom row). Controls can be changed by changing the value of `game.keys.<name>`; the correct value can be determined by pressing a key with the game running and reading the output `unknown key: <number>`*
+*These controls are designed with a Dvorak keyboard in mind. If you use QWERTY (or another layout), they won't make much sense but should still work. Controls are listed as the key to press, and the key which is in the same location on QWERTY&mdash;for instance, "`;`(z)" means you should press the semicolon key, which in Dvorak is in the same location as the z key in QWERTY (i.e. the leftmost key in the bottom row). Controls can be changed by changing the value of `game.keys.<name>`; see `https://www.pygame.org/docs/ref/key.html`.*
 
 ## Common to all games
 
@@ -29,7 +29,7 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 
 * Select square: left click
 * Move selected square: arrow keys
-* Enter number: `1`-`9`
+* Enter number: `1`-`9` (top row or numpad)
 * Delete number: backspace or `0`
 
 - Run trial: left click (outside grid)

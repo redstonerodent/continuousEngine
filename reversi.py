@@ -229,7 +229,7 @@ if 0:
 game.click[1] = lambda e: attemptMove(game)
 game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
-game.keys.skipTurn = 117 # f
+game.keys.skipTurn = pygame.K_u
 
 game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
 
