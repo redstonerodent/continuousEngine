@@ -1,4 +1,5 @@
 import sys, pygame
+from geometry import *
 
 pygame.init()
 
@@ -167,22 +168,6 @@ def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None):
     pygame.draw.circle(surface, color, (x2,y2), int(width/2))
     pygame.draw.circle(surface, color, (x1,y1), int(width/2))
 
-def intesectHalfPlane(polygon, axis, sign, position):
-    # the intersection of the polygon (list of points) with the half-plane described by axis, sign, position
-    # the equation for the half-plane is <Z><rel>position, where Z={0:x,1:y}[axis] and rel={1:>,-1:<}[sign]
-    # e.g. (_, 1, -1, 3) means the half-plane is given by y<3
-    half_plane = lambda p: (p[axis] - position)*sign > 0
-    vertices = []
-    for i in range(len(polygon)):
-        if half_plane(polygon[i]):
-            vertices.append(polygon[i])
-        else:
-            vertices.extend(
-                (position,)*(1-axis)+(polygon[i][1-axis] + (polygon[j][1-axis]-polygon[i][1-axis]) * (position-polygon[i][axis]) / (polygon[j][axis]-polygon[i][axis]),)+(position,)*axis
-                for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
-    return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
-
-
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
     # if width is given, draws the boundary; if width is 0, fills the polygon
@@ -195,7 +180,7 @@ def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     else:
         # for performance, only draw the portion of the polygon which is on the screen
         for asp in [(0,1,game.x_min()), (0,-1,game.x_max()),(1,1,game.y_min()), (1,-1,game.y_max())]:
-            ps = intesectHalfPlane(ps, *asp)
+            ps = intersectHalfPlane(ps, *asp)
         if len(ps) >= 3:
             pygame.draw.polygon(surface, color, [game.pixel(*p) for p in ps])
     
