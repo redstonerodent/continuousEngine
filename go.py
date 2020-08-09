@@ -1,6 +1,6 @@
 from continuousEngine import *
+from geometry import *
 import random
-from math import atan2, pi
 
 piece_rad = 1
 
@@ -9,19 +9,10 @@ board_rad = 10
 ## HELPER FUNCTIONS FOR GEOMETRY
 ## points are represented as tuples (x,y)
 
-# squared distance
-dist_sq = lambda p1,p2: (p1[0]-p2[0])**2+(p1[1]-p2[1])**2
 # is this piece within the (circular) board?
-on_board = lambda p: dist_sq(p,(0,0)) < (board_rad - piece_rad)**2
+on_board = lambda p: len_sq(p) < (board_rad - piece_rad)**2
 # is this point on the board?
-on_board_pt = lambda p: dist_sq(p,(0,0)) < board_rad**2
-# is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
-above_line = lambda p1, p2, x: (p2[0]-p1[0])*(x[1]-p1[1]) > (p2[1]-p1[1])*(x[0]-p1[0])
-# do line segments a-b and x-y intersect?
-intersect = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
-# is the segment from p1 to p2 at all on the board?
-intersect_board = lambda p1, p2:(on_board_pt(p1) or on_board_pt(p2)
-                        or (lambda nearest: on_board_pt(nearest) and (p1[0]-nearest[0])*(p2[0]-nearest[0]) <= 0 and (p1[1]-nearest[1])*(p2[1]-nearest[1]) <= 0 )(nearest_origin(p1,p2)))
+on_board_pt = lambda p: len_sq(p) < board_rad**2
 # which pieces (among xs) are close enough to p1 and p2 to possibly get in the way?
 # those which intersect a circle at the same distance as p1 from p2; i.e. within max_dist_sq**.5 of p2 (and symmetrically of p1)
 chokepoints = lambda p1, p2, xs: (lambda max_dist_sq:{x for x in xs if dist_sq(p1,x) < max_dist_sq and dist_sq(p2,x) < max_dist_sq})((dist_sq(p1,p2)**0.5 + 2*piece_rad)**2)
@@ -31,15 +22,15 @@ split_chokepoints = lambda p1, p2, xs: (lambda cps: ({x for x in cps if above_li
 # assumes p1 and p2 are nearby (within 4r)
 # this fails if there's a pair of chokepoints within 4r and between p1 and p2, in the sense that p1 and p2 are on opposite sides of the line
 #   or if there's a chokepoint within 3r of the boundary that blocks movement
-connected = lambda p1, p2, xs: (lambda tops, bots: not any(nearby(top,bot) and intersect(p1,p2,top,bot) for top in tops for bot in bots)
-                                                    and not any(intersect(p1,p2,*cut) for cut in boundary_cuts(tops|bots)))(*split_chokepoints(p1,p2,xs))
+connected = lambda p1, p2, xs: (lambda tops, bots: not any(nearby(top,bot) and intersect_segments(p1,p2,top,bot) for top in tops for bot in bots)
+                                                    and not any(intersect_segments(p1,p2,*cut) for cut in boundary_cuts(tops|bots)))(*split_chokepoints(p1,p2,xs))
 # given {p} pieces, give {(p1,p2)} of pairs of points within 4r
 weak_edges = lambda pieces: {(p1,p2) for p1 in pieces for p2 in pieces if p1 != p2 and nearby(p1,p2)}
 # given [p] pieces, give {(p1,b)} of lines to the boundary which might prevent movement (i.e. less than 3r)
 # it's fine for the line to extend past the boundary -- we double the coordinates for simplicity; this only works because board_rad is enough bigger than piece_rad
 boundary_cuts = lambda pieces: {((x,y),(2*x,2*y)) for x,y in pieces if dist_sq((0,0),(x,y)) > (board_rad-3*piece_rad)**2}
 # given {(p,p)} edges and {(p,p)} cuts, gives the set of edges which don't cross a cut
-filter_edges = lambda edges, cuts: {edge for edge in edges if not any(intersect(*edge, *cut) for cut in cuts)}
+filter_edges = lambda edges, cuts: {edge for edge in edges if not any(intersect_segments(*edge, *cut) for cut in cuts)}
 # union: expects an iterator of sets
 union = lambda ss: (lambda s: set() if s is None else s | union(ss))(next(ss,None))
 # given {p} vertices and [(p1,p2)] edges, give the partition of vertices into connected components [{p}]
@@ -52,161 +43,8 @@ overlap = lambda p1, p2: dist_sq(p1,p2) < (2*piece_rad)**2
 nearby = lambda p1, p2: dist_sq(p1,p2) < (4*piece_rad)**2
 # are pieces centered at p1 p2 close enough that they might block each others' movement?
 sorta_nearby = lambda p1, p2: dist_sq(p1,p2) < (6*piece_rad)**2
-# combat floating point errors. In particular, tangent circles shouldn't intersect
-epsilon = 10**-10
 # centers of circles tangent to both circles centered at p1 and p2
-# (dx, dy) is the vector from the midpoint of p1 and p2 to one of the tangent circles
-double_tangents = lambda p1, p2: (lambda d:
-        (lambda dx, dy: ( ((p1[0]+p2[0])/2+dx*(1+epsilon),(p1[1]+p2[1])/2+dy*(1+epsilon)) , ((p1[0]+p2[0])/2-dx*(1+epsilon),(p1[1]+p2[1])/2-dy*(1+epsilon)) ))
-        (((4*piece_rad**2-d/4))**.5*(p2[1]-p1[1])/d**.5,
-         ((4*piece_rad**2-d/4))**.5*(p1[0]-p2[0])/d**.5 )
-    if 0<d**.5 < 4*piece_rad else ())(dist_sq(p1,p2))
-# point on line p1-p2 closest to origin
-nearest_origin = lambda p1, p2: ((p2[1]-p1[1]) * (p1[0]*p2[1]-p1[1]*p2[0]) / dist_sq(p1,p2), (p1[0]-p2[0]) * (p1[0]*p2[1]-p1[1]*p2[0]) / dist_sq(p1,p2))
-# the result of moving p1 towards p2 until it's on the board
-snap_to_circle = lambda p1, p2: p1 if on_board_pt(p1) else (lambda nearest: (nearest[0] + (p1[0]-p2[0]) / dist_sq(p1,p2)**.5 * (board_rad**2 - dist_sq(nearest, (0,0)))**.5, nearest[1] + (p1[1]-p2[1]) / dist_sq(p1,p2)**.5 * (board_rad**2 - dist_sq(nearest, (0,0)))**.5))(nearest_origin(p1,p2))
-# area of polygon with vertices pts
-# assumes points are in the order stored in Voronoi (counterclockwise, I think)
-polygon_area = lambda pts: sum((lambda a,b: a[0]*b[1]-a[1]*b[0])(pts[i], pts[(i+1)%len(pts)]) for i in range(len(pts))) / 2
-# area of the region of the board on the side of chord a-b, assuming a -> b is counterclockwise
-sliver_area = lambda a, b: (atan2(*b)-atan2(*a))%(2*pi) * board_rad**2 / 2 - polygon_area([(0,0), b, a])
-# given a polygon pts, give the list [[p1,p2]] of line segments on the board
-segments_on_board = lambda pts: [[snap_to_circle(pts[i], pts[(i+1)%len(pts)]), snap_to_circle(pts[(i+1)%len(pts)], pts[i])] for i in range(len(pts)) if intersect_board(pts[i], pts[(i+1)%len(pts)])]
-# area of the intersection of the polygon with vertices pts and the board
-cell_area = lambda pts: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1]) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or board_rad**2*pi)(segments_on_board(pts))
-
-## for computing voronoi diagrams
-## by josh brunner
-
-def circumcenter(p1,p2,p3):
-    #rotate and sum helper function because you do it alot
-    f = lambda g:g(p1,p2,p3)+g(p2,p3,p1)+g(p3,p1,p2)
-    num = lambda i:f(lambda a,b,c: (a[1-i]-b[1-i])*a[1-i]*b[1-i] + a[1-i]*c[i]*c[i] - c[1-i]*a[i]*a[i])
-    denom = lambda i:f(lambda a,b,c: 2 * (a[i]*b[1-i] - a[i]*c[1-i]))
-    return (num(0)/denom(0), num(1)/denom(1))
-class Voronoi:
-    def __init__(self, p1, p2):
-        """
-        p1, p2 are points that define a bounding box which you guarentee that all of the points of your voronoi diagram lie within
-        Behavior is undefined for inserted points outside this bounding box. """
-        self.box = (p1,p2)
-        center = ((p1[0]+p2[0])/2,(p1[1]+p2[1])/2)
-        a,b = ((p1[0]-center[0])* 8+center[0],center[1]),(center[0],(p1[1]-center[1])* 8+center[1])
-        c,d = ((p1[0]-center[0])*-8+center[0],center[1]),(center[0],(p1[1]-center[1])*-8+center[1])
-        if (abs(p1[0]-p2[0])<abs(p1[1]-p2[1])):
-            a,b,c,d = b,c,d,a
-        #note: to be technically correct, we actually need to scale abc to be farther from the center.
-        self.points = [a,b,c,d]
-        #for each point, a list of points whose voronoi cells are adjacent.
-        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
-        self.contiguities = {a:[b,d,"inf"], b:[c,d,a,"inf"], c:[d,b,"inf"],d:[a,b,c,"inf"]}
-        #for each point, the list of vertices which make up its voronoi cell.
-        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
-        #voronoi_vertices[a][n] is the circumcenter of the points a, contiguities[a][n], contiguities[a][n+1] (taking modulo as necessary to make the indicies work out)
-        f = lambda x,y,i:((x[i]+y[i])/2-center[i])*10+center[i]
-        lc = circumcenter(a,b,d)
-        rc = circumcenter(b,c,d)
-        inf_ab = (f(a,b,0),f(a,b,1))
-        inf_bc = (f(b,c,0),f(b,c,1))
-        inf_cd = (f(c,d,0),f(c,d,1))
-        inf_da = (f(d,a,0),f(d,a,1))
-        self.voronoi_vertices = {a:[lc,inf_da,inf_ab],b:[rc,lc,inf_ab,inf_bc],c:[rc,inf_bc,inf_cd],d:[lc,rc,inf_cd,inf_da]}
-    def nearest(self, p):
-        return min(self.points, key=lambda q:dist_sq(p,q))
-    def add(self, p):
-        """add a point to the voronoi diagram. The algorithm outline is at the top of the file."""
-        self.contiguities[p] = []
-        #This is a list of pairs. For entry in self.contiguities[p], we will have one entry in to_delete, which consists of two indices for which we need to remove the voronoi vertices bewteen.
-        q_0 = self.nearest(p)
-        q = q_0
-        while True:
-            i = 0
-            k = len(self.contiguities[q])
-            #this is the range of indices of q's contiguities that should be removed due to the addition of p
-            #this range is exclusive: we want to keep both endpoints of the range in q's contiguities
-            d = [0,0]
-            while i<k:
-                r = self.voronoi_vertices[q][i%k]
-                i+=1
-                s = self.voronoi_vertices[q][i%k]
-                #the perpendicular bisector of pq crosses the segment rs in the r->s direction
-                #in otherwords, the unique adjacent pair r,s with the property that r is closer to q and s is closer to p
-                r_dist = ((p[0]-q[0])*(p[0]-r[0]) + (p[1]-q[1])*(p[1]-r[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
-                s_dist = ((p[0]-q[0])*(p[0]-s[0]) + (p[1]-q[1])*(p[1]-s[1]))/((p[0]-q[0])**2+(p[1]-q[1])**2)
-                if  r_dist > .5 >= s_dist:
-                    d[0] = i%k
-                    self.contiguities[p].append(self.contiguities[q][i%k])
-                    q_next = self.contiguities[q][i%k]
-                    #now we check the other direction; i.e. r,s such that s is closer to q and r is closer to p
-                elif r_dist < .5 <= s_dist:
-                    d[1]=i%k
-        #now we clean up q's edges that no longer should exist using d
-            l = self.contiguities[q]
-            r0 = l[d[0]]
-            r1 = l[d[1]]
-            self.contiguities[q] = l[0:d[0]+1]+[p]+l[d[1]:] if d[1]>d[0] else l[d[1]:d[0]+1]+[p]
-            l = self.voronoi_vertices[q]
-            self.voronoi_vertices[q] = l[0:d[0]]+[circumcenter(p,q,r0),circumcenter(p,q,r1)]+l[d[1]:] if d[1]>d[0] else l[d[1]:d[0]]+[circumcenter(p,q,r0),circumcenter(p,q,r1)]
-            q = q_next
-            if q_next == q_0:
-                break
-        #finally, we need to add p's voronoi vertices to the list
-        l = self.contiguities[p]
-        self.voronoi_vertices[p] = [circumcenter(p,l[i],l[(i+1)%len(l)]) for i in range(len(l))]
-        self.points.append(p)
-    def remove(self,p):
-        """remove a point from the diagram. The algorithm outline is at the top of the file."""
-        l = self.contiguities[p]
-        #this function cleans up all the loose ends of a point b that used to neighbor p by joining the two broken edges of the voronoi diagram at the common point center
-        def f(b, center):
-            m = self.contiguities[b]
-            i_p = m.index(p)
-            self.contiguities[b] = m[:i_p]+m[i_p+1:]
-            m = self.voronoi_vertices[b]
-            if i_p > 0:
-                self.voronoi_vertices[b] = m[:i_p-1] + [center] + m[i_p+1:]
-            else:
-                self.voronoi_vertices[b] = m[1:-1] + [center]
-        while len(l) > 3:
-            for i in range(len(l)):
-                a,b,c = l[(i-1)%len(l)],l[(i+0)%len(l)],l[(i+1)%len(l)]
-                center = circumcenter(a,b,c)
-                r = dist_sq(center,a)
-                #if no other point is in the circumcircle, so this is a valid triangle in the delaunay triagulation.
-                v = (a[1]-c[1],c[0]-a[0])
-                m = ((a[0]+c[0])/2,(a[1]+c[1])/2)
-                flag = ((p[0]-m[0])*v[0] + (p[1]-m[1])*v[1])*((b[0]-m[0])*v[0] + (b[1]-m[1])*v[1]) < 0
-                if all(q in {a,b,c} or dist_sq(q,center) >= r for q in l) and flag:
-                    #fixing the first point in clockwise order of this triangle
-                    m = self.contiguities[a]
-                    i_p = m.index(p)
-                    self.contiguities[a] = m[:i_p]+[c]+m[i_p:]
-                    m = self.voronoi_vertices[a]
-                    if i_p > 0:
-                        self.voronoi_vertices[a] = m[:i_p-1] + [center] + m[i_p-1:]
-                    else:
-                        self.voronoi_vertices[a] = [m[-1]] + m[:-1] + [center]
-                    #fixing the third point in clockwise order
-                    m = self.contiguities[c]
-                    i_p = m.index(p)
-                    self.contiguities[c] = m[:i_p+1]+[a]+m[i_p+1:]
-                    m = self.voronoi_vertices[c]
-                    self.voronoi_vertices[c] = m[:i_p+1] + [center] + m[i_p+1:]
-                    #fixing the middle point. Note that we have found all of the new contiguities of this point, so we clean it up with f.
-                    f(b,center)
-
-                    l = l[:i]+l[i+1:]
-                    break
-        #Now there are only three points left, so we just need to add the circumcenter and clean up the loose ends
-        a,b,c = l[0],l[1],l[2]
-        center = circumcenter(a,b,c)
-        f(a,center)
-        f(b,center)
-        f(c,center)
-        del self.contiguities[p]
-        del self.voronoi_vertices[p]
-        i_p = self.points.index(p)
-        self.points = self.points[:i_p]+self.points[i_p+1:]
+double_tangents = lambda p1, p2: intersect_circles(p1, p2, 2*piece_rad)
 
 teams = ['WHITE', 'BLACK']
 inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
@@ -427,7 +265,7 @@ def updateGraph(game):
     game.components = {t:components(pieces[t], list(game.edges[t])) for t in teams}
 
 def updateTerritory(game):
-    game.territory = {t:sum(cell_area(game.voronoi.diagram.voronoi_vertices[pc.loc]) for pc in game.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in teams}
+    game.territory = {t:sum(intersect_polygon_circle_area(game.voronoi.diagram.voronoi_vertices[pc.loc], (0,0), board_rad) for pc in game.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in teams}
 
 piece_at = lambda pos, game: (lambda ps: ps[0] if ps else game.nextPiece)([p for t in teams for p in game.layers[Layers.PIECES[t]] if dist_sq(pos, p.loc) < piece_rad**2])
 
