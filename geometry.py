@@ -5,49 +5,59 @@ trace = lambda x, *y: (print(x), print(*y),x)[2]
 
 # points are tuples (x,y)
 
-# adding, subtracting, and scaling vectors
-add = lambda p1, p2: tuple(p1[i]+p2[i] for i in range(2))
-sub = lambda p1, p2: tuple(p1[i]-p2[i] for i in range(2))
-scale = lambda p, c: tuple(p[i]*c for i in range(2))
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.coords = (x,y)
+    __iter__ = lambda self: iter(self.coords)
+    __getitem__ = lambda self, v: self.coords[v]
+    __repr__ = lambda self: "Point{}".format(self.coords)
+    __eq__ = lambda self, other: self.coords == other.coords
+    __hash__ = lambda self: hash(self.coords)
+    # adding, subtracting, and scaling vectors
+    __add__ = lambda p1, p2: Point(*(p1[i]+p2[i] for i in range(2)))
+    __sub__ = lambda p1, p2: Point(*(p1[i]-p2[i] for i in range(2)))
+    __mul__ = lambda p, c: Point(*(p[i]*c for i in range(2)))
+    __rmul__ = lambda p, c: Point(*(c*p[i] for i in range(2)))
+    __truediv__ = lambda p, c: Point(*(p[i]/c for i in range(2)))
+    # +p: square length of p
+    __pos__ = lambda p: sum(x**2 for x in p)
+    # p > l: vector in the direction of p with length l
+    __gt__ = lambda p, l: Point(*(l*x/(+p)**.5 for x in p))
+    # ~p: p rotated tau/4 clockwise
+    __invert__ = lambda p: Point(p.y, -p.x)
+    # p1 % p2: midpoint of p1 and p2
+    __mod__ = lambda p1, p2: (p1 + p2)/2
+    # p1 ^ p2: determinant  of [p1 p2]
+    __xor__ = lambda p1, p2: p1.x*p2.y - p1.y*p2.x
+    # p1 >> p2: square distance from p1 to p2
+    __rshift__ = lambda p1, p2: +(p1-p2)
 
-# square length of p
-len_sq = lambda p: sum(x**2 for x in p)
-# square distance between p1 and p2
-dist_sq = lambda p1, p2: len_sq(sub(p1,p2))
-# vector in the direction of p with length l
-to_len = lambda p, l: tuple(l*x/len_sq(p)**.5 for x in p)
-# rotate vector p tau/4 clockwise
-rot = lambda p: (p[1], -p[0])
-# midpoint of segment p1-p2
-midpoint = lambda p1, p2: scale(add(p1,p2),1/2)
 
-# determinant of [p1 p2], useful for area
-det = lambda p1, p2: p1[0]*p2[1] - p1[1]*p2[0]
 # area of polygon with vertices pts, counterclockwise
-polygon_area = lambda pts: sum(det(pts[i], pts[(i+1)%len(pts)]) for i in range(len(pts))) / 2
+polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(pts))) / 2
 
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
-above_line = lambda x, p1, p2: det(sub(p2,p1),sub(x,p1)) > 0
+above_line = lambda x, p1, p2: (p2-p1)^(x-p1) > 0
 # do line segments a-b and x-y intersect?
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
 # signed distance x is above the line p1-p2 ('above' means on the left when moving from p1 to p2)
-dist_above_line = lambda x, p1, p2: (det(x,p1)+det(p1,p2)+det(p2,x)) / dist_sq(p1,p2)**.5
-
+dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5
 # point on line p1-p2 closest to x
-nearest_on_line = lambda x, p1, p2: add(x, to_len(rot(sub(p2,p1)),dist_above_line(x, p1, p2)))
+nearest_on_line = lambda x, p1, p2: x + (~(p2-p1) > dist_above_line(x,p1,p2))
 # point on circle with radius r centered at p closest to x
-nearest_on_circle = lambda x, p, r: add(p, to_len(sub(x,r)), r)
+nearest_on_circle = lambda x, p, r: p + (x-p > r)
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
-slide_to_circle = lambda p1, p2, p, r: p1 if dist_sq(p1,p) < r**2 else (lambda nearest: add(nearest, to_len(sub(p1,p2), (r**2-dist_sq(nearest,p))**.5)))(nearest_on_line(p,p1,p2))
-
+slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + (p1-p2 > r**2 - (nearest>>p)**.5))(nearest_on_line(p,p1,p2))
 # is b between a and c, assuming all three are colinear?
-between = lambda a, b, c: (a[0]-b[0])*(b[0]-c[0]) >= 0 and (a[1]-b[1])*(b[1]-c[1]) >= 0
+between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
-sliver_area = lambda a, b, p, r: (atan2(*sub(b,p))-atan2(*sub(a,p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
+sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
 # the list of line segments in the intersection of the circle of radius r centered at the origin and the polygon with points pts
-intersect_polygon_circle = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if dist_sq(pts[i],p)<r**2 or dist_sq(pts[(i+1)%len(pts)],p)<r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and dist_sq(nearest,p)<r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
+intersect_polygon_circle = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
 # area of the intersection of the circle of radius r centered at p and the polygon with vertices pts
 intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1], p, r) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or r**2*pi)(intersect_polygon_circle(pts, p, r))
 
@@ -56,7 +66,7 @@ epsilon = 10**-10
 # centers of circles tangent to both circles centered at p1 and p2
 # (dx, dy) is the vector from the midpoint of p1 and p2 to one of the tangent circles
 # intersections of circles of radius r centered at p1 or p2. a tuple with either 0 or 2 elements.
-intersect_circles = lambda p1, p2, r: (lambda m,d: (add(m,d), sub(m,d)))(midpoint(p1,p2), to_len(rot(sub(p2,p1)), (r**2-dist_sq(p1,p2)/4)**.5 + epsilon)) if 0 < dist_sq(p1,p2) < (2*r)**2 else ()
+intersect_circles = lambda p1, p2, r: (lambda m,d: (m+d, m-d))(p1%p2, ~(p2-p1) > (r**2 - (p1>>p2)/4)**.5 + epsilon) if 0 < p1>>p2 < (2*r)**2 else ()
 
 
 def intersectHalfPlane(polygon, axis, sign, position):
@@ -70,7 +80,7 @@ def intersectHalfPlane(polygon, axis, sign, position):
             vertices.append(polygon[i])
         else:
             vertices.extend(
-                (position,)*(1-axis)+(polygon[i][1-axis] + sub(polygon[j],polygon[i])[1-axis] * (position-polygon[i][axis]) / sub(polygon[j],polygon[i])[axis],)+(position,)*axis
+                Point(*((position,)*(1-axis)+(polygon[i][1-axis] + (polygon[j]-polygon[i])[1-axis] * (position-polygon[i][axis]) / (polygon[j]-polygon[i])[axis],)+(position,)*axis))
                 for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
 
@@ -81,7 +91,7 @@ def circumcenter(p1,p2,p3):
     f = lambda g:g(p1,p2,p3)+g(p2,p3,p1)+g(p3,p1,p2)
     num = lambda i:f(lambda a,b,c: (a[1-i]-b[1-i])*a[1-i]*b[1-i] + a[1-i]*c[i]*c[i] - c[1-i]*a[i]*a[i])
     denom = lambda i:f(lambda a,b,c: 2 * (a[i]*b[1-i] - a[i]*c[1-i]))
-    return (num(0)/denom(0), num(1)/denom(1))
+    return Point(num(0)/denom(0), num(1)/denom(1))
 class Voronoi:
     def __init__(self, p1, p2):
         """
@@ -89,8 +99,8 @@ class Voronoi:
         Behavior is undefined for inserted points outside this bounding box. """
         self.box = (p1,p2)
         center = ((p1[0]+p2[0])/2,(p1[1]+p2[1])/2)
-        a,b = ((p1[0]-center[0])* 8+center[0],center[1]),(center[0],(p1[1]-center[1])* 8+center[1])
-        c,d = ((p1[0]-center[0])*-8+center[0],center[1]),(center[0],(p1[1]-center[1])*-8+center[1])
+        a,b = Point((p1[0]-center[0])* 8+center[0],center[1]),Point(center[0],(p1[1]-center[1])* 8+center[1])
+        c,d = Point((p1[0]-center[0])*-8+center[0],center[1]),Point(center[0],(p1[1]-center[1])*-8+center[1])
         if (abs(p1[0]-p2[0])<abs(p1[1]-p2[1])):
             a,b,c,d = b,c,d,a
         #note: to be technically correct, we actually need to scale abc to be farther from the center.
@@ -104,13 +114,13 @@ class Voronoi:
         f = lambda x,y,i:((x[i]+y[i])/2-center[i])*10+center[i]
         lc = circumcenter(a,b,d)
         rc = circumcenter(b,c,d)
-        inf_ab = (f(a,b,0),f(a,b,1))
-        inf_bc = (f(b,c,0),f(b,c,1))
-        inf_cd = (f(c,d,0),f(c,d,1))
-        inf_da = (f(d,a,0),f(d,a,1))
+        inf_ab = Point(f(a,b,0),f(a,b,1))
+        inf_bc = Point(f(b,c,0),f(b,c,1))
+        inf_cd = Point(f(c,d,0),f(c,d,1))
+        inf_da = Point(f(d,a,0),f(d,a,1))
         self.voronoi_vertices = {a:[lc,inf_da,inf_ab],b:[rc,lc,inf_ab,inf_bc],c:[rc,inf_bc,inf_cd],d:[lc,rc,inf_cd,inf_da]}
     def nearest(self, p):
-        return min(self.points, key=lambda q:dist_sq(p,q))
+        return min(self.points, key=lambda q:p>>q)
     def add(self, p):
         """add a point to the voronoi diagram. The algorithm outline is at the top of the file."""
         self.contiguities[p] = []
@@ -169,12 +179,12 @@ class Voronoi:
             for i in range(len(l)):
                 a,b,c = l[(i-1)%len(l)],l[(i+0)%len(l)],l[(i+1)%len(l)]
                 center = circumcenter(a,b,c)
-                r = dist_sq(center,a)
+                r = center>>a
                 #if no other point is in the circumcircle, so this is a valid triangle in the delaunay triagulation.
                 v = (a[1]-c[1],c[0]-a[0])
                 m = ((a[0]+c[0])/2,(a[1]+c[1])/2)
                 flag = ((p[0]-m[0])*v[0] + (p[1]-m[1])*v[1])*((b[0]-m[0])*v[0] + (b[1]-m[1])*v[1]) < 0
-                if all(q in {a,b,c} or dist_sq(q,center) >= r for q in l) and flag:
+                if all(q in {a,b,c} or q>>center >= r for q in l) and flag:
                     #fixing the first point in clockwise order of this triangle
                     m = self.contiguities[a]
                     i_p = m.index(p)

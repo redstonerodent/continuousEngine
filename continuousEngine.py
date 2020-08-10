@@ -93,7 +93,7 @@ class Game:
 
     # convert between pixels on screen and points in abstract game space
     pixel = lambda self,x,y: (int((x+self.x_offset)*self.scale), int((y+self.y_offset)*self.scale))
-    point = lambda self,x,y: (x/self.scale-self.x_offset, y/self.scale-self.y_offset)
+    point = lambda self,x,y: Point(x/self.scale-self.x_offset, y/self.scale-self.y_offset)
 
     def pan(self, dx, dy): # in pixels
         self.x_offset += dx/self.scale
@@ -275,7 +275,7 @@ class InfiniteGrid(Renderable):
 
 class CachedImg(Renderable):
     # gen(key) creates image which is saved at self.game.cache[key]
-    # rendered with center at x,y
+    # rendered with center at loc
     def __init__(self, game, layer, key, gen, loc=None, halign='c', valign='c'):
         super().__init__(game, layer)
         self.key, self.gen, self.loc, self.halign, self.valign = key, gen, loc, halign, valign
@@ -321,10 +321,9 @@ class FilledPolygon(Renderable):
         drawPolygon(self.game, self.color, self.points)    
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, x, y, r, width=3):
+    def __init__(self, game, layer, color, loc, r, width=3):
         super().__init__(game, layer)
-        self.color, self.x, self.y, self.r, self.width = color, x, y, r, width
-        self.GETloc = lambda g: (self.x, self.y)
+        self.color, self.loc, self.r, self.width = color, loc, r, width
     def render(self):
         drawCircle(self.game, self.color, self.loc, self.r, self.width)
 
@@ -333,8 +332,8 @@ class Disk(Circle):
         drawCircle(self.game, self.color, self.loc, self.r, 0)
 
 class BorderDisk(Circle):
-    def __init__(self, game, layer, fill_color, border_color, x, y, r, width=3):
-        super().__init__(game, layer, None, x, y, r, width)
+    def __init__(self, game, layer, fill_color, border_color, loc, r, width=3):
+        super().__init__(game, layer, None, loc, r, width)
         self.fill_color, self.border_color = fill_color, border_color
     def render(self):
         drawCircle(self.game, self.fill_color, self.loc, self.r, 0)

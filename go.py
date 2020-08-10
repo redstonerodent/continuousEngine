@@ -1,21 +1,22 @@
 from continuousEngine import *
 from geometry import *
 import random
+from math import pi
 
 piece_rad = 1
 
 board_rad = 10
 
 ## HELPER FUNCTIONS FOR GEOMETRY
-## points are represented as tuples (x,y)
+## points are the Point class from geometry
 
 # is this piece within the (circular) board?
-on_board = lambda p: len_sq(p) < (board_rad - piece_rad)**2
+on_board = lambda p: +p < (board_rad - piece_rad)**2
 # is this point on the board?
-on_board_pt = lambda p: len_sq(p) < board_rad**2
+on_board_pt = lambda p: +p < board_rad**2
 # which pieces (among xs) are close enough to p1 and p2 to possibly get in the way?
 # those which intersect a circle at the same distance as p1 from p2; i.e. within max_dist_sq**.5 of p2 (and symmetrically of p1)
-chokepoints = lambda p1, p2, xs: (lambda max_dist_sq:{x for x in xs if dist_sq(p1,x) < max_dist_sq and dist_sq(p2,x) < max_dist_sq})((dist_sq(p1,p2)**0.5 + 2*piece_rad)**2)
+chokepoints = lambda p1, p2, xs: (lambda max_dist_sq:{x for x in xs if p1>>x < max_dist_sq and p2>>x < max_dist_sq})(((p1>>p2)**0.5 + 2*piece_rad)**2)
 # separate chokepoints into those above and below the line; gives tuple of sets (above line, below line)
 split_chokepoints = lambda p1, p2, xs: (lambda cps: ({x for x in cps if above_line(p1,p2,x)},{x for x in cps if not above_line(p1,p2,x)}))(chokepoints(p1,p2,xs))
 # can you locally slide from p1 to p2, without touching pieces at xs?
@@ -28,7 +29,7 @@ connected = lambda p1, p2, xs: (lambda tops, bots: not any(nearby(top,bot) and i
 weak_edges = lambda pieces: {(p1,p2) for p1 in pieces for p2 in pieces if p1 != p2 and nearby(p1,p2)}
 # given [p] pieces, give {(p1,b)} of lines to the boundary which might prevent movement (i.e. less than 3r)
 # it's fine for the line to extend past the boundary -- we double the coordinates for simplicity; this only works because board_rad is enough bigger than piece_rad
-boundary_cuts = lambda pieces: {((x,y),(2*x,2*y)) for x,y in pieces if dist_sq((0,0),(x,y)) > (board_rad-3*piece_rad)**2}
+boundary_cuts = lambda pieces: {(p, 2*p) for p in pieces if +p > (board_rad-3*piece_rad)**2}
 # given {(p,p)} edges and {(p,p)} cuts, gives the set of edges which don't cross a cut
 filter_edges = lambda edges, cuts: {edge for edge in edges if not any(intersect_segments(*edge, *cut) for cut in cuts)}
 # union: expects an iterator of sets
@@ -38,11 +39,11 @@ union = lambda ss: (lambda s: set() if s is None else s | union(ss))(next(ss,Non
 components = lambda vertices, edges, cmps=None: components(vertices, edges, [{p} for p in vertices]) if cmps==None else \
     (lambda e: components(vertices, edges[1:], [s for s in cmps if not s&e]+[union(s for s in cmps if s&e)]))(set(edges[0])) if edges else cmps
 # do pieces centered at p1 and p2 overlap?
-overlap = lambda p1, p2: dist_sq(p1,p2) < (2*piece_rad)**2
+overlap = lambda p1, p2: p1>>p2 < (2*piece_rad)**2
 # are pieces centered at p1 p2 close enough to block movement between them?
-nearby = lambda p1, p2: dist_sq(p1,p2) < (4*piece_rad)**2
+nearby = lambda p1, p2: p1>>p2 < (4*piece_rad)**2
 # are pieces centered at p1 p2 close enough that they might block each others' movement?
-sorta_nearby = lambda p1, p2: dist_sq(p1,p2) < (6*piece_rad)**2
+sorta_nearby = lambda p1, p2: p1>>p2 < (6*piece_rad)**2
 # centers of circles tangent to both circles centered at p1 and p2
 double_tangents = lambda p1, p2: intersect_circles(p1, p2, 2*piece_rad)
 
@@ -75,8 +76,8 @@ class Colors:
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 
 class GoPiece(BorderDisk):
-    def __init__(self, game, team, x, y):
-        super().__init__(game, Layers.PIECES[team], None, None, x, y, piece_rad)
+    def __init__(self, game, team, loc):
+        super().__init__(game, Layers.PIECES[team], None, None, loc, piece_rad)
         self.team = team
         self.GETfill_color = lambda g: Colors.fill[self.team]
         self.GETborder_color = lambda g: Colors.blocker if self in g.blockers else Colors.capture if self.loc in g.captures else Colors.border[self.team]
@@ -96,7 +97,7 @@ class GoVoronoi(CachedImg):
         def gen(_):
             self.mask.fill((0,0,0,0))
             self.scratch.fill((0,0,0,0))
-            drawCircle(self.game, (255,255,255), (0,0), board_rad, surface=self.mask)
+            drawCircle(self.game, (255,255,255), Point(0,0), board_rad, surface=self.mask)
             for t in teams:
                   for p in game.layers[Layers.PIECES[t]]:
                     drawPolygon(self.game, Colors.territory[t], self.diagram.voronoi_vertices[p.loc], surface=self.scratch)
@@ -121,14 +122,14 @@ game = Game(
     scale=50
 )
 
-game.save_state = lambda: (game.turn, game.capturedCount.copy(), {team:[p.loc for p in game.layers[Layers.PIECES[team]]] for team in teams})
+game.save_state = lambda: (game.turn, game.capturedCount.copy(), {team:[p.loc.coords for p in game.layers[Layers.PIECES[team]]] for team in teams})
 game.load_state = lambda x: (lambda turn, capCount, pieces: (
     game.clearLayer(Layers.GUIDES),
     game.add(game.nextPiece.guide, Layers.GUIDES),
     setattr(game.nextPiece.guide, 'visible', False),
     setattr(game.voronoi, 'diagram', Voronoi((-board_rad, -board_rad), (board_rad, board_rad))),
     [game.clearLayer(Layers.PIECES[team]) for team in teams+['GHOST']],
-    [game.makePiece(team, *p) for team in teams for p in pieces[team]],
+    [game.makePiece(team, Point(*p)) for team in teams for p in pieces[team]],
     setattr(game, 'turn', turn),
     setattr(game, 'capturedCount', capCount.copy()),
     setattr(game, 'guides', set()),
@@ -138,7 +139,7 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
     game.clearCache()
     ))(*x)
 
-Circle(game, Layers.BOUNDARY, None, 0, 0, board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
+Circle(game, Layers.BOUNDARY, None, Point(0,0), board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.getMousePos()) else Colors.blocker
 
 FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, None, game.width-30,30, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['WHITE'], g.territory['BLACK'], g.capturedCount['WHITE'] + g.territory['BLACK'])
 FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, None, game.width-30,60, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['BLACK'], g.territory['WHITE'], g.capturedCount['BLACK'] + g.territory['WHITE'])
@@ -154,7 +155,7 @@ game.components = {t:[] for t in teams}
 game.captures = set()
 
 # make a piece on team t at (x,y)
-game.makePiece = lambda t,x,y: (GoPiece(game, t, x, y), game.voronoi.diagram.add((x,y)))
+game.makePiece = lambda t,p: (GoPiece(game, t, p), game.voronoi.diagram.add(p))
 
 # remove pieces at {(x,y)} ps
 game.removePieces = lambda ps: (lambda pcs: [(
@@ -164,11 +165,10 @@ game.removePieces = lambda ps: (lambda pcs: [(
     ) for pc in pcs
     ])([pc for t in teams for pc in game.layers[Layers.PIECES[t]] if pc.loc in ps])
 
-game.nextPiece = GoPiece(game, 'NEW', None, None)
+game.nextPiece = GoPiece(game, 'NEW', None)
 game.nextPiece.GETteam = lambda g: g.turn
 game.nextPiece.GETvisible = lambda g: g.getMousePos()
-game.nextPiece.GETx = lambda g: g.getMousePos()[0]
-game.nextPiece.GETy = lambda g: g.getMousePos()[1]
+game.nextPiece.GETloc = lambda g: g.getMousePos()
 game.nextPiece.GETborder_color = lambda g: Colors.blocker if g.blockers or not on_board(game.getMousePos()) else Colors.capture if game.getMousePos() in game.captures else Colors.legal
 game.nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
@@ -179,7 +179,7 @@ def attemptMove(game):
     updateMove(game)
     if game.blockers or not on_board(game.getMousePos()): return
     game.record_state()
-    game.makePiece(game.turn, *game.getMousePos())
+    game.makePiece(game.turn, game.getMousePos())
     game.removePieces(game.captures)
     game.turn = inc_turn[game.turn]
     [setattr(p.guide, 'visible', False) for t in teams for p in game.layers[Layers.PIECES[t]]]
@@ -265,9 +265,9 @@ def updateGraph(game):
     game.components = {t:components(pieces[t], list(game.edges[t])) for t in teams}
 
 def updateTerritory(game):
-    game.territory = {t:sum(intersect_polygon_circle_area(game.voronoi.diagram.voronoi_vertices[pc.loc], (0,0), board_rad) for pc in game.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in teams}
+    game.territory = {t:sum(intersect_polygon_circle_area(game.voronoi.diagram.voronoi_vertices[pc.loc], Point(0,0), board_rad) for pc in game.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in teams}
 
-piece_at = lambda pos, game: (lambda ps: ps[0] if ps else game.nextPiece)([p for t in teams for p in game.layers[Layers.PIECES[t]] if dist_sq(pos, p.loc) < piece_rad**2])
+piece_at = lambda pos, game: (lambda ps: ps[0] if ps else game.nextPiece)([p for t in teams for p in game.layers[Layers.PIECES[t]] if pos>>p.loc < piece_rad**2])
 
 game.process = lambda: updateMove(game)
 
