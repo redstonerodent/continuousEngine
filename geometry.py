@@ -23,8 +23,8 @@ class Point:
     __truediv__ = lambda p, c: Point(*(p[i]/c for i in range(2)))
     # +p: square length of p
     __pos__ = lambda p: sum(x**2 for x in p)
-    # p > l: vector in the direction of p with length l
-    __gt__ = lambda p, l: Point(*(l*x/(+p)**.5 for x in p))
+    # p @ l: vector in the direction of p with length l
+    __matmul__ = lambda p, l: Point(*(l*x/(+p)**.5 for x in p))
     # ~p: p rotated tau/4 clockwise
     __invert__ = lambda p: Point(p.y, -p.x)
     # p1 % p2: midpoint of p1 and p2
@@ -33,6 +33,8 @@ class Point:
     __xor__ = lambda p1, p2: p1.x*p2.y - p1.y*p2.x
     # p1 >> p2: square distance from p1 to p2
     __rshift__ = lambda p1, p2: +(p1-p2)
+    # p1 & p2: dot product of p1 and p2
+    __and__ = lambda p1, p2: sum(p1[i]*p2[i] for i in range(2))
 
 
 # area of polygon with vertices pts, counterclockwise
@@ -45,13 +47,17 @@ intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and 
 
 # signed distance x is above the line p1-p2 ('above' means on the left when moving from p1 to p2)
 dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5
+# signed distance from p1 to the projection of x onto the line p1-p2. dist_above_line and dist_along_line give x in an orthonormal basis with origin p1.
+dist_along_line = lambda x, p1, p2: (x-p1) & ((p2-p1) @ 1)
+# unsigned distanced x is from the line p1-p2
+dist_to_line = lambda x, p1, p2: abs(dist_above_line(x,p1,p2))
 # point on line p1-p2 closest to x
-nearest_on_line = lambda x, p1, p2: x + (~(p2-p1) > dist_above_line(x,p1,p2))
+nearest_on_line = lambda x, p1, p2: x + (~(p2-p1) @ dist_above_line(x,p1,p2))
 # point on circle with radius r centered at p closest to x
-nearest_on_circle = lambda x, p, r: p + (x-p > r)
+nearest_on_circle = lambda x, p, r: p + (x-p @ r)
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
-slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + (p1-p2 > r**2 - (nearest>>p)**.5))(nearest_on_line(p,p1,p2))
+slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + (p1-p2 @ (r**2 - (nearest>>p)**.5)))(nearest_on_line(p,p1,p2))
 # is b between a and c, assuming all three are colinear?
 between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
@@ -66,7 +72,7 @@ epsilon = 10**-10
 # centers of circles tangent to both circles centered at p1 and p2
 # (dx, dy) is the vector from the midpoint of p1 and p2 to one of the tangent circles
 # intersections of circles of radius r centered at p1 or p2. a tuple with either 0 or 2 elements.
-intersect_circles = lambda p1, p2, r: (lambda m,d: (m+d, m-d))(p1%p2, ~(p2-p1) > (r**2 - (p1>>p2)/4)**.5 + epsilon) if 0 < p1>>p2 < (2*r)**2 else ()
+intersect_circles = lambda p1, p2, r: (lambda m,d: (m+d, m-d))(p1%p2, ~(p2-p1) @ ((r**2 - (p1>>p2)/4)**.5 + epsilon)) if 0 < p1>>p2 < (2*r)**2 else ()
 
 
 def intersectHalfPlane(polygon, axis, sign, position):
