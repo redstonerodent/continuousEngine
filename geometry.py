@@ -3,8 +3,6 @@ from math import atan2, pi
 # for debugging
 trace = lambda x, *y: (print(x), print(*y),x)[2]
 
-# points are tuples (x,y)
-
 class Point:
     def __init__(self, x, y):
         self.x = x
@@ -24,7 +22,7 @@ class Point:
     # +p: square length of p
     __pos__ = lambda p: sum(x**2 for x in p)
     # p @ l: vector in the direction of p with length l
-    __matmul__ = lambda p, l: Point(*(l*x/(+p)**.5 for x in p))
+    __matmul__ = lambda p, l: Point(*(l*x/(+p)**.5 for x in p)) if p != Point(0,0) else Point(0,0)
     # ~p: p rotated tau/4 clockwise
     __invert__ = lambda p: Point(p.y, -p.x)
     # p1 % p2: midpoint of p1 and p2
@@ -45,21 +43,27 @@ above_line = lambda x, p1, p2: (p2-p1)^(x-p1) > 0
 # do line segments a-b and x-y intersect?
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
+# is b between a and c, assuming all three are colinear?
+between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
 # signed distance x is above the line p1-p2 ('above' means on the left when moving from p1 to p2)
-dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5
+dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5 if p1 != p2 else (x>>p1)**.5
 # signed distance from p1 to the projection of x onto the line p1-p2. dist_above_line and dist_along_line give x in an orthonormal basis with origin p1.
 dist_along_line = lambda x, p1, p2: (x-p1) & ((p2-p1) @ 1)
 # unsigned distanced x is from the line p1-p2
 dist_to_line = lambda x, p1, p2: abs(dist_above_line(x,p1,p2))
+# distance from x to the line segment p1-p2
+dist_to_segment = lambda x, p1, p2: dist_to_line(x,p1,p2) if 0 < dist_along_line(x, p1, p2) < (p1>>p2)**.5 else min(x>>p1,x>>p2)**.5
+# distance from x to the circle with centered r centered at p
+dist_to_circle = lambda x, p, r: abs((x>>p)**.5 - r)
 # point on line p1-p2 closest to x
 nearest_on_line = lambda x, p1, p2: x + (~(p2-p1) @ dist_above_line(x,p1,p2))
+# point on line segment p1-p2 closest to x
+nearest_on_segment = lambda x, p1, p2: nearest_on_line(x, p1, p2) if 0 < dist_along_line(x, p1, p2) < (p1>>p2)**.5 else min(p1, p2, key = lambda p: x>>p)
 # point on circle with radius r centered at p closest to x
-nearest_on_circle = lambda x, p, r: p + (x-p @ r)
+nearest_on_circle = lambda x, p, r: p + ((x-p) @ r) if x != p else p + Point(r,0)
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
-slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + (p1-p2 @ (r**2 - (nearest>>p)**.5)))(nearest_on_line(p,p1,p2))
-# is b between a and c, assuming all three are colinear?
-between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
+slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5))(nearest_on_line(p,p1,p2))
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
 # the list of line segments in the intersection of the circle of radius r centered at the origin and the polygon with points pts
@@ -74,8 +78,10 @@ epsilon = 10**-10
 # intersections of circles of radius r centered at p1 or p2. a tuple with either 0 or 2 elements.
 intersect_circles = lambda p1, p2, r: (lambda m,d: (m+d, m-d))(p1%p2, ~(p2-p1) @ ((r**2 - (p1>>p2)/4)**.5 + epsilon)) if 0 < p1>>p2 < (2*r)**2 else ()
 
+# intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
+intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))
 
-def intersectHalfPlane(polygon, axis, sign, position):
+def intersect_polygon_halfplane(polygon, axis, sign, position):
     # the intersection of the polygon (list of points) with the half-plane described by axis, sign, position
     # the equation for the half-plane is <Z><rel>position, where Z={0:x,1:y}[axis] and rel={1:>,-1:<}[sign]
     # e.g. (_, 1, -1, 3) means the half-plane is given by y<3
@@ -85,9 +91,7 @@ def intersectHalfPlane(polygon, axis, sign, position):
         if half_plane(polygon[i]):
             vertices.append(polygon[i])
         else:
-            vertices.extend(
-                Point(*((position,)*(1-axis)+(polygon[i][1-axis] + (polygon[j]-polygon[i])[1-axis] * (position-polygon[i][axis]) / (polygon[j]-polygon[i])[axis],)+(position,)*axis))
-                for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
+            vertices.extend(intersect_line_border(polygon[i], polygon[j], axis, position) for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
 
 ## for computing voronoi diagrams

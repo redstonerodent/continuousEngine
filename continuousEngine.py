@@ -147,55 +147,50 @@ class Game:
         self.process()
         self.render()
 
-def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None): 
-    # draws a line with ends capped by circles, better than pygame.draw.line
-    # realWidth=True  -> width given in pixels (on screen) 
-    # realWidth=False -> width given in points (in-game distance)
-    if surface == None: surface = game.screen
-    if realWidth: width *= game.scale
-
-    x1,y1 = game.pixel(*p1)
-    x2,y2 = game.pixel(*p2)
-
-    if (x1,y1) == (x2,y2):
-        pygame.draw.circle(surface, color, (x1,y1), int(width/2))
-        return
-    
-    dx, dy = y2-y1, x1-x2 # rotated by 90 degrees
-    dx, dy = int(dx*width/2/(dx**2+dy**2)**.5), int(dy*width/2/(dx**2+dy**2)**.5)
-    
-    pygame.draw.polygon(surface, color, [(x1+dx,y1+dy), (x1-dx,y1-dy), (x2-dx,y2-dy), (x2+dx,y2+dy)])
-    pygame.draw.circle(surface, color, (x2,y2), int(width/2))
-    pygame.draw.circle(surface, color, (x1,y1), int(width/2))
-
-def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
-    # draws a polygon with vertices ps
-    # if width is given, draws the boundary; if width is 0, fills the polygon
-    # realWidth=True  -> width given in pixels (on screen) 
-    # realWidth=False -> width given in points (in-game distance)
-    if surface == None: surface = game.screen
-    if width:
-        for i in range(len(ps)):
-            drawSegment(game, color, ps[i], ps[(i+1)%len(ps)], width, realWidth, surface)
-    else:
-        # for performance, only draw the portion of the polygon which is on the screen
-        for asp in [(0,1,game.x_min()), (0,-1,game.x_max()),(1,1,game.y_min()), (1,-1,game.y_max())]:
-            ps = intersectHalfPlane(ps, *asp)
-        if len(ps) >= 3:
-            pygame.draw.polygon(surface, color, [game.pixel(*p) for p in ps])
-    
-
 def drawCircle(game, color, center, radius, width=0, realWidth=False, surface=None):
     # draws a circle with given center and radius
     # if width is given, draws the boundary; if width is 0, fills the circle
-    # realWidth=True  -> width given in pixels (on screen) 
-    # realWidth=False -> width given in points (in-game distance)
+    # realWidth=False  -> width given in pixels (on screen) 
+    # realWidth=True -> width given in points (in-game distance)
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
     pygame.draw.circle(surface, color, game.pixel(*center), int(radius*game.scale+width), int(width))
 
+def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
+    # draws a polygon with vertices ps
+    # if width is given, draws the boundary; if width is 0, fills the polygon
+    # realWidth=False  -> width given in pixels (on screen) 
+    # realWidth=True -> width given in points (in-game distance)
+    if surface == None: surface = game.screen
+    if width:
+        for i in range(len(ps)):
+            drawSegment(game, color, ps[i], ps[(i+1)%len(ps)], width, realWidth, surface) # yes, drawSegment and drawPolygon call each other, but drawPolygon only uses drawSegment for outlines, and drawSegment draws filled in
+    else:
+        # for performance, only draw the portion of the polygon which is on the screen
+        for asp in [(0,1,game.x_min()), (0,-1,game.x_max()),(1,1,game.y_min()), (1,-1,game.y_max())]:
+            ps = intersect_polygon_halfplane(ps, *asp)
+        if len(ps) >= 3:
+            pygame.draw.polygon(surface, color, [game.pixel(*p) for p in ps])
 
+def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, caps=(True,True)): 
+    # draws a line with ends capped by circles, better than pygame.draw.line
+    # realWidth=False  -> width given in pixels (on screen) 
+    # realWidth=True -> width given in points (in-game distance)
+    if surface == None: surface = game.screen
+    if not realWidth: width /= game.scale
+
+    dp = ~(p2-p1) @ (width/2)
+
+    drawPolygon(game, color, [p1+dp, p2+dp, p2-dp, p1-dp], surface=surface)
+    
+    if caps[0]: drawCircle(game, color, p1, width/2, realWidth=realWidth, surface=surface)
+    if caps[1]: drawCircle(game, color, p2, width/2, realWidth=realWidth, surface=surface)
+
+def drawRay(game, color, loc, dir, width=2, realWidth=False, surface=None):
+    # draws a ray from loc to the edge of the screen, in direction dir
+    end = max((p for p in (intersect_line_border(loc, loc+dir, axis, pos) for axis, pos in [(0,game.x_min()),(0,game.x_max()),(1,game.y_min()),(1,game.y_max())] if dir[axis] != 0) if not between(loc+dir, loc, p)), key=lambda p:p>>loc, default=loc)
+    drawSegment(game, color, loc, end, width, realWidth, surface, (True, False))
 
 class Renderable:
     # this modifies setting and getting attributes to be more convenient

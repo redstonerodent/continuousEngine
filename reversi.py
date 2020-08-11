@@ -1,6 +1,6 @@
 from continuousEngine import *
 
-# Note to anyone reading this code: sometimes p (or p1 or p2 or pt or pv) is a pair of floats representing a point, and sometimes it's a ReversiPiece. I'm sorry.
+# Note to anyone reading this code: sometimes p (or p1 or p2 or pt or pv) is a Point, and sometimes it's a ReversiPiece. I'm sorry.
 
 # needs to be more than 1/sqrt(6)~=0.408 for diagonals to work the same as in the discrete game
 piece_rad = .45
@@ -30,16 +30,6 @@ double_tangents = lambda p1, p2: intersect_circles(p1, p2, 2*piece_rad)
 # if the circle is far away, gives nothing
 # (dx, dy) is a vector of length 2*piece_rad parallel to the line
 on_line_tangents = lambda x, p1, p2: (lambda dist: (lambda dx: (x+dx, x-dx)) ((p2-p1) @ 1 if dist < 1 else ~((p2-p1) @ 1)) if dist < 3 else ()) (dist_to_line(x,p1,p2))
-
-# (lambda d:
-#         (lambda dx, dy: ( (x[0]+dx*(1+epsilon),x[1]+dy*(1+epsilon)) , (x[0]-dx*(1+epsilon),x[1]-dy*(1+epsilon)) ) )
-#             (2*piece_rad*(p2[0]-p1[0])/dist_sq(p1,p2)**.5,2*piece_rad*(p2[1]-p1[1])/dist_sq(p1,p2)**.5) if d < 1 else
-#         (lambda dx, dy: ( (x[0]+dy*(1+epsilon),x[1]-dx*(1+epsilon)) , (x[0]-dy*(1+epsilon),x[1]+dx*(1+epsilon)) ) )
-#             (2*piece_rad*(p2[0]-p1[0])/dist_sq(p1,p2)**.5,2*piece_rad*(p2[1]-p1[1])/dist_sq(p1,p2)**.5) if d < 3 else
-#         ()
-#     )(dist_to_line(x,p1,p2)/piece_rad)
-
-
 
 # THE RULE: a piece at P is a "pivot" for your move M if
 #               1. P is on your team
@@ -114,7 +104,7 @@ class ReversiPiece(BorderDisk):
         if team:
             ReversiGuide(game, self)
         self.core = ReversiPieceCore(game, self, layer)
-    if 1:
+    if 0:
         def render(self):
             super().render()
             for pt in self.valid_tangents:
@@ -203,9 +193,7 @@ def attemptMove(game):
     if not any(p.valid_tangents for p in game.layers[Layers.PIECES]):
         game.over = True
 
-def updateMove(game, pos=None):
-    if pos:
-        game.rawMousePos = pos
+def updateMove(game):
     pos = game.getMousePos()
     if not game.over and pos and on_board(pos):
         game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, p.loc)}
@@ -218,7 +206,7 @@ game.process = lambda: updateMove(game)
 game.load_state(start_state)
 
 # test speed:
-if 1:
+if 0:
     import random
     spread = 10
     count = 100

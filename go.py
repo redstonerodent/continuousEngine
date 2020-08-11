@@ -85,10 +85,9 @@ class GoPiece(BorderDisk):
 
 class GoPieceGuide(Circle):
     def __init__(self, piece):
-        super().__init__(piece.game, Layers.GUIDES, None, None, None, 2*piece_rad)
+        super().__init__(piece.game, Layers.GUIDES, None, None, 2*piece_rad)
         self.piece = piece
-        self.GETx = lambda _: self.piece.x
-        self.GETy = lambda _: self.piece.y
+        self.GETloc = lambda _: self.piece.loc
         self.GETcolor = lambda _: Colors.guide[self.piece.team]
         self.visible = False
 
@@ -192,9 +191,7 @@ def attemptMove(game):
 
 updateLiberties = lambda game: setattr(game, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in teams for pc2 in game.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in game.layers[Layers.PIECES[inc_turn[t]]] if sorta_nearby(pc2.loc, pc.loc)]) for t in teams for pc in game.layers[Layers.PIECES[t]]})
 
-def updateMove(game, pos=None):
-    if pos:
-        game.rawMousePos = pos
+def updateMove(game):
     pos = game.getMousePos()
     if pos and on_board(pos):
         game.blockers = {p for p in sum((game.layers[Layers.PIECES[team]] for team in teams+['GHOST']),[]) if overlap(pos, p.loc)}
@@ -284,7 +281,7 @@ game.keys.placeGhost = pygame.K_SPACE
 game.keys.clearGuides = pygame.K_ESCAPE
 
 game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
-game.keyPress[game.keys.placeGhost] = lambda _: None if game.blockers or not on_board(game.getMousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(game, Layers.PIECES['GHOST'], Colors.ghost, *game.getMousePos(), piece_rad))
+game.keyPress[game.keys.placeGhost] = lambda _: None if game.blockers or not on_board(game.getMousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(game, Layers.PIECES['GHOST'], Colors.ghost, game.getMousePos(), piece_rad))
 game.keyPress[game.keys.clearGuides] = lambda _: ([setattr(p.guide, 'visible', False) for t in teams for p in game.layers[Layers.PIECES[t]]],
                                                     setattr(game.nextPiece.guide, 'visible', False),
                                                     game.clearLayer(Layers.PIECES['GHOST']))
