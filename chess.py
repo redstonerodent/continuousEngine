@@ -30,11 +30,11 @@ line_width = 3
 # does blocker prevent piece from moving in a straight line to target?
 blocks_segment = lambda piece, target, blocker: dist_to_segment(blocker.loc, piece.loc, target) < piece.r + blocker.r
 
-# if piece moves in dir, will it hit blocker?
-blocks_ray = lambda piece, dir, blocker: dist_to_ray(blocker.loc, piece.loc, dir) < piece.r + blocker.r
+# if a piece at loc with radius r moves in dir, will it hit blocker?
+blocks_ray = lambda loc, r, dir, blocker: dist_to_ray(blocker.loc, loc, dir) < r + blocker.r
 
-# how far does piece need to move in direction dir to capture cap?
-dist_to_capture = lambda piece, dir, cap: dist_along_line(cap.loc, piece.loc, piece.loc+dir) - ((piece.r + cap.r)**2 - dist_to_line(cap.loc, piece.loc, piece.loc+dir)**2)**.5
+# how far does a piece at loc with radius r need to move in direction dir to capture cap?
+dist_to_capture = lambda loc, r, dir, cap: dist_along_line(cap.loc, loc, loc+dir) - ((r + cap.r)**2 - dist_to_line(cap.loc, loc, loc+dir)**2)**.5
 
 
 class Constants:
@@ -66,7 +66,7 @@ class Piece(Renderable):
         self.name, self.color, self.loc = name, color, loc
         self.r, self.sprite = Constants.RADIUS[name], Constants.SPRITE[color, name]
         self.sign = {Constants.BLACK:1, Constants.WHITE:-1}[color]
-        self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
+        self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown + [g.ghost]) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
     def render(self, color=None):
         pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
@@ -98,11 +98,12 @@ class Runner(Piece):
     
     def in_range(self, piece):
         # could I capture a piece at loc with radius r if there were no other pieces on the board?
-        return trace(any(blocks_ray(self, dir, piece) for dir in self.dirs))
+        return trace(any(blocks_ray(self.loc, self.r, dir, piece) for dir in self.dirs))
 
-    def capturable(self, pieces):
+    def capturable(self, pieces, loc=None):
         # which pieces can I capture?
-        return trace([p for p in (min((p for p in pieces if p != self and blocks_ray(self, dir, p)), key=lambda p: dist_to_capture(self, dir, p), default=None) for dir in self.dirs) if p != None and p.color != self.color])
+        loc = loc or self.loc
+        return trace([p for p in (min((p for p in pieces if p != self and blocks_ray(loc, self.r, dir, p)), key=lambda p: dist_to_capture(loc, self.r, dir, p), default=None) for dir in self.dirs) if p != None and p.color != self.color])
 
 
 
@@ -137,7 +138,7 @@ class Knight(Piece):
         # could I capture a piece at loc with radius r if there were no other pieces on the board?
         return False
 
-    def capturable(self, pieces):
+    def capturable(self, pieces, loc=None):
         # which pieces can I capture?
         return []
 
@@ -163,7 +164,7 @@ class King(Piece):
         # could I capture a piece at loc with radius r if there were no other pieces on the board?
         return False
 
-    def capturable(self, pieces):
+    def capturable(self, pieces, loc=None):
         # which pieces can I capture?
         return []
 
@@ -199,7 +200,7 @@ class Pawn(Piece):
         # could I capture a piece at loc with radius r if there were no other pieces on the board?
         return False
 
-    def capturable(self, pieces):
+    def capturable(self, pieces, loc=None):
         # which pieces can I capture?
         return []
 
@@ -243,6 +244,7 @@ class Ghost(Renderable):
         self.state = None
         self.GETr = lambda g: g.active_piece.r
         self.GETcolor = lambda g: g.active_piece.color
+        self.GETthreatening = lambda g: g.active_piece.capturable([p for p in g.layers[Layers.PIECES] if p != g.active_piece], self.loc) if g.active_piece else []
     def render(self):
         if self.game.active_piece:
             threatened = any(self in p.threatening for p in self.game.shown)
