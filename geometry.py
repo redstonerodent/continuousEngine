@@ -53,6 +53,8 @@ dist_along_line = lambda x, p1, p2: (x-p1) & ((p2-p1) @ 1)
 dist_to_line = lambda x, p1, p2: abs(dist_above_line(x,p1,p2))
 # distance from x to the line segment p1-p2
 dist_to_segment = lambda x, p1, p2: dist_to_line(x,p1,p2) if 0 < dist_along_line(x, p1, p2) < (p1>>p2)**.5 else min(x>>p1,x>>p2)**.5
+# distance from x to the ray from p in dir
+dist_to_ray = lambda x, p, dir: dist_to_line(x,p,p+dir) if 0 < dist_along_line(x, p, p+dir) else (x>>p)**.5
 # distance from x to the circle with centered r centered at p
 dist_to_circle = lambda x, p, r: abs((x>>p)**.5 - r)
 # point on line p1-p2 closest to x

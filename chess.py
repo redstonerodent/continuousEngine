@@ -19,14 +19,23 @@ guide_color = (255,0,255)
 future_guide_color = (245, 200, 245)
 
 # for pawns
-move_guide_color  =(150,0,255)
-capture_guide_color  =(255,0,150)
+move_guide_color = (150,0,255)
+capture_guide_color = (255,0,150)
+
+threatened_color = (255,0,0)
 
 alpha = 100
 line_width = 3
 
 # does blocker prevent piece from moving in a straight line to target?
-blocks_line = lambda piece, target, blocker: dist_to_segment(blocker.loc, piece.loc, target) < piece.r + blocker.r
+blocks_segment = lambda piece, target, blocker: dist_to_segment(blocker.loc, piece.loc, target) < piece.r + blocker.r
+
+# if piece moves in dir, will it hit blocker?
+blocks_ray = lambda piece, dir, blocker: dist_to_ray(blocker.loc, piece.loc, dir) < piece.r + blocker.r
+
+# how far does piece need to move in direction dir to capture cap?
+dist_to_capture = lambda piece, dir, cap: dist_along_line(cap.loc, piece.loc, piece.loc+dir) - ((piece.r + cap.r)**2 - dist_to_line(cap.loc, piece.loc, piece.loc+dir)**2)**.5
+
 
 class Constants:
     COLORS = WHITE, BLACK = 'white', 'black'
@@ -57,11 +66,16 @@ class Piece(Renderable):
         self.name, self.color, self.loc = name, color, loc
         self.r, self.sprite = Constants.RADIUS[name], Constants.SPRITE[color, name]
         self.sign = {Constants.BLACK:1, Constants.WHITE:-1}[color]
+        self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
-    def render(self, color=None, outline_color=None):
+    def render(self, color=None):
         pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(*self.loc), int(self.r*self.game.scale))
-        pygame.draw.circle(self.game.screen, outline_color or {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color], self.game.pixel(*self.loc), int(self.r*self.game.scale), 1)
+        pygame.draw.circle(self.game.screen, self.outline_color, self.game.pixel(*self.loc), int(self.r*self.game.scale), 2)
         self.game.screen.blit(self.sprite, (lambda x,y:(x-24,y-27))(*self.game.pixel(*self.loc)))
+
+    def update_threatening_cache(self, pieces):
+        self.threatening_cache = self.capturable(pieces)
+        self.threatening = self.threatening_cache
 
 class Runner(Piece):
     def __init__(self, game, name, color, loc, dirs):
@@ -76,11 +90,20 @@ class Runner(Piece):
 
         move = min((nearest_on_line(loc,self.loc,self.loc+p) for p in self.dirs), key = lambda p: p>>loc)
 
-        intersecting = {p for p in pieces if blocks_line(self, move, p)}
+        intersecting = {p for p in pieces if blocks_segment(self, move, p)}
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
         blocking = intersecting - capture - {self}
 
         return move, blocking, capture
+    
+    def in_range(self, piece):
+        # could I capture a piece at loc with radius r if there were no other pieces on the board?
+        return trace(any(blocks_ray(self, dir, piece) for dir in self.dirs))
+
+    def capturable(self, pieces):
+        # which pieces can I capture?
+        return trace([p for p in (min((p for p in pieces if p != self and blocks_ray(self, dir, p)), key=lambda p: dist_to_capture(self, dir, p), default=None) for dir in self.dirs) if p != None and p.color != self.color])
+
 
 
 class Rook(Runner):
@@ -110,6 +133,14 @@ class Knight(Piece):
         
         return move, blocking, capture
 
+    def in_range(self, piece):
+        # could I capture a piece at loc with radius r if there were no other pieces on the board?
+        return False
+
+    def capturable(self, pieces):
+        # which pieces can I capture?
+        return []
+
 class King(Piece):
     __init__ = lambda self, game, color, loc: super().__init__(game, Layers.PIECES, Constants.KING, color, loc)
 
@@ -128,6 +159,14 @@ class King(Piece):
         
         return move, blocking, capture
 
+    def in_range(self, piece):
+        # could I capture a piece at loc with radius r if there were no other pieces on the board?
+        return False
+
+    def capturable(self, pieces):
+        # which pieces can I capture?
+        return []
+
 class Pawn(Piece):
     __init__ = lambda self, game, color, loc: super().__init__(game, Layers.PIECES, Constants.PAWN, color, loc)
 
@@ -143,21 +182,26 @@ class Pawn(Piece):
         # returns (Point move, [Piece] blocking, [Piece] capture)
         move = min((nearest_on_segment(loc,self.loc,self.loc+p) for p in [Point(0,self.sign*(1+(self.loc.y==-2.5*self.sign))), Point(1,self.sign), Point(-1,self.sign)]), key = lambda p: p>>loc)
 
-        intersecting = {p for p in pieces if blocks_line(self, move, p)} - {self}
+        intersecting = {p for p in pieces if blocks_segment(self, move, p)} - {self}
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
 
         if move.x == self.loc.x:
-            print('branch 1')
             blocking = intersecting | capture
             capture = {}
         elif capture:
-            print('branch 2')
             blocking = intersecting - capture
         else:
-            print('branch 3')
             blocking = intersecting | {self}
 
         return move, blocking, capture
+
+    def in_range(self, piece):
+        # could I capture a piece at loc with radius r if there were no other pieces on the board?
+        return False
+
+    def capturable(self, pieces):
+        # which pieces can I capture?
+        return []
 
 class Guide(Renderable):
     # thick => show region attacked
@@ -170,7 +214,7 @@ class Guide(Renderable):
         if piece: 
             self.piece.guide = self
         self.loc = None
-        self.visible = False
+        self.GETvisible = lambda g: self.piece in g.shown
     def render(self):
         loc = self.loc or self.piece.loc
         if self.color:
@@ -197,15 +241,18 @@ class Ghost(Renderable):
     def __init__(self, game):
         super().__init__(game, Layers.GHOST)
         self.state = None
+        self.GETr = lambda g: g.active_piece.r
+        self.GETcolor = lambda g: g.active_piece.color
     def render(self):
         if self.game.active_piece:
-            if self.state != (self.game.scale, self.game.active_piece):
-                self.state = self.game.scale, self.game.active_piece
+            threatened = any(self in p.threatening for p in self.game.shown)
+            if self.state != (self.game.scale, self.game.active_piece, threatened):
+                self.state = self.game.scale, self.game.active_piece, threatened
                 diameter = int(self.game.active_piece.r*2*self.game.scale)
                 size = max(diameter, 60)
                 self.surf = pygame.Surface((size, size)).convert_alpha(self.game.screen)
                 self.surf.fill((0,0,0,0))
-                pygame.draw.circle(self.surf, active_color, (size//2,size//2), diameter//2)
+                pygame.draw.circle(self.surf, threatened_color if threatened else active_color, (size//2,size//2), diameter//2)
                 self.surf.blit(self.game.active_piece.sprite, (size//2-25, size//2-25))
                 self.surf.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
             self.game.screen.blit(self.surf,(lambda x,y:(x-self.surf.get_width()//2,y-self.surf.get_height()//2))(*self.game.pixel(*self.loc)))
@@ -249,6 +296,7 @@ game.load_state = lambda pieces: (
     game.clearLayer(Layers.SHOWN_PIECES),
     [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
     setattr(game, 'active_piece', None),
+    setattr(game, 'shown', []),
 )
 game.load_state(start_state)
 
@@ -275,7 +323,7 @@ def attemptMove(mouse_pos):
     if not blocking and len(capture)<2: # move is legal
         game.record_state()
         
-        [setattr(p.guide,'visible',False) for p in game.layers[Layers.PIECES]]
+        game.shown = []
 
         game.active_piece.loc = pos
         for piece in capture:
@@ -293,23 +341,30 @@ def selectPiece(mouse_pos):
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
     elif clicked_on:
-       game.active_piece = clicked_on[0]
-       game.move_guide.piece = game.active_piece
-       game.future_guide.piece = game.active_piece
-       updateMove(game)
-       game.move_guide.piece = game.active_piece
-       game.move_guide.loc = game.active_piece.loc
-       game.future_guide.piece = game.active_piece
+        game.active_piece = clicked_on[0]
+        game.move_guide.piece = game.active_piece
+        game.future_guide.piece = game.active_piece
+        updateMove(game)
+        game.move_guide.piece = game.active_piece
+        game.move_guide.loc = game.active_piece.loc
+        game.future_guide.piece = game.active_piece
+        for p in game.shown:
+            p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
 def updateMove(game):
     pos = game.getMousePos()
     game.clearLayer(Layers.CAPBLOCK)
     if game.active_piece:
-        target, blocking, capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
+        move, blocking, capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
         [LitPiece(game,b,blocking_color) for b in blocking]
         [LitPiece(game,c,capture_color) for c in capture]
-        game.future_guide.loc = target
-        game.ghost.loc = target
+        game.future_guide.loc = move
+        game.ghost.loc = move
+        for p in game.shown: 
+            if p.in_range(game.ghost):
+                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece] + [game.ghost])
+            else:
+                p.threatening = p.threatening_cache
 
 game.click[2] = lambda e: toggleShown(game.point(*e.pos))
 
@@ -318,15 +373,18 @@ def toggleShown(mouse_pos):
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
     elif clicked_on:
-        g = clicked_on[0].guide
-        g.visible = not g.visible
+        p = clicked_on[0]
+        if p in game.shown: game.shown.remove(p)
+        else:
+            game.shown.append(p)
+            p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
 game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
-game.keys.cancel = pygame.K_ESCAPE # escape
-game.keys.printHistory = pygame.K_SPACE # space
+game.keys.cancel = pygame.K_ESCAPE
+game.keys.printHistory = pygame.K_SPACE
 
-game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), game.clearLayer(Layers.CAPBLOCK))
+game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), game.clearLayer(Layers.CAPBLOCK), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
 game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))
 
 
