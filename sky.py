@@ -73,35 +73,35 @@ def makeDot(c):
     pygame.draw.circle(dot, countColor(c), (dot_rad,)*2, dot_rad)
     write(dot, font, c, dot_rad, dot_rad, text_color)
     return dot
-addDot = lambda x,y: CachedImg(game, Layers.TRIALS, countVisible(solution,x,y), makeDot, (x, y)) if any([x<0,y<0,x>n,y>n]) else None
+addDot = lambda x,y: CachedImg(game, Layers.TRIALS, countVisible(solution,x,y), makeDot, Point(x, y)) if any([x<0,y<0,x>n,y>n]) else None
     
 game = Game([[0]*n for _ in range(n)], center=(n/2,n/2))
 
 game.save_state = lambda: [[guess[i][j].text for j in range(n)] for i in range(n)]
 game.load_state = lambda s: [setattr(guess[i][j],'text',s[i][j]) for i in range(n) for j in range(n)]
 
-winSquare = Rectangle(game, Layers.SQUARES, win_color,0,0,n,n)
+winSquare = Rectangle(game, Layers.SQUARES, win_color, Point(0,0), n,n)
 winSquare.GETvisible = lambda game: game.save_state() == solution
-selector = Rectangle(game, Layers.SQUARES, highlight_color,0,0,1,1)
-game.grid = InfiniteGrid(game, Layers.GRIDS, line_outside_color,1)
+selector = Rectangle(game, Layers.SQUARES, highlight_color, Point(0,0), 1,1)
+game.grid = InfiniteGrid(game, Layers.GRIDS, line_outside_color, 1)
 game.grid.visible = False
-Grid(game, Layers.GRIDS, line_color,0,0,n)
+Grid(game, Layers.GRIDS, line_color, Point(0,0) ,n)
 
-guess = [[Text(game, Layers.GUESS, text_color,font,0,i+.5,j+.5) for j in range(n)] for i in range(n)]
+guess = [[Text(game, Layers.GUESS, text_color,font,0, Point(i+.5,j+.5)) for j in range(n)] for i in range(n)]
 [(lambda t:(setattr(t,'GETvisible',lambda _:t.text)))(guess[i][j]) for i in range(n) for j in range(n)]
 
 # left click
-game.click[1] = lambda e: (lambda x,y:(setattr(selector,'x',int(x)),setattr(selector,'y',int(y))) if 0<=x<=n and 0<=y<=n else addDot(x,y))(*game.point(*e.pos))
+game.click[1] = lambda e: (lambda x,y:(setattr(selector.loc,'x',int(x)),setattr(selector.loc,'y',int(y))) if 0<=x<=n and 0<=y<=n else addDot(x,y))(*game.point(*e.pos))
 # middle click and drag
 game.drag[1] = lambda e: (lambda x,y:addDot(x,y))(*game.point(*e.pos))
-game.numKey = lambda c: (game.record_state(), setattr(guess[selector.x][selector.y],'text',c))
+game.numKey = lambda c: (game.record_state(), setattr(guess[selector.loc.x][selector.loc.y],'text',c))
 
 
 # debug
 # show all visible skyscapers
 if 0:
     [(lambda i,j: setattr(
-        Rectangle(game, Layers.SQUARES, win_color, i+.1, j+.1, .8, .8),'GETvisible',
+        Rectangle(game, Layers.SQUARES, win_color, Point(i+.1, j+.1), .8, .8),'GETvisible',
         lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in visible(solution,t.x,t.y))(game.layers[Layers.TRIALS][-1])
         ))(i,j) 
     for j in range(n) for i in range(n)]
@@ -110,7 +110,7 @@ if 0:
 if 0:
     [(lambda i,j: setattr(
         Disk(game, Layers.SQUARES, debug_color, i+.5, j+.5, .3),'GETvisible',
-        lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in map(lambda x:x[1],posVisible(t.x,t.y,selector.x,selector.y)))(game.layers[Layers.TRIALS][-1])
+        lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in map(lambda x:x[1],posVisible(t.x,t.y,selector.loc.x,selector.loc.y)))(game.layers[Layers.TRIALS][-1])
         ))(i,j) 
     for j in range(n) for i in range(n)]
 # show visible skyscrapers in line
@@ -126,7 +126,7 @@ if 0:
     [(lambda i,j: 
         (lambda L:(
             setattr(L,'GETvisible',
-                lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (i,j) == (selector.x, selector.y)),
+                lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (i,j) == (selector.loc.x, selector.loc.y)),
             setattr(L,'GETp2',
                 lambda game: (lambda t:(t.x,t.y))((game.layers[Layers.TRIALS][-1])))
         ))
@@ -147,11 +147,11 @@ game.keys.resetColors = pygame.K_j
 game.keys.clearTrials = pygame.K_ESCAPE
 game.keys.toggleGrid = pygame.K_i
 
-game.keyPress[game.keys.moveUp]         = lambda _: setattr(selector,'y',(selector.y-1)%n)
-game.keyPress[game.keys.moveDown]       = lambda _: setattr(selector,'y',(selector.y+1)%n)
-game.keyPress[game.keys.moveLeft]       = lambda _: setattr(selector,'x',(selector.x-1)%n)
-game.keyPress[game.keys.moveRight]      = lambda _: setattr(selector,'x',(selector.x+1)%n)
-game.keyPress[game.keys.delete]         = lambda _: (game.record_state(), setattr(guess[selector.x][selector.y],'text',0))
+game.keyPress[game.keys.moveUp]         = lambda _: setattr(selector.loc,'y',(selector.loc.y-1)%n)
+game.keyPress[game.keys.moveDown]       = lambda _: setattr(selector.loc,'y',(selector.loc.y+1)%n)
+game.keyPress[game.keys.moveLeft]       = lambda _: setattr(selector.loc,'x',(selector.loc.x-1)%n)
+game.keyPress[game.keys.moveRight]      = lambda _: setattr(selector.loc,'x',(selector.loc.x+1)%n)
+game.keyPress[game.keys.delete]         = lambda _: (game.record_state(), setattr(guess[selector.loc.x][selector.loc.y],'text',0))
 game.keyPress[game.keys.resetColors]    = lambda _: game.clearCache()
 game.keyPress[game.keys.clearTrials]    = lambda _: game.clearLayer(Layers.TRIALS)
 game.keyPress[game.keys.toggleGrid]     = lambda _: setattr(game.grid,'visible',not game.grid.visible)

@@ -108,7 +108,7 @@ class ReversiPiece(BorderDisk):
         def render(self):
             super().render()
             for pt in self.valid_tangents:
-                pygame.draw.line(self.game.screen, Colors.debug, self.game.pixel(*self.loc), self.game.pixel(*pt), 3)
+                pygame.draw.line(self.game.screen, Colors.debug, self.game.pixel(self.loc), self.game.pixel(pt), 3)
 
 class ReversiPieceCore(Disk):
     def __init__(self, game, piece, layer):

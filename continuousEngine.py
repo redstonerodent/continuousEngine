@@ -92,7 +92,7 @@ class Game:
     y_max = lambda self:self.width/self.scale-self.y_offset
 
     # convert between pixels on screen and points in abstract game space
-    pixel = lambda self,x,y: (int((x+self.x_offset)*self.scale), int((y+self.y_offset)*self.scale))
+    pixel = lambda self,p: (int((p.x+self.x_offset)*self.scale), int((p.y+self.y_offset)*self.scale))
     point = lambda self,x,y: Point(x/self.scale-self.x_offset, y/self.scale-self.y_offset)
 
     def pan(self, dx, dy): # in pixels
@@ -155,7 +155,7 @@ def drawCircle(game, color, center, radius, width=0, realWidth=False, surface=No
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
-    pygame.draw.circle(surface, color, game.pixel(*center), int(radius*game.scale+width), int(width))
+    pygame.draw.circle(surface, color, game.pixel(center), int(radius*game.scale+width), int(width))
 
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
@@ -171,7 +171,7 @@ def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
         for asp in [(0,1,game.x_min()), (0,-1,game.x_max()),(1,1,game.y_min()), (1,-1,game.y_max())]:
             ps = intersect_polygon_halfplane(ps, *asp)
         if len(ps) >= 3:
-            pygame.draw.polygon(surface, color, [game.pixel(*p) for p in ps])
+            pygame.draw.polygon(surface, color, [game.pixel(p) for p in ps])
 
 def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, caps=(True,True)): 
     # draws a line with ends capped by circles, better than pygame.draw.line
@@ -213,7 +213,7 @@ class Renderable:
     def render(self):
         pass
     def debugLine(self, color, p1, p2, width=3):
-        pygame.draw.line(self.game.screen, color, self.game.pixel(*p1), self.game.pixel(*p2), width)
+        pygame.draw.line(self.game.screen, color, self.game.pixel(p1), self.game.pixel(p2), width)
 
 class Background(Renderable):
     def __init__(self, game, color):
@@ -239,34 +239,34 @@ class Line(Renderable):
         x2,y2 = self.p2
         dx, dy = x2-x1, y2-y1
         intersections = ({(u,y2-dy*(x2-u)/dx) for u in (self.game.x_min(),self.game.x_max())} if dx else set()) | ({(x2-dx*(y2-v)/dy,v) for v in (self.game.y_min(),self.game.y_max())} if dy else set())
-        pygame.draw.line(self.game.screen, self.color, self.game.pixel(*max(intersections)), self.game.pixel(*min(intersections)), int(self.width))
+        pygame.draw.line(self.game.screen, self.color, self.game.pixel(max(intersections)), self.game.pixel(min(intersections)), int(self.width))
 
 class Grid(Renderable):
     # nx by ny grid of sizex by sizey rectangles starting at x,y
     # by default ny=nx, sizey=sizex
-    def __init__(self, game, layer, color, x, y, nx, sizex=1, ny=None, sizey=None):
+    def __init__(self, game, layer, color, loc, nx, sizex=1, ny=None, sizey=None):
         super().__init__(game, layer)
         if ny==None: ny=nx
         if sizey==None: sizey=sizex
-        self.color, self.x, self.y, self.nx, self.ny, self.sizex, self.sizey = color, x, y, nx, ny, sizex, sizey
+        self.color, self.loc, self.nx, self.ny, self.sizex, self.sizey = color, loc, nx, ny, sizex, sizey
     def render(self):
         for i in range(self.ny+1):
-            pygame.draw.line(self.game.screen, self.color, self.game.pixel(self.x,self.y+self.sizey*i), self.game.pixel(self.x+self.sizex*self.nx,self.y+self.sizey*i))
+            pygame.draw.line(self.game.screen, self.color, self.game.pixel((self.loc+Point(0,self.sizey*i))), self.game.pixel((self.loc+Point(self.sizex*self.nx,self.sizey*i))))
         for i in range(self.nx+1):
-            pygame.draw.line(self.game.screen, self.color, self.game.pixel(self.x+self.sizex*i,self.y), self.game.pixel(self.x+self.sizex*i,self.y+self.sizey*self.ny))
+            pygame.draw.line(self.game.screen, self.color, self.game.pixel((self.loc+Point(self.sizex*i,0))), self.game.pixel((self.loc+Point(self.sizex*i,self.sizey*self.ny))))
 
 class InfiniteGrid(Renderable):
     # infinite grid of sizex by sizey rectangles offset by x,y
     # by default sizey=sizex
-    def __init__(self, game, layer, color, sizex, sizey=None, x=0, y=0):
+    def __init__(self, game, layer, color, sizex, sizey=None, loc=Point(0,0)):
         super().__init__(game, layer)
         if sizey==None: sizey=sizex
-        self.color, self.sizex, self.sizey, self.x, self.y = color, sizex, sizey, x, y
+        self.color, self.sizex, self.sizey, self.loc = color, sizex, sizey, loc
     def render(self):
-        for i in range( int((self.game.x_min()-self.x)/self.sizex) , int((self.game.x_max()-self.x)/self.sizex)+1 ):
-            pygame.draw.line(self.game.screen, self.color, self.game.pixel(self.x+i*self.sizex,self.game.y_min()), self.game.pixel(self.x+i*self.sizex,self.game.y_max()))
-        for i in range( int((self.game.y_min()-self.y)/self.sizey) , int((self.game.y_max()-self.y)/self.sizey)+1 ):
-            pygame.draw.line(self.game.screen, self.color, self.game.pixel(self.game.x_min(),self.y+i*self.sizey), self.game.pixel(self.game.x_max(),self.y+i*self.sizey))
+        for i in range( int((self.game.x_min()-self.loc.x)/self.sizex) , int((self.game.x_max()-self.loc.x)/self.sizex)+1 ):
+            pygame.draw.line(self.game.screen, self.color, self.game.pixel(Point(self.loc.x+i*self.sizex,self.game.y_min())), self.game.pixel(Point(self.loc.x+i*self.sizex,self.game.y_max())))
+        for i in range( int((self.game.y_min()-self.loc.y)/self.sizey) , int((self.game.y_max()-self.loc.y)/self.sizey)+1 ):
+            pygame.draw.line(self.game.screen, self.color, self.game.pixel(Point(self.game.x_min(),self.loc.y+i*self.sizey)), self.game.pixel(Point(self.game.x_max(),self.loc.y+i*self.sizey)))
 
 class CachedImg(Renderable):
     # gen(key) creates image which is saved at self.game.cache[key]
@@ -279,7 +279,7 @@ class CachedImg(Renderable):
             self.game.cache[self.key] = self.gen(self.key)
         surf = self.game.cache[self.key]
         if self.loc:
-            px,py = self.game.pixel(*self.loc)
+            px,py = self.game.pixel(self.loc)
             if -surf.get_width() <= px <= self.game.width+surf.get_width() and -surf.get_height() <= py <= self.game.height+surf.get_height():
                 shiftx = {'l':0,'c':surf.get_width()//2,'r':surf.get_width()}[self.halign]
                 shifty = {'t':0,'c':surf.get_height()//2,'b':surf.get_height()}[self.valign]
@@ -290,23 +290,26 @@ class CachedImg(Renderable):
 
 class Text(Renderable):
     # default centered at x,y
+    def __init__(self, game, layer, color, font, text, loc, halign='c', valign='c'):
+        super().__init__(game, layer)
+        self.font, self.text, self.loc, self.color, self.halign, self.valign = font, text, loc, color, halign, valign
+    def render(self):
+        write(self.game.screen, self.font, self.text, *self.game.pixel(self.loc), self.color, self.halign, self.valign)
+
+class FixedText(Renderable):
+    # text centered at pixel (x,y); fixed on screen. doesn't move with zoom/pan
     def __init__(self, game, layer, color, font, text, x, y, halign='c', valign='c'):
         super().__init__(game, layer)
         self.font, self.text, self.x, self.y, self.color, self.halign, self.valign = font, text, x, y, color, halign, valign
     def render(self):
-        write(self.game.screen, self.font, self.text, *self.game.pixel(self.x, self.y), self.color, self.halign, self.valign)
-
-class FixedText(Text):
-    # text centered at pixel (x,y); fixed on screen. doesn't move with zoom/pan
-    def render(self):
         write(self.game.screen, self.font, self.text, self.x, self.y, self.color, self.halign, self.valign)
 
 class Rectangle(Renderable):
-    def __init__(self, game, layer, color, x, y, dx, dy):
+    def __init__(self, game, layer, color, loc, dx, dy):
         super().__init__(game, layer)
-        self.color, self.x, self.y, self.dx, self.dy = color, x, y, dx, dy
+        self.color, self.loc, self.dx, self.dy = color, loc, dx, dy
     def render(self):
-        pygame.draw.rect(self.game.screen, self.color, pygame.Rect(*self.game.pixel(self.x, self.y), int(self.dx*self.game.scale), int(self.dy*self.game.scale)))
+        pygame.draw.rect(self.game.screen, self.color, pygame.Rect(*self.game.pixel(self.loc), int(self.dx*self.game.scale), int(self.dy*self.game.scale)))
 
 class FilledPolygon(Renderable):
     def __init__(self, game, layer, color, points):

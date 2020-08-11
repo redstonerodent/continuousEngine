@@ -69,9 +69,9 @@ class Piece(Renderable):
         self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
     def render(self, color=None):
-        pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(*self.loc), int(self.r*self.game.scale))
-        pygame.draw.circle(self.game.screen, self.outline_color, self.game.pixel(*self.loc), int(self.r*self.game.scale), 2)
-        self.game.screen.blit(self.sprite, (lambda x,y:(x-24,y-27))(*self.game.pixel(*self.loc)))
+        pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
+        pygame.draw.circle(self.game.screen, self.outline_color, self.game.pixel(self.loc), int(self.r*self.game.scale), 2)
+        self.game.screen.blit(self.sprite, (lambda x,y:(x-24,y-27))(*self.game.pixel(self.loc)))
 
     def update_threatening_cache(self, pieces):
         self.threatening_cache = self.capturable(pieces)
@@ -121,7 +121,7 @@ class Knight(Piece):
     def draw_guide(self, loc=None, color=guide_color, width=line_width, realWidth=False):
         loc = loc or self.loc
         width *= self.game.scale if realWidth else 1
-        pygame.draw.circle(self.game.screen, color, self.game.pixel(*loc), int(self.game.scale*5**.5+width/2), int(width))
+        pygame.draw.circle(self.game.screen, color, self.game.pixel(loc), int(self.game.scale*5**.5+width/2), int(width))
 
     def find_move(self, loc, pieces):
         # returns (Point move, [Piece] blocking, [Piece] capture)
@@ -255,7 +255,7 @@ class Ghost(Renderable):
                 pygame.draw.circle(self.surf, threatened_color if threatened else active_color, (size//2,size//2), diameter//2)
                 self.surf.blit(self.game.active_piece.sprite, (size//2-25, size//2-25))
                 self.surf.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
-            self.game.screen.blit(self.surf,(lambda x,y:(x-self.surf.get_width()//2,y-self.surf.get_height()//2))(*self.game.pixel(*self.loc)))
+            self.game.screen.blit(self.surf,(lambda x,y:(x-self.surf.get_width()//2,y-self.surf.get_height()//2))(*self.game.pixel(self.loc)))
 
 
 start_state = [
