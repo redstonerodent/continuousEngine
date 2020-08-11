@@ -27,8 +27,8 @@ threatened_color = (255,0,0)
 alpha = 100
 line_width = 3
 
-# does blocker prevent piece from moving in a straight line to target?
-blocks_segment = lambda piece, target, blocker: dist_to_segment(blocker.loc, piece.loc, target) < piece.r + blocker.r
+# does blocker prevent a piece at loc with radius r from moving in a straight line to target?
+blocks_segment = lambda loc, r, target, blocker: dist_to_segment(blocker.loc, loc, target) < r + blocker.r
 
 # if a piece at loc with radius r moves in dir, will it hit blocker?
 blocks_ray = lambda loc, r, dir, blocker: dist_to_ray(blocker.loc, loc, dir) < r + blocker.r
@@ -66,7 +66,7 @@ class Piece(Renderable):
         self.name, self.color, self.loc = name, color, loc
         self.r, self.sprite = Constants.RADIUS[name], Constants.SPRITE[color, name]
         self.sign = {Constants.BLACK:1, Constants.WHITE:-1}[color]
-        self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown + [g.ghost]) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
+        self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) or (g.active_piece and self in g.ghost.threatening) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
     def render(self, color=None):
         pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
@@ -90,7 +90,7 @@ class Runner(Piece):
 
         move = min((nearest_on_line(loc,self.loc,self.loc+p) for p in self.dirs), key = lambda p: p>>loc)
 
-        intersecting = {p for p in pieces if blocks_segment(self, move, p)}
+        intersecting = {p for p in pieces if blocks_segment(self.loc, self.r, move, p)}
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
         blocking = intersecting - capture - {self}
 
@@ -183,7 +183,7 @@ class Pawn(Piece):
         # returns (Point move, [Piece] blocking, [Piece] capture)
         move = min((nearest_on_segment(loc,self.loc,self.loc+p) for p in [Point(0,self.sign*(1+(self.loc.y==-2.5*self.sign))), Point(1,self.sign), Point(-1,self.sign)]), key = lambda p: p>>loc)
 
-        intersecting = {p for p in pieces if blocks_segment(self, move, p)} - {self}
+        intersecting = {p for p in pieces if blocks_segment(self.loc, self.r, move, p)} - {self}
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
 
         if move.x == self.loc.x:
@@ -244,7 +244,6 @@ class Ghost(Renderable):
         self.state = None
         self.GETr = lambda g: g.active_piece.r
         self.GETcolor = lambda g: g.active_piece.color
-        self.GETthreatening = lambda g: g.active_piece.capturable([p for p in g.layers[Layers.PIECES] if p != g.active_piece], self.loc) if g.active_piece else []
     def render(self):
         if self.game.active_piece:
             threatened = any(self in p.threatening for p in self.game.shown)
@@ -299,6 +298,7 @@ game.load_state = lambda pieces: (
     [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
     setattr(game, 'active_piece', None),
     setattr(game, 'shown', []),
+    # setattr(game.ghost, 'threatening', []),
 )
 game.load_state(start_state)
 
@@ -316,6 +316,7 @@ game.move_guide = Guide(game, Layers.GUIDE, None, thick=False)
 game.move_guide.GETvisible = lambda game: game.active_piece != None
 
 game.ghost = Ghost(game)
+game.ghost.threatening = []
 
 game.click[1] = lambda e: (attemptMove if game.active_piece else selectPiece)(game.point(*e.pos))
 
@@ -363,10 +364,12 @@ def updateMove(game):
         game.future_guide.loc = move
         game.ghost.loc = move
         for p in game.shown: 
-            if p.in_range(game.ghost):
-                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece] + [game.ghost])
+            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in capture):
+                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture] + [game.ghost])
             else:
                 p.threatening = p.threatening_cache
+        game.ghost.threatening = game.active_piece.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture], game.ghost.loc)
+
 
 game.click[2] = lambda e: toggleShown(game.point(*e.pos))
 
