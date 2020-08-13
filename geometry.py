@@ -2,6 +2,7 @@ from math import atan2, pi
 
 # for debugging
 trace = lambda x, *y: (print(x), print(*y),x)[2]
+tracefn = lambda f: lambda *args: trace(f(*args), *args)
 
 class Point:
     def __init__(self, x, y):
@@ -76,10 +77,15 @@ intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area
 # combat floating point errors. In particular, tangent circles shouldn't intersect
 epsilon = 10**-10
 # intersections of circles of radius r1 and r2 centered at p1 or p2. a tuple with either 0 or 2 elements. if r2 is not given, both circles have radius r1
-intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, d: (lambda m: (lambda d: (m+d, m-d)
+intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (lambda d: (m+d, m-d)
             )(~(p2-p1) @ ((r1**2-(p1>>m))**.5 + epsilon))
-        )(p1 + (p2-p1)@((r1**2-r2**2+d) / 2 / (d**.5))) if abs(r1-r2) < d**.5 < r1+r2 else ()
+        )(p1 + (p2-p1)@((r1**2-r2**2+dsq) / 2 / (dsq**.5))) if abs(r1-r2) < dsq**.5 < r1+r2 else ()
     )(r2 or r1, p1>>p2)
+# intersections of line a-b and circle of radius r centered at p. a tuple with either 0 or 2 elements.
+intersect_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))(nearest_on_line(p,a,b), (b-a) @ ((r**2-dist**2)**.5 + epsilon)) if dist<r else ()
+    )(dist_to_line(p,a,b))
+# intersections of segment a-b and circle of radius r centered at p. a tuple with 0 to 2 elements.
+intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if between(a,x,b))
 
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))

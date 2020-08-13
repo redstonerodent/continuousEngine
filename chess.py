@@ -140,7 +140,7 @@ class Knight(Piece):
         
         return move, blocking, capture
 
-    def in_range(self, piece, loc):
+    def in_range(self, piece, loc=None):
         # could I capture piece if there were no other pieces on the board?
         loc = loc or self.loc
         return blocks_circle(loc, self.r, knight_dist, piece)
@@ -174,11 +174,17 @@ class King(Piece):
     def in_range(self, piece, loc=None):
         # could I capture piece if there were no other pieces on the board?
         loc = loc or self.loc
-        return any(blocks_segment(loc+d1, self.r, loc+d2, pieces) for d1, d2 in king_deltas)
+        return any(blocks_segment(loc+d1, self.r, loc+d2, piece) for d1, d2 in king_deltas)
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
-        return []
+        loc = loc or self.loc
+        ans = []
+        for d1, d2 in king_deltas:
+            possible = [p for p in pieces if blocks_segment(loc+d1, self.r, loc+d2, p)]
+            ans += [p for p in ((lambda overlapping: p if not trace(overlapping, tangency) else overlapping[0] if len(overlapping)==1 else None)([p for p in possible if p.loc>>tangency < (self.r+p.r)**2]) for p in possible for tangency in intersect_segment_circle(loc+d1, loc+d2, p.loc, self.r+p.r)) if p and p.color != self.color]
+
+        return ans
 
 class Pawn(Piece):
     __init__ = lambda self, game, color, loc: super().__init__(game, Layers.PIECES, Constants.PAWN, color, loc)
@@ -376,7 +382,7 @@ def updateMove(game):
         game.future_guide.loc = move
         game.ghost.loc = move
         for p in game.shown: 
-            if trace(p.in_range(game.ghost)) or any(p.in_range(cap) for cap in capture):
+            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in capture):
                 p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture] + [game.ghost])
             else:
                 p.threatening = p.threatening_cache
