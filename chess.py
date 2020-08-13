@@ -98,12 +98,12 @@ class Runner(Piece):
     
     def in_range(self, piece):
         # could I capture a piece at loc with radius r if there were no other pieces on the board?
-        return trace(any(blocks_ray(self.loc, self.r, dir, piece) for dir in self.dirs))
+        return any(blocks_ray(self.loc, self.r, dir, piece) for dir in self.dirs)
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
         loc = loc or self.loc
-        return trace([p for p in (min((p for p in pieces if p != self and blocks_ray(loc, self.r, dir, p)), key=lambda p: dist_to_capture(loc, self.r, dir, p), default=None) for dir in self.dirs) if p != None and p.color != self.color])
+        return [p for p in (min((p for p in pieces if p != self and blocks_ray(loc, self.r, dir, p)), key=lambda p: dist_to_capture(loc, self.r, dir, p), default=None) for dir in self.dirs) if p != None and p.color != self.color]
 
 
 
