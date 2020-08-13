@@ -214,13 +214,15 @@ class Pawn(Piece):
 
         return move, blocking, capture
 
-    def in_range(self, piece):
+    def in_range(self, piece, loc=None):
         # could I capture piece if there were no other pieces on the board?
-        return False
+        loc = loc or self.loc
+        return any(blocks_segment(loc, self.r, loc+Point(d,self.sign), piece) for d in [1,-1])
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
-        return []
+        loc = loc or self.loc
+        return [p for p in (min((p for p in pieces if p != self and blocks_segment(loc, self.r, loc+dir, p)), key=lambda p: dist_to_capture(loc, self.r, dir, p), default=None) for dir in [Point(1,self.sign),Point(-1,self.sign)]) if p != None and p.color != self.color]
 
 class Guide(Renderable):
     # thick => show region attacked
