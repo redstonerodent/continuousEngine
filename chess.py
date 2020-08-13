@@ -33,9 +33,14 @@ blocks_segment = lambda loc, r, target, blocker: dist_to_segment(blocker.loc, lo
 # if a piece at loc with radius r moves in dir, will it hit blocker?
 blocks_ray = lambda loc, r, dir, blocker: dist_to_ray(blocker.loc, loc, dir) < r + blocker.r
 
+# if a piece at loc with radius r moves distance d, can it hit blocker?
+blocks_circle = lambda loc, r, d, blocker: dist_to_circle(blocker.loc, loc, d) < r + blocker.r
+
 # how far does a piece at loc with radius r need to move in direction dir to capture cap?
 dist_to_capture = lambda loc, r, dir, cap: dist_along_line(cap.loc, loc, loc+dir) - ((r + cap.r)**2 - dist_to_line(cap.loc, loc, loc+dir)**2)**.5
 
+knight_dist = 5**.5
+king_deltas = [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-1),Point(-1,1)), (Point(-1,1),Point(1,1))]
 
 class Constants:
     COLORS = WHITE, BLACK = 'white', 'black'
@@ -96,9 +101,10 @@ class Runner(Piece):
 
         return move, blocking, capture
     
-    def in_range(self, piece):
-        # could I capture a piece at loc with radius r if there were no other pieces on the board?
-        return any(blocks_ray(self.loc, self.r, dir, piece) for dir in self.dirs)
+    def in_range(self, piece, loc=None):
+        # could I capture piece if there were no other pieces on the board?
+        loc = loc or self.loc
+        return any(blocks_ray(loc, self.r, dir, piece) for dir in self.dirs)
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
@@ -122,37 +128,42 @@ class Knight(Piece):
     def draw_guide(self, loc=None, color=guide_color, width=line_width, realWidth=False):
         loc = loc or self.loc
         width *= self.game.scale if realWidth else 1
-        pygame.draw.circle(self.game.screen, color, self.game.pixel(loc), int(self.game.scale*5**.5+width/2), int(width))
+        pygame.draw.circle(self.game.screen, color, self.game.pixel(loc), int(self.game.scale*knight_dist+width/2), int(width))
 
     def find_move(self, loc, pieces):
         # returns (Point move, [Piece] blocking, [Piece] capture)
 
-        move = nearest_on_circle(loc, self.loc, 5**.5)
+        move = nearest_on_circle(loc, self.loc, knight_dist)
 
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
         blocking = {p for p in pieces if p.color == self.color and move>>p.loc < (self.r+p.r)**2}
         
         return move, blocking, capture
 
-    def in_range(self, piece):
-        # could I capture a piece at loc with radius r if there were no other pieces on the board?
-        return False
+    def in_range(self, piece, loc):
+        # could I capture piece if there were no other pieces on the board?
+        loc = loc or self.loc
+        return blocks_circle(loc, self.r, knight_dist, piece)
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
-        return []
+        loc = loc or self.loc
+        possible = [p for p in pieces if self.in_range(p, loc)]
+
+        return[p for p in ((lambda overlapping: p if not overlapping else overlapping[0] if len(overlapping)==1 else None)([p for p in possible if p.loc>>tangency < (self.r+p.r)**2]) for p in possible for tangency in intersect_circles(loc, p.loc, knight_dist, self.r+p.r)) if p and p.color != self.color]
+
 
 class King(Piece):
     __init__ = lambda self, game, color, loc: super().__init__(game, Layers.PIECES, Constants.KING, color, loc)
 
     def draw_guide(self, loc=None, color=guide_color, width=line_width, realWidth=False):
         loc = loc or self.loc
-        [drawSegment(self.game, color, loc+d1, loc+d2, width, realWidth) for d1,d2 in [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-1),Point(-1,1)), (Point(-1,1),Point(1,1))]]
+        [drawSegment(self.game, color, loc+d1, loc+d2, width, realWidth) for d1,d2 in king_deltas]
 
     def find_move(self, loc, pieces):
         # returns (Point move, [Piece] blocking, [Piece] capture)
 
-        move = min((nearest_on_segment(loc,self.loc+d1,self.loc+d2) for d1,d2 in [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-1),Point(-1,1)), (Point(-1,1),Point(1,1))]),
+        move = min((nearest_on_segment(loc,self.loc+d1,self.loc+d2) for d1,d2 in king_deltas),
                 key = lambda p: p>>loc)
 
         capture = {p for p in pieces if p.color != self.color and move>>p.loc < (self.r+p.r)**2}
@@ -160,9 +171,10 @@ class King(Piece):
         
         return move, blocking, capture
 
-    def in_range(self, piece):
-        # could I capture a piece at loc with radius r if there were no other pieces on the board?
-        return False
+    def in_range(self, piece, loc=None):
+        # could I capture piece if there were no other pieces on the board?
+        loc = loc or self.loc
+        return any(blocks_segment(loc+d1, self.r, loc+d2, pieces) for d1, d2 in king_deltas)
 
     def capturable(self, pieces, loc=None):
         # which pieces can I capture?
@@ -197,7 +209,7 @@ class Pawn(Piece):
         return move, blocking, capture
 
     def in_range(self, piece):
-        # could I capture a piece at loc with radius r if there were no other pieces on the board?
+        # could I capture piece if there were no other pieces on the board?
         return False
 
     def capturable(self, pieces, loc=None):
@@ -364,7 +376,7 @@ def updateMove(game):
         game.future_guide.loc = move
         game.ghost.loc = move
         for p in game.shown: 
-            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in capture):
+            if trace(p.in_range(game.ghost)) or any(p.in_range(cap) for cap in capture):
                 p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture] + [game.ghost])
             else:
                 p.threatening = p.threatening_cache
