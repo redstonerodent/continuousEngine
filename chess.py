@@ -61,7 +61,6 @@ class Layers:
     FUTURE_MOVES    = 2 # future_guide for range after this move 
     PIECES          = 3 # pieces
     ACTIVE          = 4 # active_piece
-    CAPBLOCK        = 6 # blocking+capturable pieces
     GUIDE           = 7 # move_guide for this move
     GHOST           = 8 # ghost
 
@@ -74,7 +73,7 @@ class Piece(Renderable):
         self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) or (g.active_piece and self in g.ghost.threatening) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
     def render(self, color=None):
-        pygame.draw.circle(self.game.screen, color or {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
+        pygame.draw.circle(self.game.screen, color or capture_color if self in game.capture else blocking_color if self in game.blocking else {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
         pygame.draw.circle(self.game.screen, self.outline_color, self.game.pixel(self.loc), int(self.r*self.game.scale), 2)
         self.game.screen.blit(self.sprite, (lambda x,y:(x-24,y-27))(*self.game.pixel(self.loc)))
 
@@ -250,14 +249,6 @@ class ActivePiece(Renderable):
         if self.game.active_piece:
             self.game.active_piece.render(active_color)
 
-class LitPiece(Renderable):
-    def __init__(self, game, piece, color):
-        super().__init__(game, Layers.CAPBLOCK)
-        self.piece = piece
-        self.color = color
-    def render(self):
-        self.piece.render(self.color)
-
 class Ghost(Renderable):
     def __init__(self, game):
         super().__init__(game, Layers.GHOST)
@@ -319,14 +310,11 @@ game.load_state = lambda pieces: (
     [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
     setattr(game, 'active_piece', None),
     setattr(game, 'shown', []),
-    # setattr(game.ghost, 'threatening', []),
+    setattr(game, 'capture', []),
+    setattr(game, 'blocking', []),
 )
 game.load_state(start_state)
 
-game.rawMousePos = None
-game.getMousePos = lambda: game.rawMousePos and game.point(*game.rawMousePos)
-
-game.process = lambda: updateMove(game)
 
 game.future_guide = Guide(game,Layers.FUTURE_MOVES,None, future_guide_color)
 game.future_guide.GETvisible = lambda game: game.active_piece != None
@@ -358,7 +346,7 @@ def attemptMove(mouse_pos):
             game.layers[Layers.PIECES].remove(game.active_piece)
 
         game.active_piece = None
-        updateMove(game)
+        updateMove()
 
 def selectPiece(mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
@@ -368,28 +356,29 @@ def selectPiece(mouse_pos):
         game.active_piece = clicked_on[0]
         game.move_guide.piece = game.active_piece
         game.future_guide.piece = game.active_piece
-        updateMove(game)
+        updateMove()
         game.move_guide.piece = game.active_piece
         game.move_guide.loc = game.active_piece.loc
         game.future_guide.piece = game.active_piece
         for p in game.shown:
             p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
-def updateMove(game):
-    pos = game.getMousePos()
-    game.clearLayer(Layers.CAPBLOCK)
+def updateMove():
+    pos = game.mousePos()
     if game.active_piece:
-        move, blocking, capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
-        [LitPiece(game,b,blocking_color) for b in blocking]
-        [LitPiece(game,c,capture_color) for c in capture]
+        move, game.blocking, game.capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
         game.future_guide.loc = move
         game.ghost.loc = move
         for p in game.shown: 
-            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in capture):
-                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture] + [game.ghost])
+            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in game.capture):
+                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture] + [game.ghost])
             else:
                 p.threatening = p.threatening_cache
-        game.ghost.threatening = game.active_piece.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in capture], game.ghost.loc)
+        game.ghost.threatening = game.active_piece.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture], game.ghost.loc)
+    else:
+        game.blocking, game.capture = [], []
+
+game.process = updateMove
 
 
 game.click[2] = lambda e: toggleShown(game.point(*e.pos))
@@ -405,12 +394,10 @@ def toggleShown(mouse_pos):
             game.shown.append(p)
             p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
-game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
-
 game.keys.cancel = pygame.K_ESCAPE
 game.keys.printHistory = pygame.K_SPACE
 
-game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), game.clearLayer(Layers.CAPBLOCK), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
+game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
 game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))
 
 

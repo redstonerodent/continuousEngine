@@ -61,8 +61,15 @@ class Game:
         }
 
         self.drag = {
-            2: lambda e: self.pan(e.rel[0],e.rel[1]), # right: pan
+            -1 : lambda e: setattr(self, 'rawMousePos', e.pos), # any movement: update mouse position
+            2  :  lambda e: self.pan(e.rel[0],e.rel[1]), # right: pan
+
         }
+
+        # in pixels
+        self.rawMousePos = None
+        # as a point, or None if there haven't been any mouse movements
+        self.mousePos = lambda: self.rawMousePos and self.point(*self.rawMousePos)
 
         self.numKey = lambda _:None
 
