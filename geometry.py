@@ -28,7 +28,7 @@ class Point:
     __invert__ = lambda p: Point(p.y, -p.x)
     # p1 % p2: midpoint of p1 and p2
     __mod__ = lambda p1, p2: (p1 + p2)/2
-    # p1 ^ p2: determinant  of [p1 p2]
+    # p1 ^ p2: determinant  of [p1 p2] (note: the coordinate system is left-handed, so this is negative what you might expect)
     __xor__ = lambda p1, p2: p1.x*p2.y - p1.y*p2.x
     # p1 >> p2: square distance from p1 to p2
     __rshift__ = lambda p1, p2: +(p1-p2)
@@ -40,14 +40,14 @@ class Point:
 polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(pts))) / 2
 
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
-above_line = lambda x, p1, p2: (p2-p1)^(x-p1) > 0
+above_line = lambda x, p1, p2: (p2-p1)^(x-p1) < 0
 # do line segments a-b and x-y intersect?
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
 # is b between a and c, assuming all three are colinear?
 between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
 # signed distance x is above the line p1-p2 ('above' means on the left when moving from p1 to p2)
-dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5 if p1 != p2 else (x>>p1)**.5
+dist_above_line = lambda x, p1, p2: (x-p1)^(p2-p1) / (p1 >> p2)**.5 if p1 != p2 else (x>>p1)**.5
 # signed distance from p1 to the projection of x onto the line p1-p2. dist_above_line and dist_along_line give x in an orthonormal basis with origin p1.
 dist_along_line = lambda x, p1, p2: (x-p1) & ((p2-p1) @ 1)
 # unsigned distanced x is from the line p1-p2
@@ -90,6 +90,9 @@ intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_ci
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))
 
+# is point p in the convex polygon with vertices poly, in counterclockwise order?
+point_in_polygon = lambda p, poly: all(above_line(p, poly[i-1], poly[i]) for i in range(len(poly)))
+
 def intersect_polygon_halfplane(polygon, axis, sign, position):
     # the intersection of the polygon (list of points) with the half-plane described by axis, sign, position
     # the equation for the half-plane is <Z><rel>position, where Z={0:x,1:y}[axis] and rel={1:>,-1:<}[sign]
@@ -104,18 +107,15 @@ def intersect_polygon_halfplane(polygon, axis, sign, position):
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
 
 def convex_hull(points):
-    # a list of points on the convex hull, in clockwise (I think) order
+    # a list of points on the convex hull, in counterclockwise order
     if points==[]: return []
     leftmost = min(points, key=lambda p:p.x)
-    points = sorted(set(points)-{leftmost}, key=lambda p:atan2(*(p-leftmost)))
     ans = [leftmost]
     for p in sorted(set(points)-{leftmost}, key=lambda p:atan2(*(p-leftmost))):
         while len(ans)>1 and above_line(p, *ans[-2:]):
             ans.pop()
         ans.append(p)
     return ans
-
-
 
 ## for computing voronoi diagrams
 ## by josh brunner
