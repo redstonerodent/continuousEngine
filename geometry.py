@@ -103,6 +103,20 @@ def intersect_polygon_halfplane(polygon, axis, sign, position):
             vertices.extend(intersect_line_border(polygon[i], polygon[j], axis, position) for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
 
+def convex_hull(points):
+    # a list of points on the convex hull, in clockwise (I think) order
+    if points==[]: return []
+    leftmost = min(points, key=lambda p:p.x)
+    points = sorted(set(points)-{leftmost}, key=lambda p:atan2(*(p-leftmost)))
+    ans = [leftmost]
+    for p in sorted(set(points)-{leftmost}, key=lambda p:atan2(*(p-leftmost))):
+        while len(ans)>1 and above_line(p, *ans[-2:]):
+            ans.pop()
+        ans.append(p)
+    return ans
+
+
+
 ## for computing voronoi diagrams
 ## by josh brunner
 def circumcenter(p1,p2,p3):
