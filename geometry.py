@@ -109,10 +109,10 @@ def intersect_polygon_halfplane(polygon, axis, sign, position):
 def convex_hull(points):
     # a list of points on the convex hull, in counterclockwise order
     if points==[]: return []
-    leftmost = min(points, key=lambda p:p.x)
-    ans = [leftmost]
-    for p in sorted(set(points)-{leftmost}, key=lambda p:atan2(*(p-leftmost))):
-        while len(ans)>1 and above_line(p, *ans[-2:]):
+    topmost = min(points, key=lambda p:p.y)
+    ans = [topmost]
+    for p in sorted(set(points)-{topmost}, key=lambda p:atan2(*(p-topmost))):
+        while len(ans)>1 and above_line(p, *ans[-1:-3:-1]):
             ans.pop()
         ans.append(p)
     return ans

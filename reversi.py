@@ -150,7 +150,7 @@ game.load_state = lambda x: (lambda turn, pieces:(
     setattr(game, 'over', not any(p.valid_tangents for p in game.layers[Layers.PIECES]))
     ))(*x)
 
-Circle(game, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or game.over or on_board(game.mousePos()) else Colors.blocker
+Circle(game, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or game.over or on_board(game.mousePos()) else Colors.blocker
 
 FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK'])
 FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE'])
@@ -178,7 +178,7 @@ nextPiece.GETloc = lambda g: g.mousePos()
 nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
 nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
-def attemptMove(game):
+def attemptMove(_):
     updateMove()
     if game.blockers or not game.pivots: return
     game.record_state()
@@ -209,7 +209,7 @@ if 0:
     count = 100
     [game.makePiece(random.choice(['WHITE','BLACK']),Point(random.random()*spread-spread/2,random.random()*spread-spread/2)) for _ in range(count)]
 
-game.click[1] = lambda e: attemptMove(game)
+game.click[1] = attemptMove
 
 game.keys.skipTurn = pygame.K_u
 

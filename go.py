@@ -138,7 +138,7 @@ game.load_state = lambda x: (lambda turn, capCount, pieces: (
     game.clearCache()
     ))(*x)
 
-Circle(game, Layers.BOUNDARY, None, Point(0,0), board_rad, 3).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.mousePos()) else Colors.blocker
+Circle(game, Layers.BOUNDARY, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or on_board(game.mousePos()) else Colors.blocker
 
 FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, None, game.width-30,30, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['WHITE'], g.territory['BLACK'], g.capturedCount['WHITE'] + g.territory['BLACK'])
 FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, None, game.width-30,60, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['BLACK'], g.territory['WHITE'], g.capturedCount['BLACK'] + g.territory['WHITE'])
@@ -171,7 +171,7 @@ game.nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 game.voronoi = GoVoronoi(game, Layers.TERRITORY)
 game.viewChange = lambda: game.clearCache()
 
-def attemptMove(game):
+def attemptMove(_):
     updateMove(game)
     if game.blockers or not on_board(game.mousePos()): return
     game.record_state()
@@ -268,7 +268,7 @@ game.process = lambda: updateMove(game)
 game.load_state(start_state)
 
 # left click: place piece
-game.click[1] = lambda e: attemptMove(game)
+game.click[1] = attemptMove
 # middle click: toggle guide
 game.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(piece_at(game.point(*e.pos), game).guide)
 

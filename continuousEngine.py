@@ -45,19 +45,21 @@ class Game:
             'undo'      : pygame.K_SEMICOLON, 
             'redo'      : pygame.K_q,
             'resetGame' : pygame.K_p,
+            'printState': pygame.K_BACKQUOTE,
         })
 
         self.keyPress = {
-            self.keys.zoomIn    : lambda e: self.zoom(self.zoomFactor,0,0),
-            self.keys.zoomOut   : lambda e: self.zoom(1/self.zoomFactor,0,0),
-            self.keys.panUp     : lambda e: self.pan(0,self.panDist),
-            self.keys.panDown   : lambda e: self.pan(0,-self.panDist),
-            self.keys.panLeft   : lambda e: self.pan(self.panDist,0),
-            self.keys.panRight  : lambda e: self.pan(-self.panDist,0),
-            self.keys.resetView : lambda e: self.resetView(),
-            self.keys.resetGame : lambda e: (self.record_state(), self.load_state(self.initialState)),
-            self.keys.undo      : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
-            self.keys.redo      : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.zoomIn        : lambda e: self.zoom(self.zoomFactor,0,0),
+            self.keys.zoomOut       : lambda e: self.zoom(1/self.zoomFactor,0,0),
+            self.keys.panUp         : lambda e: self.pan(0,self.panDist),
+            self.keys.panDown       : lambda e: self.pan(0,-self.panDist),
+            self.keys.panLeft       : lambda e: self.pan(self.panDist,0),
+            self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
+            self.keys.resetView     : lambda e: self.resetView(),
+            self.keys.resetGame     : lambda e: (self.record_state(), self.load_state(self.initialState)),
+            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
+            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.printState    : lambda e: print(self.save_state()),
         }
 
         self.drag = {
@@ -335,8 +337,8 @@ class Circle(Renderable):
         drawCircle(self.game, color, self.loc, self.r, width, fixedRadius=self.fixedRadius)
 
 class Disk(Circle):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.width = 0
 
 class BorderDisk(Circle):
