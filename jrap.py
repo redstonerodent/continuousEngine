@@ -13,20 +13,24 @@ on_board = lambda p: +p < board_rad**2
 class Colors:
     hole = (0,0,0)
     debug = (255,0,0)
-    hammer = (0,255,0)
+    hammer = {'white':(200,200,255), 'blue':(0,100,255)}
     ghost_hole = {'white':(0,125,125), 'blue': (25,25,125)}
     boundary = (120,120,120)
+    legal = (0,255,0)
     illegal = (255,0,0)
-    ice = {'white':(0,255,255), 'blue':(50,50,255)}
+    ice = {'white':(0,255,255), 'blue':(0,0,255)}
     text = (190,80,0)
+    voronoi_opacity = 80
+    background = (140,220,255)
 
 class Layers:
+    new_hole = 2
+    hammer = 2.5
     voronoi = 3
-    new_hole = 4
     holes = 5
-    hammer = 8
     boundary = 10
     warning = 14
+    hammer_border=14.5
     penguin = 15
     game_over = 16
 
@@ -66,7 +70,7 @@ class JrapVoronoi(CachedImg):
         def gen(_):
             self.mask.fill((0,0,0,0))
             self.scratch.fill((0,0,0,0))
-            drawCircle(self.game, (255,255,255), Point(0,0), board_rad, surface=self.mask)
+            drawCircle(self.game, (255,255,255, Colors.voronoi_opacity), Point(0,0), board_rad, surface=self.mask)
             for p in self.player:
                 drawPolygon(self.game, Colors.ice[self.player[p]], self.diagram.voronoi_vertices[p], surface=self.scratch)
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -93,7 +97,7 @@ start_state = ('white',
     []
     )
 
-game = Game(start_state)
+game = Game(start_state, backgroundColor=Colors.background)
 
 game.save_state = lambda: (game.turn, [(p.coords, game.voronoi.player[p]) for p in game.voronoi.player], [h.hits for h in game.layers[Layers.holes]])
 game.load_state = lambda x:(lambda player, cells, holes: (
@@ -107,10 +111,15 @@ game.load_state = lambda x:(lambda player, cells, holes: (
     updateMove(game.mousePos())
     ))(*x)
 
-game.hammer = Circle(game, Layers.hammer, Colors.hammer, None, hammer_rad)
+game.hammer = Disk(game, Layers.hammer, None, None, hammer_rad)
 game.hammer.GETvisible = lambda g: bool(g.mousePos())
 game.hammer.GETloc = lambda g: g.mousePos()
-game.hammer.GETcolor = lambda g: Colors.hammer if game.valid_move else Colors.illegal
+game.hammer.GETcolor = lambda g: Colors.hammer[g.turn]
+
+game.hammer_border = Circle(game, Layers.hammer_border, None, None, hammer_rad)
+game.hammer_border.GETvisible = lambda g: g.hammer.visible
+game.hammer_border.GETloc = lambda g: g.hammer.loc
+game.hammer_border.GETcolor = lambda g: Colors.legal if g.valid_move else Colors.illegal
 
 game.new_hole = JrapHole(game, Layers.new_hole, [])
 game.new_hole.GETcolor = lambda g: Colors.ghost_hole[g.turn]
@@ -126,7 +135,7 @@ Circle(game, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: 
 
 font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
 gameOverMessage = FixedText(game, Layers.game_over, Colors.text, font, "", game.width//2, game.height//2)
-gameOverMessage.GETtext = lambda g: "{} killed the penguin. :(".format(inc_turn[game.turn])
+gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(inc_turn[game.turn])
 gameOverMessage.GETvisible = lambda g: g.over
 
 def attemptMove(pos):
@@ -147,7 +156,6 @@ def updateMove(pos):
         game.to_remove = []
         while any(game.new_hole.intersecting(h) for h in holes):
             hole = next(h for h in holes if game.new_hole.intersecting(h))
-            print('merging')
             game.new_hole.merge(hole)
             holes.remove(hole)
             game.to_remove.append(hole)
