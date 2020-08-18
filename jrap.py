@@ -11,7 +11,7 @@ num_cells = 40
 on_board = lambda p: +p < board_rad**2
 
 class Colors:
-    hole = (0,0,0)
+    hole = (0,0,150)
     debug = (255,0,0)
     hammer = {'white':(200,200,255), 'blue':(0,100,255)}
     ghost_hole = {'white':(0,125,125), 'blue': (25,25,125)}
