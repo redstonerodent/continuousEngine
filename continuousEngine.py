@@ -4,9 +4,15 @@ from geometry import *
 pygame.init()
 
 class Game:
-    def __init__(self,initialState=None,size=(1000,1000),backgroundColor=(245,245,235),scale=100,center=(0,0)):
+    def run(self):
+        #creates a window with the game, and the current thread becomes an event monitoring thread for the game
+        while 1:
+            self.update()
+    def __init__(self,initialState=None,size=(700,700),backgroundColor=(245,245,235),scale=70,center=(0,0),headless=False):
         self.size = self.width, self.height = size
-        self.screen = pygame.display.set_mode(size)
+        self.headless = headless
+        if not headless:
+            self.screen = pygame.display.set_mode(self.size)
         self.scale_home = scale
         centerX, centerY = center
         self.x_offset_home, self.y_offset_home = self.width/scale/2 - centerX, self.height/scale/2 - centerY
@@ -77,6 +83,7 @@ class Game:
         # should be overwritten by user
         self.save_state = lambda :None # returns description of state
         self.load_state = lambda _:None # implements description of state
+        self.get_state = lambda team:self.save_state() #returns state from point of view of team
 
         # for anything that should be recomputed before each render
         self.process = lambda: None
