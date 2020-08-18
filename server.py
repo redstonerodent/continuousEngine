@@ -108,7 +108,12 @@ class NetworkGameServer:
         player = None
         server = self
         while True:
-            r = json.loads(client.rfile.readline().strip())
+            try:
+                r = json.loads(client.rfile.readline().strip())
+            except:
+                if game_id != -1:
+                    with server.games[game_id]["lock"]:
+                        server.games[game_id]["players"].remove(player)
             if r["action"] == "create":
                 server.create_game(r["name"])
             elif r["action"] == "join":

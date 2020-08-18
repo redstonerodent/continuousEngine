@@ -38,9 +38,11 @@ class NetworkGame:
             "id":i,
             "team":team
             }
+        self.live_mode = 1
         self.server=server
         send(server,d)
-        threading.Thread(target=self.server_listener, daemon=False).start()
+        print("joined game {} as user {} on team {}".format(i, user, team))
+        threading.Thread(target=self.server_listener, daemon=True).start()
         #threading.Thread(target=(lambda :print("hi",flush=True))).start()
         print("started server listening thread",flush=True)
 
