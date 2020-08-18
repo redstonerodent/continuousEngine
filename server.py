@@ -58,16 +58,13 @@ class NetworkGameServer:
             self.send_gamestate(i, player)
         return player
     def broadcast_move(self, game_id):
-        print("broadcasting to ")
         with self.games[game_id]["lock"]:
             l = self.games[game_id]["players"].copy()
-            print(l,flush=True)
             for player in l:
                 self.send_gamestate(game_id,  player)
     def send_gamestate(self, game_id, player):
         try:
             player["client"].wfile.write((json.dumps({"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})+"\n").encode())
-            print("sent gamestate",flush=True)
         except:
             print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
@@ -114,6 +111,7 @@ class NetworkGameServer:
                 if game_id != -1:
                     with server.games[game_id]["lock"]:
                         server.games[game_id]["players"].remove(player)
+                return
             if r["action"] == "create":
                 server.create_game(r["name"])
             elif r["action"] == "join":

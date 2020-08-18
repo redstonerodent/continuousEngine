@@ -59,7 +59,7 @@ class NetworkGame:
     def server_listener(self):
         while True:
             try:
-                print("listening for gamestate",flush=True)
+                #print("listening for gamestate",flush=True)
                 s = recieve(self.server)
                 if not s or s["action"]!="move":
                     print(str(s),flush = True)
@@ -87,7 +87,6 @@ class NetworkGame:
                 send(self.server,d)
             except:
                 print(traceback.format_exc(),flush=True)
-            print("move sent",flush=True)
         else:
             self.f(m)
 
