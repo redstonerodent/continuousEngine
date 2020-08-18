@@ -2,6 +2,7 @@ from math import atan2, pi
 
 # for debugging
 trace = lambda x, *y: (print(x), print(*y),x)[2]
+tracefn = lambda f: lambda *args: trace(f(*args), *args)
 
 class Point:
     def __init__(self, x, y):
@@ -27,7 +28,7 @@ class Point:
     __invert__ = lambda p: Point(p.y, -p.x)
     # p1 % p2: midpoint of p1 and p2
     __mod__ = lambda p1, p2: (p1 + p2)/2
-    # p1 ^ p2: determinant  of [p1 p2]
+    # p1 ^ p2: determinant  of [p1 p2] (note: the coordinate system is left-handed, so this is negative what you might expect)
     __xor__ = lambda p1, p2: p1.x*p2.y - p1.y*p2.x
     # p1 >> p2: square distance from p1 to p2
     __rshift__ = lambda p1, p2: +(p1-p2)
@@ -39,14 +40,14 @@ class Point:
 polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(pts))) / 2
 
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
-above_line = lambda x, p1, p2: (p2-p1)^(x-p1) > 0
+above_line = lambda x, p1, p2: (p2-p1)^(x-p1) < 0
 # do line segments a-b and x-y intersect?
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
 # is b between a and c, assuming all three are colinear?
 between = lambda a, b, c: (a.x-b.x)*(b.x-c.x) >= 0 and (a.y-b.y)*(b.y-c.y) >= 0
 # signed distance x is above the line p1-p2 ('above' means on the left when moving from p1 to p2)
-dist_above_line = lambda x, p1, p2: (p2-p1)^(x-p1) / (p1 >> p2)**.5 if p1 != p2 else (x>>p1)**.5
+dist_above_line = lambda x, p1, p2: (x-p1)^(p2-p1) / (p1 >> p2)**.5 if p1 != p2 else (x>>p1)**.5
 # signed distance from p1 to the projection of x onto the line p1-p2. dist_above_line and dist_along_line give x in an orthonormal basis with origin p1.
 dist_along_line = lambda x, p1, p2: (x-p1) & ((p2-p1) @ 1)
 # unsigned distanced x is from the line p1-p2
@@ -58,7 +59,7 @@ dist_to_ray = lambda x, p, dir: dist_to_line(x,p,p+dir) if 0 < dist_along_line(x
 # distance from x to the circle with centered r centered at p
 dist_to_circle = lambda x, p, r: abs((x>>p)**.5 - r)
 # point on line p1-p2 closest to x
-nearest_on_line = lambda x, p1, p2: x + (~(p2-p1) @ dist_above_line(x,p1,p2))
+nearest_on_line = lambda x, p1, p2: x - (~(p2-p1) @ dist_above_line(x,p1,p2))
 # point on line segment p1-p2 closest to x
 nearest_on_segment = lambda x, p1, p2: nearest_on_line(x, p1, p2) if 0 < dist_along_line(x, p1, p2) < (p1>>p2)**.5 else min(p1, p2, key = lambda p: x>>p)
 # point on circle with radius r centered at p closest to x
@@ -75,13 +76,22 @@ intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area
 
 # combat floating point errors. In particular, tangent circles shouldn't intersect
 epsilon = 10**-10
-# centers of circles tangent to both circles centered at p1 and p2
-# (dx, dy) is the vector from the midpoint of p1 and p2 to one of the tangent circles
-# intersections of circles of radius r centered at p1 or p2. a tuple with either 0 or 2 elements.
-intersect_circles = lambda p1, p2, r: (lambda m,d: (m+d, m-d))(p1%p2, ~(p2-p1) @ ((r**2 - (p1>>p2)/4)**.5 + epsilon)) if 0 < p1>>p2 < (2*r)**2 else ()
+# intersections of circles of radius r1 and r2 centered at p1 or p2. a tuple with either 0 or 2 elements. if r2 is not given, both circles have radius r1
+intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (lambda d: (m+d, m-d)
+            )(~(p2-p1) @ ((r1**2-(p1>>m))**.5 + epsilon))
+        )(p1 + (p2-p1)@((r1**2-r2**2+dsq) / 2 / (dsq**.5))) if abs(r1-r2) < dsq**.5 < r1+r2 else ()
+    )(r2 or r1, p1>>p2)
+# intersections of line a-b and circle of radius r centered at p. a tuple with either 0 or 2 elements.
+intersect_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))(nearest_on_line(p,a,b), (b-a) @ ((r**2-dist**2)**.5 + epsilon)) if dist<r else ()
+    )(dist_to_line(p,a,b))
+# intersections of segment a-b and circle of radius r centered at p. a tuple with 0 to 2 elements.
+intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if between(a,x,b))
 
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))
+
+# is point p in the convex polygon with vertices poly, in counterclockwise order?
+point_in_polygon = lambda p, poly: all(above_line(p, poly[i-1], poly[i]) for i in range(len(poly)))
 
 def intersect_polygon_halfplane(polygon, axis, sign, position):
     # the intersection of the polygon (list of points) with the half-plane described by axis, sign, position
@@ -95,6 +105,17 @@ def intersect_polygon_halfplane(polygon, axis, sign, position):
         else:
             vertices.extend(intersect_line_border(polygon[i], polygon[j], axis, position) for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
+
+def convex_hull(points):
+    # a list of points on the convex hull, in counterclockwise order
+    if points==[]: return []
+    topmost = min(points, key=lambda p:p.y)
+    ans = [topmost]
+    for p in sorted(set(points)-{topmost}, key=lambda p:atan2(*(p-topmost))):
+        while len(ans)>1 and above_line(p, *ans[-1:-3:-1]):
+            ans.pop()
+        ans.append(p)
+    return ans
 
 ## for computing voronoi diagrams
 ## by josh brunner

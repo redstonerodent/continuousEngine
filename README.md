@@ -7,7 +7,9 @@ So far it has:
 * Reversi: `reversi.py`
 * Go: `go.py`
 
-`continuousEngine.py` is a module I wrote to help with this. The `Game` class implements view navigation (panning, zooming), undo/redo, and provides a more convenient interface for taking interactive input. The `Renderable` class should be used for game objects, and a handful of subclasses (roughly the ones which were useful for things I've already made) are available.
+`continuousEngine.py` is a module I wrote to help with this; it handles graphics and user input. The `Game` class implements view navigation (panning, zooming), undo/redo, and provides a more convenient interface for taking interactive input. The `Renderable` class should be used for game objects, and a handful of subclasses (roughly the ones which were useful for things I've already made) are available.
+
+`geometry.py` has a lot of useful geometric functions. It defines, and the rest of the repo uses, a `Point` class which uses Python's special function syntax to make formulas involving `Point`s easy to read (the alternative being too many parantheses to keep track of).
 
 `chess_legacy.py` and `sky_legacy.py` are old versions made before `continuousEngine.py`. They may be missing features or bugfixes in the newer versions, and now serve mainly to demonstrate how the engine makes it easier.
 
@@ -18,5 +20,5 @@ So far it has:
 * [`controls.md`](controls.md) lists the controls for all of the games.
 * The key bindings are intended for Dvorak. If you use QWERTY you probably want to change them (look at `game.keys` in `continuousEngine.py` and it's probably clear how).
 * I use python 3. I don't know whether this all works in python 2. (Specifically, everything has been tested in python 3.6.9.)
-* I don't have much formal training or experience with large coding projects, and my coding style involves a lot of functional programming. This all means my code is probably confusing and not up to your usual standards (see: modifying `__setattr__` and `__getattr__` of `Renderable`, using `lambda` more than `def`, extremely long lines/lambda expressions, list comprehensions with side effects instead of loops). (However, I am capable of writing more normal code, and do so on projects I expect other people to work on.)
+* I don't have much formal training or experience with large coding projects, and my coding style involves a lot of functional programming. This all means my code is probably confusing and not up to your usual standards (see: modifying `__setattr__` and `__getattr__` of `Renderable`, using `lambda` more than `def`, extremely long lines/lambda expressions, list comprehensions with side effects instead of loops).
 * Let me know if you notice any bugs, have ideas to improve existing games, or have ideas for new games I could make.

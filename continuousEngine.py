@@ -51,24 +51,33 @@ class Game:
             'undo'      : pygame.K_SEMICOLON, 
             'redo'      : pygame.K_q,
             'resetGame' : pygame.K_p,
+            'printState': pygame.K_BACKQUOTE,
         })
 
         self.keyPress = {
-            self.keys.zoomIn    : lambda e: self.zoom(self.zoomFactor,0,0),
-            self.keys.zoomOut   : lambda e: self.zoom(1/self.zoomFactor,0,0),
-            self.keys.panUp     : lambda e: self.pan(0,self.panDist),
-            self.keys.panDown   : lambda e: self.pan(0,-self.panDist),
-            self.keys.panLeft   : lambda e: self.pan(self.panDist,0),
-            self.keys.panRight  : lambda e: self.pan(-self.panDist,0),
-            self.keys.resetView : lambda e: self.resetView(),
-            self.keys.resetGame : lambda e: (self.record_state(), self.load_state(self.initialState)),
-            self.keys.undo      : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
-            self.keys.redo      : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.zoomIn        : lambda e: self.zoom(self.zoomFactor,0,0),
+            self.keys.zoomOut       : lambda e: self.zoom(1/self.zoomFactor,0,0),
+            self.keys.panUp         : lambda e: self.pan(0,self.panDist),
+            self.keys.panDown       : lambda e: self.pan(0,-self.panDist),
+            self.keys.panLeft       : lambda e: self.pan(self.panDist,0),
+            self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
+            self.keys.resetView     : lambda e: self.resetView(),
+            self.keys.resetGame     : lambda e: (self.record_state(), self.load_state(self.initialState)),
+            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
+            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.printState    : lambda e: print(self.save_state()),
         }
 
         self.drag = {
-            2: lambda e: self.pan(e.rel[0],e.rel[1]), # right: pan
+            -1 : lambda e: setattr(self, 'rawMousePos', e.pos), # any movement: update mouse position
+            2  :  lambda e: self.pan(e.rel[0],e.rel[1]), # right: pan
+
         }
+
+        # in pixels
+        self.rawMousePos = None
+        # as a point, or None if there haven't been any mouse movements
+        self.mousePos = lambda: self.rawMousePos and self.point(*self.rawMousePos)
 
         self.numKey = lambda _:None
 
@@ -154,7 +163,7 @@ class Game:
         self.process()
         self.render()
 
-def drawCircle(game, color, center, radius, width=0, realWidth=False, surface=None):
+def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
     # if width is given, draws the boundary; if width is 0, fills the circle
     # realWidth=False  -> width given in pixels (on screen) 
@@ -162,7 +171,7 @@ def drawCircle(game, color, center, radius, width=0, realWidth=False, surface=No
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
-    pygame.draw.circle(surface, color, game.pixel(center), int(radius*game.scale+width), int(width))
+    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(1 if fixedRadius else game.scale)+width), int(width))
 
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
@@ -326,24 +335,26 @@ class FilledPolygon(Renderable):
         drawPolygon(self.game, self.color, self.points)    
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, loc, r, width=3):
+    def __init__(self, game, layer, color, loc, r, width=3, fixedRadius=False):
         super().__init__(game, layer)
-        self.color, self.loc, self.r, self.width = color, loc, r, width
-    def render(self):
-        drawCircle(self.game, self.color, self.loc, self.r, self.width)
+        self.color, self.loc, self.r, self.width, self.fixedRadius = color, loc, r, width, fixedRadius
+    def render(self, color=None, width=None):
+        if color == None: color = self.color
+        if width == None: width = self.width
+        drawCircle(self.game, color, self.loc, self.r, width, fixedRadius=self.fixedRadius)
 
 class Disk(Circle):
-    def render(self):
-        drawCircle(self.game, self.color, self.loc, self.r, 0)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.width = 0
 
 class BorderDisk(Circle):
-    def __init__(self, game, layer, fill_color, border_color, loc, r, width=3):
-        super().__init__(game, layer, None, loc, r, width)
+    def __init__(self, game, layer, fill_color, border_color, *args, **kwargs):
+        super().__init__(game, layer, None, *args, **kwargs)
         self.fill_color, self.border_color = fill_color, border_color
     def render(self):
-        drawCircle(self.game, self.fill_color, self.loc, self.r, 0)
-        drawCircle(self.game, self.border_color, self.loc, self.r, self.width)
-
+        super().render(color=self.fill_color, width=0)
+        super().render(color=self.border_color)
 
 def write(screen, font, text, x, y, color, halign='c', valign='c'):
     # x and y are pixel values
