@@ -45,7 +45,8 @@ class NetworkGame:
         send(server,d)
         print("joined game {} as user {} on team {}".format(i, user, team))
         print("started server listening thread",flush=True)
-        await asyncio.gather(self.server_listener(),self.game.run())
+        a = asyncio.get_running_loop().run_in_executor(None, self.game.run)
+        await asyncio.gather(self.server_listener(), a)
         #threading.Thread(target=(lambda :print("hi",flush=True))).start()
     async def run():
         await self.game.run()
@@ -100,7 +101,7 @@ def send(server, m):
     #server.sendall((json.dumps(m)+"\n").encode())
     #server.makefile(mode="w").write((json.dumps(m)+"\n"))
     server[1].write((json.dumps(m)+"\n").encode())
-    asyncio.create_task(server[1].drain())
+    #asyncio.create_task(server[1].drain())
     #await server[1].drain()
 async def recieve(server):
     return json.loads((await server[0].readline()).strip())

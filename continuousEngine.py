@@ -5,9 +5,9 @@ pygame.init()
 
 def run_local(game_class):
     asyncio.run(run_local_async(game_class))
-async def run_local_async(game_class):
-    g = await asyncio.get_running_loop().run_in_executor(None, game_class)
-    await g.game.run()
+def run_local_async(game_class):
+    #g = await asyncio.get_running_loop().run_in_executor(None, game_class)
+    game_class().game.run()
     
 class Game:
     def pygame_event_loop(self, loop):
@@ -17,12 +17,13 @@ class Game:
             event=pygame.event.wait()
             #print("event!",flush=True)
             asyncio.run_coroutine_threadsafe(self.event_queue.put(event),loop)
-    async def run(self):
+    def run(self):
         #creates a window with the game, and the current thread becomes an event monitoring thread for the game
-        self.event_queue = asyncio.Queue()
-        asyncio.get_running_loop().run_in_executor(None, self.pygame_event_loop, asyncio.get_running_loop())
+        #self.event_queue = asyncio.Queue()
+        #asyncio.get_running_loop().run_in_executor(None, self.pygame_event_loop, asyncio.get_running_loop())
         while 1:
-            await self.update()
+            #print("hi",flush=True)
+            self.update()
     def __init__(self,initialState=None,size=(700,700),backgroundColor=(245,245,235),scale=70,center=(0,0),headless=False):
         self.size = self.width, self.height = size
         self.headless = headless
@@ -167,9 +168,10 @@ class Game:
 
         pygame.display.flip()
 
-    async def update(self):
-        event = await self.event_queue.get()
-        #event = pygame.event.wait()
+    def update(self):
+        #print("in thread {}".format(threading.currentThread().getName()),flush=True)
+        #event = await self.event_queue.get()
+        event = pygame.event.wait()
         self.needViewChange = False
         while event:
             self.handle(event)
