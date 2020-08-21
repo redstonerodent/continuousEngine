@@ -61,7 +61,7 @@ class NetworkGame:
             return
         with self.lock:
             self.game.load_state(self.server_state)
-        self.game.render()
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT))
             
     async def server_listener(self):
         while True:
