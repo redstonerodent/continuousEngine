@@ -23,9 +23,10 @@ class NetworkGame:
         self.server = None
         self.live_mode = 0
         self.server_state = {}
-        self.lock = threading.RLock()
+        #self.lock = threading.RLock()
         self.game.keyPress[pygame.K_n] = lambda e:(setattr(self,"live_mode",1-self.live_mode), self.update_to_server_state() if self.live_mode else 0) if self.server!=None else 0
-        self.game.handle = self.handle
+        self.game.handlers[pygame.USEREVENT] = lambda e:self.game.load_state(e.state)
+        #self.game.handle = self.handle
         self.f = self.game.attemptMove
         self.game.attemptMove = self.attemptMove
 
@@ -51,17 +52,17 @@ class NetworkGame:
     async def run():
         await self.game.run()
 
-    def handle(self, event):
-        if event.type in self.game.handlers:
-            with self.lock:
-                self.game.handlers[event.type](event)
+#    def handle(self, event):
+#        if event.type in self.game.handlers:
+#            with self.lock:
+#                self.game.handlers[event.type](event)
 
     def update_to_server_state(self):
         if not self.server_state:
             return
-        with self.lock:
-            self.game.load_state(self.server_state)
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT))
+        #with self.lock:
+            #self.game.load_state(self.server_state)
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT, state=self.server_state))
             
     async def server_listener(self):
         while True:
