@@ -278,7 +278,7 @@ Constants.PIECE_CLASSES = {
         Constants.PAWN: Pawn
     }
 
-start_state = [
+start_state = ("white", [
     (Constants.ROOK,    Constants.BLACK, (-3.5,-3.5)),
     (Constants.KNIGHT,  Constants.BLACK, (-2.5,-3.5)),
     (Constants.BISHOP,  Constants.BLACK, (-1.5,-3.5)),
@@ -301,7 +301,7 @@ start_state = [
     (Constants.BISHOP,  Constants.WHITE, ( 1.5, 3.5)),
     (Constants.KNIGHT,  Constants.WHITE, ( 2.5, 3.5)),
     (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
-]
+])
 
 class Chess:
     
@@ -310,8 +310,8 @@ class Chess:
         game = Game(start_state,headless=headless)
         if not headless:
             Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(game.screen) for c in Constants.COLORS for p in Constants.PIECES}
-        game.save_state = lambda: [(p.name, p.color, p.loc.coords) for p in game.layers[Layers.PIECES]]
-        game.load_state = lambda pieces: (
+        game.save_state = lambda: (game.turn, [(p.name, p.color, p.loc.coords) for p in game.layers[Layers.PIECES]])
+        game.load_state = lambda state: (setattr(game, 'turn', state[0]), (lambda pieces: (
             game.clearLayer(Layers.PIECES),
             [Constants.PIECE_CLASSES[name](game,color,Point(*loc)) for name, color, loc in pieces],
             game.clearLayer(Layers.SHOWN_PIECES),
@@ -320,7 +320,7 @@ class Chess:
             setattr(game, 'shown', []),
             setattr(game, 'capture', []),
             setattr(game, 'blocking', []),
-        )
+        ))(state[1]))
         
         game.load_state(start_state)
 
@@ -339,7 +339,7 @@ class Chess:
         game.ghost.threatening = []
 
         game.click[1] = lambda e: game.attemptMove({"player":game.active_piece.color, "selected":game.active_piece.loc.coords, "location":game.point(*e.pos).coords}) if game.active_piece else selectPiece(game, game.point(*e.pos))
-        game.click[2] = lambda e: toggleShown(game.point(*e.pos))
+        game.click[2] = lambda e: toggleShown(game, game.point(*e.pos))
         game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
         game.keys.cancel = pygame.K_ESCAPE
@@ -352,9 +352,12 @@ class Chess:
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         print("attempting move \n"+str(move))
+        if not self.game.turn == move["player"]:
+            return False
         selected_loc = Point(*move["selected"])
         self.game.active_piece = [p for p in self.game.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2][0]
         #selectPiece(self.game, move["selected"])
+        self.game.turn = "black" if self.game.turn=="white" else "white"
         return attemptMove(self.game, move["location"])
         
 
@@ -410,7 +413,7 @@ def updateMove(game):
     else:
         game.blocking, game.capture = [], []
 
-def toggleShown(mouse_pos):
+def toggleShown(game, mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
@@ -423,5 +426,4 @@ def toggleShown(mouse_pos):
 
 
 if __name__=="__main__":
-    Chess().game.run()
-
+    run_local(Chess)

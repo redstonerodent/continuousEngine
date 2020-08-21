@@ -1,13 +1,28 @@
-import sys, pygame
+import sys, pygame, asyncio, threading
 from geometry import *
 
 pygame.init()
 
+def run_local(game_class):
+    asyncio.run(run_local_async(game_class))
+async def run_local_async(game_class):
+    g = await asyncio.get_running_loop().run_in_executor(None, game_class)
+    await g.game.run()
+    
 class Game:
-    def run(self):
-        #creates a window with the game, and the current thread becomes an event monitoring thread for the game
+    def pygame_event_loop(self, loop):
         while 1:
-            self.update()
+            #print("waiting  for event",flush=True)
+            #print("in Thread {}".format(threading.currentThread().getName()), flush=True)
+            event=pygame.event.wait()
+            #print("event!",flush=True)
+            asyncio.run_coroutine_threadsafe(self.event_queue.put(event),loop)
+    async def run(self):
+        #creates a window with the game, and the current thread becomes an event monitoring thread for the game
+        self.event_queue = asyncio.Queue()
+        asyncio.get_running_loop().run_in_executor(None, self.pygame_event_loop, asyncio.get_running_loop())
+        while 1:
+            await self.update()
     def __init__(self,initialState=None,size=(700,700),backgroundColor=(245,245,235),scale=70,center=(0,0),headless=False):
         self.size = self.width, self.height = size
         self.headless = headless
@@ -152,8 +167,9 @@ class Game:
 
         pygame.display.flip()
 
-    def update(self):
-        event = pygame.event.wait()
+    async def update(self):
+        event = await self.event_queue.get()
+        #event = pygame.event.wait()
         self.needViewChange = False
         while event:
             self.handle(event)

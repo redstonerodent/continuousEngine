@@ -6,6 +6,7 @@ import json
 import chess
 import sys
 import traceback
+import asyncio
 class NetworkGame:
     """
     represents the client side of a game connected to a server.
@@ -19,7 +20,7 @@ class NetworkGame:
     """
     def __init__(self,game):
         self.game = game
-        self.server=None
+        self.server = None
         self.live_mode = 0
         self.server_state = {}
         self.lock = threading.RLock()
@@ -28,9 +29,10 @@ class NetworkGame:
         self.f = self.game.attemptMove
         self.game.attemptMove = self.attemptMove
 
-    def join(self,server,i,team,user):
+    async def join(self,server,i,team,user):
         """
         server is a tcp socket that you've already connected to that is a continuous games server.
+        server is actually a tuple (reader, writer) returned from asyncio.open_connection
         """
         d = {
             "action":"join",
@@ -42,9 +44,11 @@ class NetworkGame:
         self.server=server
         send(server,d)
         print("joined game {} as user {} on team {}".format(i, user, team))
-        threading.Thread(target=self.server_listener, daemon=True).start()
-        #threading.Thread(target=(lambda :print("hi",flush=True))).start()
         print("started server listening thread",flush=True)
+        await asyncio.gather(self.server_listener(),self.game.run())
+        #threading.Thread(target=(lambda :print("hi",flush=True))).start()
+    async def run():
+        await self.game.run()
 
     def handle(self, event):
         if event.type in self.game.handlers:
@@ -52,15 +56,17 @@ class NetworkGame:
                 self.game.handlers[event.type](event)
 
     def update_to_server_state(self):
+        if not self.server_state:
+            return
         with self.lock:
             self.game.load_state(self.server_state)
         self.game.render()
             
-    def server_listener(self):
+    async def server_listener(self):
         while True:
             try:
-                #print("listening for gamestate",flush=True)
-                s = recieve(self.server)
+                print("listening for gamestate",flush=True)
+                s = await recieve(self.server)
                 if not s or s["action"]!="move":
                     print(str(s),flush = True)
                 else:
@@ -90,39 +96,47 @@ class NetworkGame:
         else:
             self.f(m)
 
-def send(socket, m):
-    #socket.sendall((json.dumps(m)+"\n").encode())
-    socket.makefile(mode="w").write((json.dumps(m)+"\n"))
-def recieve(socket):
-    return json.loads(socket.makefile(mode="r").readline().strip())
-ip = "localhost"
-port = 9999
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((ip,port))
-print("connected to {}".format(ip))
-#s.rfile = s.makefile(mode="r")
-#s.wfile = s.makefile(mode="w")
-joined=False
-while not joined:
-    send(s,{"action":"list"})
-    games = recieve(s)
-    print("listing games")
-    print(games,flush=True)
-    for i in games:
-        available_colors = [x for x in ["white","black"] if x not in [p["team"] for p in games[i]["players"]]]
-        if available_colors:
-            g = chess.Chess()
-            NetworkGame(g.game).join(s,i,available_colors[0],"brunnerj")
-            #threading.Thread(target = g.game.run).start()
-            g.game.run()
-            joined=True
-    if not joined:
-        d = {
-            "action":"create",
-            "name":"chess"
-        }
-        send(s,d)
+def send(server, m):
+    #server.sendall((json.dumps(m)+"\n").encode())
+    #server.makefile(mode="w").write((json.dumps(m)+"\n"))
+    server[1].write((json.dumps(m)+"\n").encode())
+    asyncio.create_task(server[1].drain())
+    #await server[1].drain()
+async def recieve(server):
+    return json.loads((await server[0].readline()).strip())
+    #return json.loads(server.makefile(mode="r").readline().strip())
 
+async def initial_script():
+    ip = "localhost" if len(sys.argv)==1 else sys.argv[1]
+    port = 9999
+    #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #s.connect((ip,port))
+    s = await asyncio.open_connection(host=ip, port=port)
+    print("connected to {}".format(ip))
+    joined=False
+    while not joined:
+        send(s,{"action":"list"})
+        games = await recieve(s)
+        print("listing games")
+        print(games,flush=True)
+        for i in games:
+            available_colors = [x for x in ["white","black"] if x not in [p["team"] for p in games[i]["players"]]]
+            if available_colors:
+                g = await asyncio.get_running_loop().run_in_executor(None, chess.Chess)
+                await NetworkGame(g.game).join(s,i,available_colors[0],"brunnerj")
+                #threading.Thread(target = g.game.run).start()
+                joined = True
+                
+        if not joined:
+            d = {
+                "action":"create",
+                "name":"chess"
+            }
+            send(s,d)
+
+asyncio.run(initial_script())
+
+            
         
 
 

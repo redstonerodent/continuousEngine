@@ -36,7 +36,7 @@ import threading
 import chess
 import json
 import traceback
-
+import sys
 class NetworkGameServer:
     def create_game(self, name):
         with self.server_lock:
@@ -81,10 +81,10 @@ class NetworkGameServer:
         print(result,flush=True)
         return result
         
-    def __init__(self):
+    def __init__(self,ip="localhost"):
         self.games = {}
         self.server_lock = threading.RLock()
-        with ThreadedTCPServer(("localhost",9999), self.makeHandler()) as server:
+        with ThreadedTCPServer((ip,9999), self.makeHandler()) as server:
             print("server listening",flush=True)
             server.serve_forever()
 
@@ -138,4 +138,4 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
         
 if __name__ == "__main__":
-    server = NetworkGameServer()
+    server = NetworkGameServer(ip="localhost" if len(sys.argv)==1 else sys.argv[1])
