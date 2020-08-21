@@ -70,14 +70,15 @@ slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: 
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
 # the list of line segments in the intersection of the circle of radius r centered at the origin and the polygon with points pts
-intersect_polygon_circle = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
+intersect_polygon_circle_segments = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
 # area of the intersection of the circle of radius r centered at p and the polygon with vertices pts
-intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1], p, r) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or r**2*pi)(intersect_polygon_circle(pts, p, r))
+intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1], p, r) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or r**2*pi)(intersect_polygon_circle_segments(pts, p, r))
 
 # combat floating point errors. In particular, tangent circles shouldn't intersect
 epsilon = 10**-10
 # intersections of circles of radius r1 and r2 centered at p1 or p2. a tuple with either 0 or 2 elements. if r2 is not given, both circles have radius r1
-intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (lambda d: (m+d, m-d)
+# order: given (a,b) where (a,p2,b) is counterclockwise around p1
+intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (lambda d: (m-d, m+d)
             )(~(p2-p1) @ ((r1**2-(p1>>m))**.5 + epsilon))
         )(p1 + (p2-p1)@((r1**2-r2**2+dsq) / 2 / (dsq**.5))) if abs(r1-r2) < dsq**.5 < r1+r2 else ()
     )(r2 or r1, p1>>p2)
@@ -107,7 +108,7 @@ def intersect_polygon_halfplane(polygon, axis, sign, position):
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
 
 def convex_hull(points):
-    # a list of points on the convex hull, in counterclockwise order
+    # a list of points on the convex hull, in counterclockwise order (increasing angle)
     if points==[]: return []
     topmost = min(points, key=lambda p:p.y)
     ans = [topmost]
@@ -116,6 +117,25 @@ def convex_hull(points):
             ans.pop()
         ans.append(p)
     return ans
+
+# do the intervals xs cover interval? intervals are tuples of endpoints and are closed; assumes xs is sorted
+interval_cover_sorted = lambda xs, interval: xs[0][0] <= interval[0] and interval_cover(xs[1:], (xs[0][1], interval[1])) if xs else interval[0] > interval[1]
+# do the intervals xs cover interval? doesn't assume xs is sorted
+interval_cover = lambda xs, interval: interval_cover_sorted(sorted(xs), interval)
+# do the intervals xs cover all angles (0 to tau)? endpoints are taken mod tau, and assumed to be given in counterclockwise (increasing) direction
+interval_cover_circle = lambda xs: (lambda cleaned: interval_cover_sorted(cleaned, (cleaned[0][0], cleaned[0][0]+2*pi)))(sorted((a%(2*pi), b%(2*pi) + 2*pi*(a%(2*pi)>b%(2*pi))) for a,b in xs)) if xs else False
+
+def intersect_polygon_circle_arcs(pts, p, r):
+    # list of angular intervals of arcs of the circle of radius r centered at p contained in the polygon with vertices pts
+    # assumes pts are in counterclockwise order; otherwise it's the arcs not in the polygon
+    starts, ends = [], []
+    for i in range(len(pts)):
+        if pts[i]>>p >= r**2:
+            if pts[(i+1)%len(pts)]>>p < r**2:
+                ends.append(atan2(*(slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r) - p)))
+            if pts[i-1]>>p < r**2:
+                starts.append(atan2(*(slide_to_circle(pts[i], pts[i-1], p, r) - p)))
+    return [(s, min(ends, key=lambda e: (e-s)%(2*pi))) for s in starts]
 
 ## for computing voronoi diagrams
 ## by josh brunner
@@ -139,10 +159,10 @@ class Voronoi:
         #note: to be technically correct, we actually need to scale abc to be farther from the center.
         self.points = [a,b,c,d]
         #for each point, a list of points whose voronoi cells are adjacent.
-        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
+        #This can be thought of as a cyclical list. The list is in clockwise (decreasing angle) order, but the start and end are arbitrary.
         self.contiguities = {a:[b,d,"inf"], b:[c,d,a,"inf"], c:[d,b,"inf"],d:[a,b,c,"inf"]}
         #for each point, the list of vertices which make up its voronoi cell.
-        #This can be thought of as a cyclical list. The list is in clockwise order, but the start and end are arbitrary.
+        #This can be thought of as a cyclical list. The list is in clockwise (decreasing angle) order, but the start and end are arbitrary.
         #voronoi_vertices[a][n] is the circumcenter of the points a, contiguities[a][n], contiguities[a][n+1] (taking modulo as necessary to make the indicies work out)
         f = lambda x,y,i:((x[i]+y[i])/2-center[i])*10+center[i]
         lc = circumcenter(a,b,d)
