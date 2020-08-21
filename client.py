@@ -114,7 +114,7 @@ async def initial_script():
     #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #s.connect((ip,port))
     s = await asyncio.open_connection(host=ip, port=port)
-    print("connected to {}".format(ip))
+    print("connected to {}".format(ip),flush=True)
     joined=False
     while not joined:
         send(s,{"action":"list"})
