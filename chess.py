@@ -45,7 +45,6 @@ king_deltas = [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-
 class Constants:
     COLORS = WHITE, BLACK = 'white', 'black'
     PIECES = KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN = 'King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'
-
     RADIUS = {
         KING:   .36,
         QUEEN:  .34,
@@ -68,12 +67,12 @@ class Piece(Renderable):
     def __init__(self, game, layer, name, color, loc):
         super().__init__(game, layer)
         self.name, self.color, self.loc = name, color, loc
-        self.r, self.sprite = Constants.RADIUS[name], Constants.SPRITE[color, name]
+        self.r, self.sprite = Constants.RADIUS[name], Constants.SPRITE[color, name] if not game.headless else None
         self.sign = {Constants.BLACK:1, Constants.WHITE:-1}[color]
         self.GEToutline_color = lambda g: threatened_color if any(self in p.threatening for p in g.shown) or (g.active_piece and self in g.ghost.threatening) else {Constants.WHITE:white_outline_color,Constants.BLACK:black_outline_color}[self.color]
 
     def render(self, color=None):
-        pygame.draw.circle(self.game.screen, color or capture_color if self in game.capture else blocking_color if self in game.blocking else {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
+        pygame.draw.circle(self.game.screen, color or capture_color if self in self.game.capture else blocking_color if self in self.game.blocking else {Constants.WHITE:white_color,Constants.BLACK:black_color}[self.color], self.game.pixel(self.loc), int(self.r*self.game.scale))
         pygame.draw.circle(self.game.screen, self.outline_color, self.game.pixel(self.loc), int(self.r*self.game.scale), 2)
         self.game.screen.blit(self.sprite, (lambda x,y:(x-24,y-27))(*self.game.pixel(self.loc)))
 
@@ -270,66 +269,100 @@ class Ghost(Renderable):
                 self.surf.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
             self.game.screen.blit(self.surf,(lambda x,y:(x-self.surf.get_width()//2,y-self.surf.get_height()//2))(*self.game.pixel(self.loc)))
 
+Constants.PIECE_CLASSES = {
+        Constants.KING: King,
+        Constants.QUEEN: Queen,
+        Constants.ROOK: Rook,
+        Constants.BISHOP: Bishop,
+        Constants.KNIGHT: Knight,
+        Constants.PAWN: Pawn
+    }
 
-start_state = [
-    (Rook,    Constants.BLACK, (-3.5,-3.5)),
-    (Knight,  Constants.BLACK, (-2.5,-3.5)),
-    (Bishop,  Constants.BLACK, (-1.5,-3.5)),
-    (Queen,   Constants.BLACK, (-0.5,-3.5)),
-    (King,    Constants.BLACK, ( 0.5,-3.5)),
-    (Bishop,  Constants.BLACK, ( 1.5,-3.5)),
-    (Knight,  Constants.BLACK, ( 2.5,-3.5)),
-    (Rook,    Constants.BLACK, ( 3.5,-3.5)),
+start_state = ("white", [
+    (Constants.ROOK,    Constants.BLACK, (-3.5,-3.5)),
+    (Constants.KNIGHT,  Constants.BLACK, (-2.5,-3.5)),
+    (Constants.BISHOP,  Constants.BLACK, (-1.5,-3.5)),
+    (Constants.QUEEN,   Constants.BLACK, (-0.5,-3.5)),
+    (Constants.KING,    Constants.BLACK, ( 0.5,-3.5)),
+    (Constants.BISHOP,  Constants.BLACK, ( 1.5,-3.5)),
+    (Constants.KNIGHT,  Constants.BLACK, ( 2.5,-3.5)),
+    (Constants.ROOK,    Constants.BLACK, ( 3.5,-3.5)),
 ] + [
-    (Pawn,    Constants.BLACK, (i+.5,-2.5)) for i in range(-4,4)
+    (Constants.PAWN,    Constants.BLACK, (i+.5,-2.5)) for i in range(-4,4)
 
 ] + [
-    (Pawn,    Constants.WHITE, (i+.5, 2.5)) for i in range(-4,4)
+    (Constants.PAWN,    Constants.WHITE, (i+.5, 2.5)) for i in range(-4,4)
 ] + [
-    (Rook,    Constants.WHITE, (-3.5, 3.5)),
-    (Knight,  Constants.WHITE, (-2.5, 3.5)),
-    (Bishop,  Constants.WHITE, (-1.5, 3.5)),
-    (Queen,   Constants.WHITE, (-0.5, 3.5)),
-    (King,    Constants.WHITE, ( 0.5, 3.5)),
-    (Bishop,  Constants.WHITE, ( 1.5, 3.5)),
-    (Knight,  Constants.WHITE, ( 2.5, 3.5)),
-    (Rook,    Constants.WHITE, ( 3.5, 3.5)),
-]
+    (Constants.ROOK,    Constants.WHITE, (-3.5, 3.5)),
+    (Constants.KNIGHT,  Constants.WHITE, (-2.5, 3.5)),
+    (Constants.BISHOP,  Constants.WHITE, (-1.5, 3.5)),
+    (Constants.QUEEN,   Constants.WHITE, (-0.5, 3.5)),
+    (Constants.KING,    Constants.WHITE, ( 0.5, 3.5)),
+    (Constants.BISHOP,  Constants.WHITE, ( 1.5, 3.5)),
+    (Constants.KNIGHT,  Constants.WHITE, ( 2.5, 3.5)),
+    (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
+])
+
+class Chess:
+    
+    def __init__(self,headless=False):
+        self.state = start_state
+        game = Game(start_state,headless=headless)
+        if not headless:
+            Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(game.screen) for c in Constants.COLORS for p in Constants.PIECES}
+        game.save_state = lambda: (game.turn, [(p.name, p.color, p.loc.coords) for p in game.layers[Layers.PIECES]])
+        game.load_state = lambda state: (setattr(game, 'turn', state[0]), (lambda pieces: (
+            game.clearLayer(Layers.PIECES),
+            [Constants.PIECE_CLASSES[name](game,color,Point(*loc)) for name, color, loc in pieces],
+            game.clearLayer(Layers.SHOWN_PIECES),
+            [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
+            setattr(game, 'active_piece', None),
+            setattr(game, 'shown', []),
+            setattr(game, 'capture', []),
+            setattr(game, 'blocking', []),
+        ))(state[1]))
+        
+        game.load_state(start_state)
+
+        game.process = lambda : updateMove(game)
+
+        game.future_guide = Guide(game,Layers.FUTURE_MOVES,None, future_guide_color)
+        game.future_guide.GETvisible = lambda game: game.active_piece != None
 
 
+        ActivePiece(game)
 
-game = Game(start_state)
+        game.move_guide = Guide(game, Layers.GUIDE, None, thick=False)
+        game.move_guide.GETvisible = lambda game: game.active_piece != None
 
-Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(game.screen) for c in Constants.COLORS for p in Constants.PIECES}
+        game.ghost = Ghost(game)
+        game.ghost.threatening = []
 
-game.save_state = lambda: [(type(p), p.color, p.loc.coords) for p in game.layers[Layers.PIECES]]
-game.load_state = lambda pieces: (
-    game.clearLayer(Layers.PIECES),
-    [name(game,color,Point(*loc)) for name, color, loc in pieces],
-    game.clearLayer(Layers.SHOWN_PIECES),
-    [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
-    setattr(game, 'active_piece', None),
-    setattr(game, 'shown', []),
-    setattr(game, 'capture', []),
-    setattr(game, 'blocking', []),
-)
-game.load_state(start_state)
+        game.click[1] = lambda e: game.attemptMove({"player":game.active_piece.color, "selected":game.active_piece.loc.coords, "location":game.point(*e.pos).coords}) if game.active_piece else selectPiece(game, game.point(*e.pos))
+        game.click[2] = lambda e: toggleShown(game, game.point(*e.pos))
+        game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
 
+        game.keys.cancel = pygame.K_ESCAPE
+        game.keys.printHistory = pygame.K_SPACE
+        
+        game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
+        game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))
+        game.attemptMove = self.attemptMove
+        self.game = game
+    def attemptMove(self, move):
+        """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
+        print("attempting move \n"+str(move))
+        if not self.game.turn == move["player"]:
+            return False
+        selected_loc = Point(*move["selected"])
+        self.game.active_piece = [p for p in self.game.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2][0]
+        #selectPiece(self.game, move["selected"])
+        self.game.turn = "black" if self.game.turn=="white" else "white"
+        return attemptMove(self.game, move["location"])
+        
 
-game.future_guide = Guide(game,Layers.FUTURE_MOVES,None, future_guide_color)
-game.future_guide.GETvisible = lambda game: game.active_piece != None
-
-ActivePiece(game)
-
-game.move_guide = Guide(game, Layers.GUIDE, None, thick=False)
-game.move_guide.GETvisible = lambda game: game.active_piece != None
-
-game.ghost = Ghost(game)
-game.ghost.threatening = []
-
-game.click[1] = lambda e: (attemptMove if game.active_piece else selectPiece)(game.point(*e.pos))
-
-def attemptMove(mouse_pos):
+def attemptMove(game, mouse_pos):
+    mouse_pos = Point(*mouse_pos)
     pos, blocking, capture = game.active_piece.find_move(mouse_pos, game.layers[Layers.PIECES])
 
     if not blocking and len(capture)<2: # move is legal
@@ -346,9 +379,11 @@ def attemptMove(mouse_pos):
             game.layers[Layers.PIECES].remove(game.active_piece)
 
         game.active_piece = None
-        updateMove()
+        updateMove(game)
+        return True
+    return False
 
-def selectPiece(mouse_pos):
+def selectPiece(game, mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
@@ -356,14 +391,14 @@ def selectPiece(mouse_pos):
         game.active_piece = clicked_on[0]
         game.move_guide.piece = game.active_piece
         game.future_guide.piece = game.active_piece
-        updateMove()
+        updateMove(game)
         game.move_guide.piece = game.active_piece
         game.move_guide.loc = game.active_piece.loc
         game.future_guide.piece = game.active_piece
         for p in game.shown:
             p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
-def updateMove():
+def updateMove(game):
     pos = game.mousePos()
     if game.active_piece:
         move, game.blocking, game.capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
@@ -378,12 +413,7 @@ def updateMove():
     else:
         game.blocking, game.capture = [], []
 
-game.process = updateMove
-
-
-game.click[2] = lambda e: toggleShown(game.point(*e.pos))
-
-def toggleShown(mouse_pos):
+def toggleShown(game, mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
@@ -394,11 +424,6 @@ def toggleShown(mouse_pos):
             game.shown.append(p)
             p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
-game.keys.cancel = pygame.K_ESCAPE
-game.keys.printHistory = pygame.K_SPACE
 
-game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
-game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))
-
-
-while 1: game.update()
+if __name__=="__main__":
+    run_local(Chess)

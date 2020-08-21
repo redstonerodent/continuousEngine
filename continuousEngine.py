@@ -1,12 +1,33 @@
-import sys, pygame
+import sys, pygame, asyncio, threading
 from geometry import *
 
 pygame.init()
 
+def run_local(game_class):
+    asyncio.run(run_local_async(game_class))
+async def run_local_async(game_class):
+    g = await asyncio.get_running_loop().run_in_executor(None, game_class)
+    await g.game.run()
+    
 class Game:
-    def __init__(self,initialState=None,size=(1000,1000),backgroundColor=(245,245,235),scale=100,center=(0,0)):
+    def pygame_event_loop(self, loop):
+        while 1:
+            #print("waiting  for event",flush=True)
+            #print("in Thread {}".format(threading.currentThread().getName()), flush=True)
+            event=pygame.event.wait()
+            #print("event!",flush=True)
+            asyncio.run_coroutine_threadsafe(self.event_queue.put(event),loop)
+    async def run(self):
+        #creates a window with the game, and the current thread becomes an event monitoring thread for the game
+        self.event_queue = asyncio.Queue()
+        asyncio.get_running_loop().run_in_executor(None, self.pygame_event_loop, asyncio.get_running_loop())
+        while 1:
+            await self.update()
+    def __init__(self,initialState=None,size=(700,700),backgroundColor=(245,245,235),scale=70,center=(0,0),headless=False):
         self.size = self.width, self.height = size
-        self.screen = pygame.display.set_mode(size)
+        self.headless = headless
+        if not headless:
+            self.screen = pygame.display.set_mode(self.size)
         self.scale_home = scale
         centerX, centerY = center
         self.x_offset_home, self.y_offset_home = self.width/scale/2 - centerX, self.height/scale/2 - centerY
@@ -86,6 +107,7 @@ class Game:
         # should be overwritten by user
         self.save_state = lambda :None # returns description of state
         self.load_state = lambda _:None # implements description of state
+        self.get_state = lambda team:self.save_state() #returns state from point of view of team
 
         # for anything that should be recomputed before each render
         self.process = lambda: None
@@ -145,8 +167,9 @@ class Game:
 
         pygame.display.flip()
 
-    def update(self):
-        event = pygame.event.wait()
+    async def update(self):
+        event = await self.event_queue.get()
+        #event = pygame.event.wait()
         self.needViewChange = False
         while event:
             self.handle(event)
