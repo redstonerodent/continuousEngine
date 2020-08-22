@@ -278,35 +278,35 @@ Constants.PIECE_CLASSES = {
         Constants.PAWN: Pawn
     }
 
-start_state = ("white", [
-    (Constants.ROOK,    Constants.BLACK, (-3.5,-3.5)),
-    (Constants.KNIGHT,  Constants.BLACK, (-2.5,-3.5)),
-    (Constants.BISHOP,  Constants.BLACK, (-1.5,-3.5)),
-    (Constants.QUEEN,   Constants.BLACK, (-0.5,-3.5)),
-    (Constants.KING,    Constants.BLACK, ( 0.5,-3.5)),
-    (Constants.BISHOP,  Constants.BLACK, ( 1.5,-3.5)),
-    (Constants.KNIGHT,  Constants.BLACK, ( 2.5,-3.5)),
-    (Constants.ROOK,    Constants.BLACK, ( 3.5,-3.5)),
-] + [
-    (Constants.PAWN,    Constants.BLACK, (i+.5,-2.5)) for i in range(-4,4)
-
-] + [
-    (Constants.PAWN,    Constants.WHITE, (i+.5, 2.5)) for i in range(-4,4)
-] + [
-    (Constants.ROOK,    Constants.WHITE, (-3.5, 3.5)),
-    (Constants.KNIGHT,  Constants.WHITE, (-2.5, 3.5)),
-    (Constants.BISHOP,  Constants.WHITE, (-1.5, 3.5)),
-    (Constants.QUEEN,   Constants.WHITE, (-0.5, 3.5)),
-    (Constants.KING,    Constants.WHITE, ( 0.5, 3.5)),
-    (Constants.BISHOP,  Constants.WHITE, ( 1.5, 3.5)),
-    (Constants.KNIGHT,  Constants.WHITE, ( 2.5, 3.5)),
-    (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
-])
 
 class Chess(Game):
+    make_initial_state = lambda self: ("white", [
+        (Constants.ROOK,    Constants.BLACK, (-3.5,-3.5)),
+        (Constants.KNIGHT,  Constants.BLACK, (-2.5,-3.5)),
+        (Constants.BISHOP,  Constants.BLACK, (-1.5,-3.5)),
+        (Constants.QUEEN,   Constants.BLACK, (-0.5,-3.5)),
+        (Constants.KING,    Constants.BLACK, ( 0.5,-3.5)),
+        (Constants.BISHOP,  Constants.BLACK, ( 1.5,-3.5)),
+        (Constants.KNIGHT,  Constants.BLACK, ( 2.5,-3.5)),
+        (Constants.ROOK,    Constants.BLACK, ( 3.5,-3.5)),
+    ] + [
+        (Constants.PAWN,    Constants.BLACK, (i+.5,-2.5)) for i in range(-4,4)
+
+    ] + [
+        (Constants.PAWN,    Constants.WHITE, (i+.5, 2.5)) for i in range(-4,4)
+    ] + [
+        (Constants.ROOK,    Constants.WHITE, (-3.5, 3.5)),
+        (Constants.KNIGHT,  Constants.WHITE, (-2.5, 3.5)),
+        (Constants.BISHOP,  Constants.WHITE, (-1.5, 3.5)),
+        (Constants.QUEEN,   Constants.WHITE, (-0.5, 3.5)),
+        (Constants.KING,    Constants.WHITE, ( 0.5, 3.5)),
+        (Constants.BISHOP,  Constants.WHITE, ( 1.5, 3.5)),
+        (Constants.KNIGHT,  Constants.WHITE, ( 2.5, 3.5)),
+        (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
+    ])
     
     def __init__(self,headless=False):
-        super().__init__(start_state,headless=headless)
+        super().__init__(headless=headless, name='continuous chess')
         if not headless:
             Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(self.screen) for c in Constants.COLORS for p in Constants.PIECES}
         self.save_state = lambda: (self.turn, [(p.name, p.color, p.loc.coords) for p in self.layers[Layers.PIECES]])
@@ -321,7 +321,7 @@ class Chess(Game):
             setattr(self, 'blocking', []),
         ))(state[1]))
         
-        self.load_state(start_state)
+        self.reset_state()
 
         self.process = lambda : updateMove(self)
 

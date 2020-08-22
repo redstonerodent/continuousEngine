@@ -6,14 +6,20 @@ import pygame
 import threading
 import socket
 import json
-import chess
+import chess, reversi
 import sys
 import traceback
 import asyncio
 
-games = {'chess' : chess.Chess}
+games = {
+    'chess'     : chess.Chess,
+    'reversi'   : reversi.Reversi,
+    }
 
-teams = {'chess' : ['white', 'black']}
+teams = {
+    'chess'     : ['white', 'black'],
+    'reversi'   : ['black', 'white'],
+    }
 
 port = 9974
 
@@ -145,7 +151,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
         else:
             available_colors = [x for x in teams[game] if x not in [p["team"] for p in ids[id]["players"]]]
             if available_colors:
-                g = await asyncio.get_running_loop().run_in_executor(None, chess.Chess)
+                g = await asyncio.get_running_loop().run_in_executor(None, games[game])
                 await NetworkGame(g).join(s,id,available_colors[0], username)
             else:
                 print('{} is full'.format(id), flush=True)
