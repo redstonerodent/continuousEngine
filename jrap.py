@@ -96,8 +96,9 @@ class JrapVoronoi(CachedImg):
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
             return self.mask
         super().__init__(game, layer, 'voronoi', gen)
-        self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
-        self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
+        if not game.headless:
+            self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
+            self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
     def reset(self, cells):
         # cells is a list of ( point, color )
         self.diagram = Voronoi(Point(board_rad, board_rad), Point(-board_rad, -board_rad))
@@ -112,6 +113,7 @@ class JrapVoronoi(CachedImg):
         # vertices on the board and intersections with the boundary
         self.board_pts = {p: (lambda pts: sum(([pts[i]] if on_board(pts[i]) else [slide_to_circle(pts[i], pts[i-1], Point(0,0), board_rad)]*on_board(pts[i-1])+[slide_to_circle(pts[i], pts[(i+1)%len(pts)], Point(0,0), board_rad)]*on_board(pts[(i+1)%len(pts)]) for i in range(len(pts))),[]))(self.diagram.voronoi_vertices[p]) for p,_ in cells}
 
+        self.game.clearCache()
 
 class JrapPenguin(CachedImg):
     def __init__(self, game):
@@ -140,14 +142,14 @@ class Jrap(Game):
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, **kwargs)
 
-        self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [h.hits for h in self.layers[Layers.holes]])
+        self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
         self.load_state = lambda x:(lambda player, cells, holes: (
             self.clearCache(),
             setattr(self, 'turn', player),
             print(self.turn),
             self.voronoi.reset([(Point(*p), c) for p,c in cells]),
             self.clearLayer(Layers.holes),
-            [JrapHole(self, Layers.holes, h) for h in holes],
+            [JrapHole(self, Layers.holes, [Point(*x) for x in h]) for h in holes],
             setattr(self, 'valid_move', False),
             setattr(self, 'over', any(Point(0,0) in h for h in self.layers[Layers.holes])),
             self.updateMove(self.mousePos())
@@ -181,6 +183,7 @@ class Jrap(Game):
         self.gameOverMessage.GETvisible = lambda g: g.over
 
         self.debugger = JrapDebugger(self, Layers.debug)
+        self.debugger.visible = False
 
         self.keys.skipTurn = pygame.K_u
 
@@ -207,6 +210,7 @@ class Jrap(Game):
         for h in self.to_remove:
             self.layers[Layers.holes].remove(h)
         self.turn = self.inc_turn[self.turn]
+        return True
 
 
     def updateMove(self, pos):

@@ -6,7 +6,7 @@ import pygame
 import threading
 import socket
 import json
-import chess, reversi, go
+import chess, reversi, go, jrap
 import sys
 import traceback
 import asyncio
@@ -15,9 +15,10 @@ games = {
     'chess'     : chess.Chess,
     'reversi'   : reversi.Reversi,
     'go'        : go.Go,
+    'jrap'      : jrap.Jrap,
     }
 
-port = 9973
+port = 9974
 
 class NetworkGame:
     """

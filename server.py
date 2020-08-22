@@ -34,7 +34,7 @@ The server needs an abstract  version of the game. This must implement the follo
 
 import socketserver
 import threading
-import chess, reversi, go
+import chess, reversi, go, jrap
 import json
 import traceback
 import sys
@@ -43,9 +43,10 @@ games = {
     'chess'     : chess.Chess,
     'reversi'   : reversi.Reversi,
     'go'        : go.Go,
+    'jrap'      : jrap.Jrap,
     }
 
-port = 9973
+port = 9974
 
 class NetworkGameServer:
     def create_game(self, name, id):
