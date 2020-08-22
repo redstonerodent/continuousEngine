@@ -374,6 +374,14 @@ class BorderDisk(Circle):
         super().render(color=self.fill_color, width=0)
         super().render(color=self.border_color)
 
+class ScreenBorder(Renderable):
+    def __init__(self, game, layer, color, width):
+        super().__init__(game, layer)
+        self.color, self.width = color, width
+        self.rect = pygame.Rect((0,0), (game.width, game.height))
+    def render(self):
+        pygame.draw.rect(self.game.screen, self.color, self.rect, self.width)
+
 def write(screen, font, text, x, y, color, halign='c', valign='c'):
     # x and y are pixel values
     # halign is horizontal alignment:

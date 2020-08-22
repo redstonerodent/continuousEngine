@@ -1,3 +1,6 @@
+# usage (see initial_script):
+# python client.py game [game_id [team [username [ip]]]]
+
 import continuousEngine
 import pygame
 import threading
@@ -35,6 +38,8 @@ class NetworkGame:
         self.game.handle = self.handle
         self.f = self.game.attemptMove
         self.game.attemptMove = self.attemptMove
+
+        continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
 
     async def join(self,server,i,team,user):
         """
