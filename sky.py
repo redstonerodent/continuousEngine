@@ -67,93 +67,102 @@ class Layers:
     GUESS   = 3       # guess (numbers entered)
     TRIALS  = 5       # trials
 
-def makeDot(c):
-    dot = pygame.Surface((2*dot_rad,)*2).convert_alpha(game.screen)
-    dot.fill((0,0,0,0))
-    pygame.draw.circle(dot, countColor(c), (dot_rad,)*2, dot_rad)
-    write(dot, font, c, dot_rad, dot_rad, text_color)
-    return dot
-addDot = lambda x,y: CachedImg(game, Layers.TRIALS, countVisible(solution,x,y), makeDot, Point(x, y)) if any([x<0,y<0,x>n,y>n]) else None
-    
-game = Game([[0]*n for _ in range(n)], center=(n/2,n/2))
 
-game.save_state = lambda: [[guess[i][j].text for j in range(n)] for i in range(n)]
-game.load_state = lambda s: [setattr(guess[i][j],'text',s[i][j]) for i in range(n) for j in range(n)]
+class Sky(Game):
+    make_initial_state = lambda self: [[0]*n for _ in range(n)]
 
-winSquare = Rectangle(game, Layers.SQUARES, win_color, Point(0,0), n,n)
-winSquare.GETvisible = lambda game: game.save_state() == solution
-selector = Rectangle(game, Layers.SQUARES, highlight_color, Point(0,0), 1,1)
-game.grid = InfiniteGrid(game, Layers.GRIDS, line_outside_color, 1)
-game.grid.visible = False
-Grid(game, Layers.GRIDS, line_color, Point(0,0) ,n)
+    def makeDot(self, c):
+        dot = pygame.Surface((2*dot_rad,)*2).convert_alpha(self.screen)
+        dot.fill((0,0,0,0))
+        pygame.draw.circle(dot, countColor(c), (dot_rad,)*2, dot_rad)
+        write(dot, font, c, dot_rad, dot_rad, text_color)
+        return dot
 
-guess = [[Text(game, Layers.GUESS, text_color,font,0, Point(i+.5,j+.5)) for j in range(n)] for i in range(n)]
-[(lambda t:(setattr(t,'GETvisible',lambda _:t.text)))(guess[i][j]) for i in range(n) for j in range(n)]
-
-# left click
-game.click[1] = lambda e: (lambda x,y:(setattr(selector.loc,'x',int(x)),setattr(selector.loc,'y',int(y))) if 0<=x<=n and 0<=y<=n else addDot(x,y))(*game.point(*e.pos))
-# middle click and drag
-game.drag[1] = lambda e: (lambda x,y:addDot(x,y))(*game.point(*e.pos))
-game.numKey = lambda c: (game.record_state(), setattr(guess[selector.loc.x][selector.loc.y],'text',c))
+    def __init__(self, **kwargs):
+        super().__init__(center=(n/2,n/2), name='sky', **kwargs)
 
 
-# debug
-# show all visible skyscapers
-if 0:
-    [(lambda i,j: setattr(
-        Rectangle(game, Layers.SQUARES, win_color, Point(i+.1, j+.1), .8, .8),'GETvisible',
-        lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in visible(solution,t.x,t.y))(game.layers[Layers.TRIALS][-1])
-        ))(i,j) 
-    for j in range(n) for i in range(n)]
+        self.addDot = lambda x,y: CachedImg(self, Layers.TRIALS, countVisible(solution,x,y), self.makeDot, Point(x, y)) if any([x<0,y<0,x>n,y>n]) else None
 
-# show skyscrapers in line
-if 0:
-    [(lambda i,j: setattr(
-        Disk(game, Layers.SQUARES, debug_color, i+.5, j+.5, .3),'GETvisible',
-        lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in map(lambda x:x[1],posVisible(t.x,t.y,selector.loc.x,selector.loc.y)))(game.layers[Layers.TRIALS][-1])
-        ))(i,j) 
-    for j in range(n) for i in range(n)]
-# show visible skyscrapers in line
-if 0:
-    [(lambda i,j: setattr(
-        Disk(game, Layers.SQUARES, highlight_color, i+.5, j+.5, .2),'GETvisible',
-        lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (lambda t: (i,j) in visibleInDir(solution,posVisible(t.x,t.y,selector.x,selector.y)))(game.layers[Layers.TRIALS][-1])
-        ))(i,j) 
-    for j in range(n) for i in range(n)]
+        self.save_state = lambda: [[guess[i][j].text for j in range(n)] for i in range(n)]
+        self.load_state = lambda s: [setattr(guess[i][j],'text',s[i][j]) for i in range(n) for j in range(n)]
 
-# draw line to top right corner of selected square
-if 0:
-    [(lambda i,j: 
-        (lambda L:(
-            setattr(L,'GETvisible',
-                lambda game: Layers.TRIALS in game.layers and game.layers[Layers.TRIALS] and (i,j) == (selector.loc.x, selector.loc.y)),
-            setattr(L,'GETp2',
-                lambda game: (lambda t:(t.x,t.y))((game.layers[Layers.TRIALS][-1])))
-        ))
-        (Line(game, Layers.TRIALS+1, debug_color, (i,j), None)))
-        (i,j)
-    for j in range(n+1) for i in range(n+1)]
+        self.winSquare = Rectangle(self, Layers.SQUARES, win_color, Point(0,0), n,n)
+        self.winSquare.GETvisible = lambda self: self.save_state() == solution
+        self.selector = Rectangle(self, Layers.SQUARES, highlight_color, Point(0,0), 1,1)
+        self.grid = InfiniteGrid(self, Layers.GRIDS, line_outside_color, 1)
+        self.grid.visible = False
+        Grid(self, Layers.GRIDS, line_color, Point(0,0) ,n)
 
-# show actual heights
-if 0:
-    [[Text(game, Layers.GUESS, text_color,font,solution[i][j],i+.25,j+.25) for j in range(n)] for i in range(n)]
+        guess = [[Text(self, Layers.GUESS, text_color,font,0, Point(i+.5,j+.5)) for j in range(n)] for i in range(n)]
+        [(lambda t:(setattr(t,'GETvisible',lambda _:t.text)))(guess[i][j]) for i in range(n) for j in range(n)]
 
-game.keys.moveUp = pygame.K_UP
-game.keys.moveDown = pygame.K_DOWN
-game.keys.moveLeft = pygame.K_LEFT
-game.keys.moveRight = pygame.K_RIGHT
-game.keys.delete = pygame.K_BACKSPACE
-game.keys.resetColors = pygame.K_j
-game.keys.clearTrials = pygame.K_ESCAPE
-game.keys.toggleGrid = pygame.K_i
+        # left click
+        self.click[1] = lambda e: (lambda x,y:(setattr(self.selector, 'loc', Point(int(x), int(y))) if 0<=x<=n and 0<=y<=n else self.addDot(x,y)))(*self.point(*e.pos))
+        # middle click and drag
+        self.drag[1] = lambda e: (lambda x,y:self.addDot(x,y))(*self.point(*e.pos))
+        self.numKey = lambda c: (self.record_state(), setattr(guess[self.selector.loc.x][self.selector.loc.y],'text',c))
 
-game.keyPress[game.keys.moveUp]         = lambda _: setattr(selector.loc,'y',(selector.loc.y-1)%n)
-game.keyPress[game.keys.moveDown]       = lambda _: setattr(selector.loc,'y',(selector.loc.y+1)%n)
-game.keyPress[game.keys.moveLeft]       = lambda _: setattr(selector.loc,'x',(selector.loc.x-1)%n)
-game.keyPress[game.keys.moveRight]      = lambda _: setattr(selector.loc,'x',(selector.loc.x+1)%n)
-game.keyPress[game.keys.delete]         = lambda _: (game.record_state(), setattr(guess[selector.loc.x][selector.loc.y],'text',0))
-game.keyPress[game.keys.resetColors]    = lambda _: game.clearCache()
-game.keyPress[game.keys.clearTrials]    = lambda _: game.clearLayer(Layers.TRIALS)
-game.keyPress[game.keys.toggleGrid]     = lambda _: setattr(game.grid,'visible',not game.grid.visible)
 
-while 1: game.update()
+        # debug
+        # show all visible skyscapers
+        if 0:
+            [(lambda i,j: setattr(
+                Rectangle(self, Layers.SQUARES, win_color, Point(i+.1, j+.1), .8, .8),'GETvisible',
+                lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in visible(solution,*t.loc))(g.layers[Layers.TRIALS][-1])
+                ))(i,j) 
+            for j in range(n) for i in range(n)]
+
+        # show skyscrapers in line
+        if 0:
+            [(lambda i,j: setattr(
+                Disk(self, Layers.SQUARES, debug_color, Point(i+.5, j+.5), .3),'GETvisible',
+                lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in map(lambda x:x[1],posVisible(*t.loc, *g.selector.loc)))(g.layers[Layers.TRIALS][-1])
+                ))(i,j) 
+            for j in range(n) for i in range(n)]
+        # show visible skyscrapers in line
+        if 0:
+            [(lambda i,j: setattr(
+                Disk(self, Layers.SQUARES, highlight_color, Point(i+.5, j+.5), .2),'GETvisible',
+                lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in visibleInDir(solution,posVisible(*t.loc, *g.selector.loc)))(g.layers[Layers.TRIALS][-1])
+                ))(i,j) 
+            for j in range(n) for i in range(n)]
+
+        # draw line to top right corner of selected square
+        if 0:
+            [(lambda coords: 
+                (lambda L:(
+                    setattr(L,'GETvisible',
+                        lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and coords == self.selector.loc.coords),
+                    setattr(L,'GETp2',
+                        lambda g: g.layers[Layers.TRIALS][-1].loc.coords)
+                ))
+                (Line(self, Layers.TRIALS+1, debug_color, Point(*coords), None)))
+                ((i,j))
+            for j in range(n+1) for i in range(n+1)]
+
+        # show actual heights
+        if 0:
+            [[Text(self, Layers.GUESS, text_color,font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
+
+        self.keys.moveUp = pygame.K_UP
+        self.keys.moveDown = pygame.K_DOWN
+        self.keys.moveLeft = pygame.K_LEFT
+        self.keys.moveRight = pygame.K_RIGHT
+        self.keys.delete = pygame.K_BACKSPACE
+        self.keys.resetColors = pygame.K_j
+        self.keys.clearTrials = pygame.K_ESCAPE
+        self.keys.toggleGrid = pygame.K_i
+
+        self.keyPress[self.keys.moveUp]         = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y-1)%n))
+        self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%n))
+        self.keyPress[self.keys.moveLeft]       = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x-1)%n, self.selector.loc.y))
+        self.keyPress[self.keys.moveRight]      = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x+1)%n, self.selector.loc.y))
+        self.keyPress[self.keys.delete]         = lambda _: (self.record_state(), setattr(guess[self.selector.loc.x][self.selector.loc.y],'text',0))
+        self.keyPress[self.keys.resetColors]    = lambda _: self.clearCache()
+        self.keyPress[self.keys.clearTrials]    = lambda _: self.clearLayer(Layers.TRIALS)
+        self.keyPress[self.keys.toggleGrid]     = lambda _: setattr(self.grid,'visible',not self.grid.visible)
+
+
+if __name__=="__main__":
+    run_local(Sky)
