@@ -353,7 +353,7 @@ class Chess(Game):
         if not self.turn == move["player"]:
             return False
         selected_loc = Point(*move["selected"])
-        self.active_piece = [p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2][0]
+        self.active_piece = next(p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2)
         #selectPiece(self, move["selected"])
         self.turn = "black" if self.turn=="white" else "white"
         return attemptMove(self, move["location"])

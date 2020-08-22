@@ -26,7 +26,7 @@ returns to lobby state
 
 The server needs an abstract  version of the game. This must implement the following:
     __init__ to create a new game
-    attempt_move
+    attemptMove
     get_state
 """
    
@@ -37,18 +37,25 @@ import chess
 import json
 import traceback
 import sys
+
+games = {'chess' : chess.Chess}
+
+port = 9974
+
 class NetworkGameServer:
-    def create_game(self, name):
+    def create_game(self, name, id):
+        if id in self.list_games():
+            print('game {} already exists'.format(id), flush=True)
+            return
         with self.server_lock:
-            new_id = min(range(10000),key=(lambda i:i not in self.games))
-            game = chess.Chess(headless=True)
-            self.games[new_id] = {
+            game = games[name](headless=True)
+            self.games[id] = {
                 "type":name,
                 "players":[],
                 "lock":threading.RLock(),
                 "game":game
             }
-        return new_id
+        return id
     def join_game(self, i,team, user, client):
         if i not in self.games:
             raise Exception("game id doesn't exist")
@@ -84,7 +91,8 @@ class NetworkGameServer:
     def __init__(self,ip="localhost"):
         self.games = {}
         self.server_lock = threading.RLock()
-        with ThreadedTCPServer((ip,9999), self.makeHandler()) as server:
+        self.next_game_id = 0
+        with ThreadedTCPServer((ip,port), self.makeHandler()) as server:
             print("server listening",flush=True)
             server.serve_forever()
 
@@ -101,26 +109,25 @@ class NetworkGameServer:
 
     def a(self,client):
         print("connected",flush=True)
-        game_id = -1
+        game_id = None
         player = None
         server = self
         while True:
             try:
                 r = json.loads(client.rfile.readline().strip())
             except:
-                if game_id != -1:
+                if game_id != None:
                     with server.games[game_id]["lock"]:
                         server.games[game_id]["players"].remove(player)
                 return
             if r["action"] == "create":
-                server.create_game(r["name"])
+                server.create_game(r["name"], r["id"])
             elif r["action"] == "join":
-                if game_id != -1:
+                if game_id != None:
                     with server.games[game_id]["lock"]:
                         server.games[game_id]["players"].remove(player)
-                i = int(r["id"])
-                player = server.join_game(i,r["team"],r["user"],client)
-                game_id = i
+                game_id = r["id"]
+                player = server.join_game(game_id,r["team"],r["user"],client)
             elif r["action"] == "move":
                 if r["move"]["player"] != player["team"]:
                     print("trying to move for the wrong team",flush=True)
