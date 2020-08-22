@@ -41,7 +41,7 @@ class NetworkGameServer:
     def create_game(self, name):
         with self.server_lock:
             new_id = min(range(10000),key=(lambda i:i not in self.games))
-            game = chess.Chess(headless=True).game 
+            game = chess.Chess(headless=True)
             self.games[new_id] = {
                 "type":name,
                 "players":[],

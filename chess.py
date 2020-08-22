@@ -303,62 +303,60 @@ start_state = ("white", [
     (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
 ])
 
-class Chess:
+class Chess(Game):
     
     def __init__(self,headless=False):
-        self.state = start_state
-        game = Game(start_state,headless=headless)
+        super().__init__(start_state,headless=headless)
         if not headless:
-            Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(game.screen) for c in Constants.COLORS for p in Constants.PIECES}
-        game.save_state = lambda: (game.turn, [(p.name, p.color, p.loc.coords) for p in game.layers[Layers.PIECES]])
-        game.load_state = lambda state: (setattr(game, 'turn', state[0]), (lambda pieces: (
-            game.clearLayer(Layers.PIECES),
-            [Constants.PIECE_CLASSES[name](game,color,Point(*loc)) for name, color, loc in pieces],
-            game.clearLayer(Layers.SHOWN_PIECES),
-            [Guide(game,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in game.layers[Layers.PIECES]],
-            setattr(game, 'active_piece', None),
-            setattr(game, 'shown', []),
-            setattr(game, 'capture', []),
-            setattr(game, 'blocking', []),
+            Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(self.screen) for c in Constants.COLORS for p in Constants.PIECES}
+        self.save_state = lambda: (self.turn, [(p.name, p.color, p.loc.coords) for p in self.layers[Layers.PIECES]])
+        self.load_state = lambda state: (setattr(self, 'turn', state[0]), (lambda pieces: (
+            self.clearLayer(Layers.PIECES),
+            [Constants.PIECE_CLASSES[name](self,color,Point(*loc)) for name, color, loc in pieces],
+            self.clearLayer(Layers.SHOWN_PIECES),
+            [Guide(self,Layers.SHOWN_PIECES,p,{Constants.WHITE:bg_white_guide_color, Constants.BLACK:bg_black_guide_color}[p.color]) for p in self.layers[Layers.PIECES]],
+            setattr(self, 'active_piece', None),
+            setattr(self, 'shown', []),
+            setattr(self, 'capture', []),
+            setattr(self, 'blocking', []),
         ))(state[1]))
         
-        game.load_state(start_state)
+        self.load_state(start_state)
 
-        game.process = lambda : updateMove(game)
+        self.process = lambda : updateMove(self)
 
-        game.future_guide = Guide(game,Layers.FUTURE_MOVES,None, future_guide_color)
-        game.future_guide.GETvisible = lambda game: game.active_piece != None
+        self.future_guide = Guide(self,Layers.FUTURE_MOVES,None, future_guide_color)
+        self.future_guide.GETvisible = lambda game: self.active_piece != None
 
 
-        ActivePiece(game)
+        ActivePiece(self)
 
-        game.move_guide = Guide(game, Layers.GUIDE, None, thick=False)
-        game.move_guide.GETvisible = lambda game: game.active_piece != None
+        self.move_guide = Guide(self, Layers.GUIDE, None, thick=False)
+        self.move_guide.GETvisible = lambda game: self.active_piece != None
 
-        game.ghost = Ghost(game)
-        game.ghost.threatening = []
+        self.ghost = Ghost(self)
+        self.ghost.threatening = []
 
-        game.click[1] = lambda e: game.attemptMove({"player":game.active_piece.color, "selected":game.active_piece.loc.coords, "location":game.point(*e.pos).coords}) if game.active_piece else selectPiece(game, game.point(*e.pos))
-        game.click[2] = lambda e: toggleShown(game, game.point(*e.pos))
-        game.drag[-1] = lambda e: setattr(game, 'rawMousePos', e.pos)
+        self.click[1] = lambda e: self.attemptMove({"player":self.active_piece.color, "selected":self.active_piece.loc.coords, "location":self.point(*e.pos).coords}) if self.active_piece else selectPiece(self, self.point(*e.pos))
+        self.click[2] = lambda e: toggleShown(self, self.point(*e.pos))
+        self.drag[-1] = lambda e: setattr(self, 'rawMousePos', e.pos)
 
-        game.keys.cancel = pygame.K_ESCAPE
-        game.keys.printHistory = pygame.K_SPACE
+        self.keys.cancel = pygame.K_ESCAPE
+        self.keys.printHistory = pygame.K_SPACE
         
-        game.keyPress[game.keys.cancel]         = lambda e: (setattr(game,'active_piece',None), [p.update_threatening_cache(game.layers[Layers.PIECES]) for p in game.shown])
-        game.keyPress[game.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(game.save_state()),print("   HISTORY"),print(game.history),print("   FUTURE"),print(game.future))
-        game.attemptMove = self.attemptMove
-        self.game = game
+        self.keyPress[self.keys.cancel]         = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
+        self.keyPress[self.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(self.save_state()),print("   HISTORY"),print(self.history),print("   FUTURE"),print(self.future))
+
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         print("attempting move \n"+str(move))
-        if not self.game.turn == move["player"]:
+        if not self.turn == move["player"]:
             return False
         selected_loc = Point(*move["selected"])
-        self.game.active_piece = [p for p in self.game.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2][0]
-        #selectPiece(self.game, move["selected"])
-        self.game.turn = "black" if self.game.turn=="white" else "white"
-        return attemptMove(self.game, move["location"])
+        self.active_piece = [p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2][0]
+        #selectPiece(self, move["selected"])
+        self.turn = "black" if self.turn=="white" else "white"
+        return attemptMove(self, move["location"])
         
 
 def attemptMove(game, mouse_pos):

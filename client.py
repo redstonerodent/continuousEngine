@@ -124,7 +124,7 @@ async def initial_script():
             available_colors = [x for x in ["white","black"] if x not in [p["team"] for p in games[i]["players"]]]
             if available_colors:
                 g = await asyncio.get_running_loop().run_in_executor(None, chess.Chess)
-                await NetworkGame(g.game).join(s,i,available_colors[0],"brunnerj")
+                await NetworkGame(g).join(s,i,available_colors[0],"brunnerj")
                 #threading.Thread(target = g.game.run).start()
                 joined = True
                 
