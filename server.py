@@ -33,7 +33,7 @@ The server needs an abstract  version of the game. This must implement the follo
 
 import socketserver
 import threading
-import chess, reversi
+import chess, reversi, go
 import json
 import traceback
 import sys
@@ -41,6 +41,7 @@ import sys
 games = {
     'chess'     : chess.Chess,
     'reversi'   : reversi.Reversi,
+    'go'        : go.Go,
     }
 
 port = 9974

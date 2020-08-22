@@ -6,7 +6,7 @@ import pygame
 import threading
 import socket
 import json
-import chess, reversi
+import chess, reversi, go
 import sys
 import traceback
 import asyncio
@@ -14,11 +14,13 @@ import asyncio
 games = {
     'chess'     : chess.Chess,
     'reversi'   : reversi.Reversi,
+    'go'        : go.Go,
     }
 
 teams = {
     'chess'     : ['white', 'black'],
     'reversi'   : ['black', 'white'],
+    'go'        : ['black', 'white'],
     }
 
 port = 9974

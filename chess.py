@@ -42,6 +42,8 @@ dist_to_capture = lambda loc, r, dir, cap: dist_along_line(cap.loc, loc, loc+dir
 knight_dist = 5**.5
 king_deltas = [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-1),Point(-1,1)), (Point(-1,1),Point(1,1))]
 
+inc_turn = {'white':'black', 'black':'white'}
+
 class Constants:
     COLORS = WHITE, BLACK = 'white', 'black'
     PIECES = KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN = 'King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'
@@ -305,9 +307,9 @@ class Chess(Game):
         (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
     ])
     
-    def __init__(self,headless=False):
-        super().__init__(headless=headless, name='continuous chess')
-        if not headless:
+    def __init__(self,**kwargs):
+        super().__init__(name='continuous chess', **kwargs)
+        if not self.headless:
             Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(self.screen) for c in Constants.COLORS for p in Constants.PIECES}
         self.save_state = lambda: (self.turn, [(p.name, p.color, p.loc.coords) for p in self.layers[Layers.PIECES]])
         self.load_state = lambda state: (setattr(self, 'turn', state[0]), (lambda pieces: (
@@ -355,9 +357,7 @@ class Chess(Game):
         selected_loc = Point(*move["selected"])
         self.active_piece = next(p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2)
         #selectPiece(self, move["selected"])
-        self.turn = "black" if self.turn=="white" else "white"
         return attemptMove(self, move["location"])
-        
 
 def attemptMove(game, mouse_pos):
     mouse_pos = Point(*mouse_pos)
@@ -378,6 +378,7 @@ def attemptMove(game, mouse_pos):
 
         game.active_piece = None
         updateMove(game)
+        game.turn = inc_turn[game.turn]
         return True
     return False
 

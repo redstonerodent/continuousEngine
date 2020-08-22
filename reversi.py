@@ -132,8 +132,8 @@ class Reversi(Game):
          ('black', ( .5,-.5)),
          ('black', (-.5, .5))],
         )
-    def __init__(self, headless=False):
-        super().__init__(headless=headless, backgroundColor=Colors.background, name='continuous reversi')
+    def __init__(self, **kwargs):
+        super().__init__(backgroundColor=Colors.background, name='continuous reversi', **kwargs)
 
         self.save_state = lambda: (self.turn, [(p.team, p.loc.coords) for p in self.layers[Layers.PIECES]])
         self.load_state = lambda x: (lambda turn, pieces:(
