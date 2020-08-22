@@ -28,6 +28,7 @@ The server needs an abstract  version of the game. This must implement the follo
     __init__ to create a new game
     attemptMove
     get_state
+    teams
 """
    
 
@@ -44,7 +45,7 @@ games = {
     'go'        : go.Go,
     }
 
-port = 9974
+port = 9973
 
 class NetworkGameServer:
     def create_game(self, name, id):
@@ -85,6 +86,7 @@ class NetworkGameServer:
             result[i] = self.games[i].copy()
             pl = [p.copy() for p in self.games[i]["players"]]
             result[i]["players"] = pl
+            result[i]["open teams"] = list(set(result[i]["game"].teams) - {p["team"] for p in pl})
             for p in pl:
                 del p["client"]
             del result[i]["lock"]

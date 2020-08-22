@@ -17,13 +17,7 @@ games = {
     'go'        : go.Go,
     }
 
-teams = {
-    'chess'     : ['white', 'black'],
-    'reversi'   : ['black', 'white'],
-    'go'        : ['black', 'white'],
-    }
-
-port = 9974
+port = 9973
 
 class NetworkGame:
     """
@@ -142,7 +136,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
 
     async def attempt_joining(id):
         if team != None:
-            if team not in teams[game]:
+            if team not in ids[id]["open teams"]:
                 print("team {} doesn't exist".format(team), flush=True)
                 sys.exit()
 
@@ -151,25 +145,28 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
             else:
                 print('{} is already taken in game {}'.format(team, id), flush=True)
         else:
-            available_colors = [x for x in teams[game] if x not in [p["team"] for p in ids[id]["players"]]]
+            available_colors = [x for x in ids[id]["open teams"] if x not in [p["team"] for p in ids[id]["players"]]]
             if available_colors:
-                g = await asyncio.get_running_loop().run_in_executor(None, games[game])
-                await NetworkGame(g).join(s,id,available_colors[0], username)
+                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,available_colors[0], username)
             else:
                 print('{} is full'.format(id), flush=True)
 
     if game_id == None:
         for i in ids:
-            await attempt_joining(i)
+            if ids[i]["type"]==game:
+                await attempt_joining(i)
         print('no available game found. make a new one by specifying an id.', flush=True)
         sys.exit()
 
-    joined=False
-    
+
     if game_id not in ids:
         send(s, {"action":"create", "name":game, "id":game_id})
         send(s, {"action":"list"})
         ids = await receive(s)
+
+    if ids[game_id]["type"] != game:
+        print('{} is a game of {}, not {}'.format(game_id, ids[game_id]["type"], game), flush=True)
+        sys.exit()
 
     await attempt_joining(game_id)
 

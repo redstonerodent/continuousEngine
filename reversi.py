@@ -69,8 +69,6 @@ pivots = lambda pcs, t, pt: [(pv,[pc for pc in pcs if core_in_path(pc.loc, pt, p
                 ) ({p for p in pcs if dist_to_line(p.loc, pt, pv.loc) < 3*piece_rad})
             ]
 
-inc_turn = {'white':'black', 'black':'white'}
-
 class Layers:
     BOUNDARY    = 1
     PIECES      = 2
@@ -132,6 +130,10 @@ class Reversi(Game):
          ('black', ( .5,-.5)),
          ('black', (-.5, .5))],
         )
+
+    teams = ['black', 'white']
+    inc_turn = {'white':'black', 'black':'white'}
+
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, name='continuous reversi', **kwargs)
 
@@ -192,7 +194,7 @@ class Reversi(Game):
 
         self.keys.skipTurn = pygame.K_u
 
-        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', inc_turn[self.turn])
+        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
 
 
     def attemptMove(self, move):
@@ -203,8 +205,8 @@ class Reversi(Game):
         if self.blockers or not self.pivots: return False
         self.record_state()
         self.makePiece(self.turn, pos)
-        for p in self.flippers: p.team = inc_turn[p.team]
-        self.turn = inc_turn[self.turn]
+        for p in self.flippers: p.team = self.inc_turn[p.team]
+        self.turn = self.inc_turn[self.turn]
         # game is over if there's nowhere to fit another piece
         # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
         if not any(p.valid_tangents for p in self.layers[Layers.PIECES]):

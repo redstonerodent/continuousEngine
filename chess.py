@@ -42,8 +42,6 @@ dist_to_capture = lambda loc, r, dir, cap: dist_along_line(cap.loc, loc, loc+dir
 knight_dist = 5**.5
 king_deltas = [(Point(1,1),Point(1,-1)), (Point(1,-1),Point(-1,-1)), (Point(-1,-1),Point(-1,1)), (Point(-1,1),Point(1,1))]
 
-inc_turn = {'white':'black', 'black':'white'}
-
 class Constants:
     COLORS = WHITE, BLACK = 'white', 'black'
     PIECES = KING, QUEEN, ROOK, BISHOP, KNIGHT, PAWN = 'King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'
@@ -306,6 +304,10 @@ class Chess(Game):
         (Constants.KNIGHT,  Constants.WHITE, ( 2.5, 3.5)),
         (Constants.ROOK,    Constants.WHITE, ( 3.5, 3.5)),
     ])
+
+    teams = ['white', 'black']
+    inc_turn = {'white':'black', 'black':'white'}
+
     
     def __init__(self,**kwargs):
         super().__init__(name='continuous chess', **kwargs)
@@ -378,7 +380,7 @@ def attemptMove(game, mouse_pos):
 
         game.active_piece = None
         updateMove(game)
-        game.turn = inc_turn[game.turn]
+        game.turn = game.inc_turn[game.turn]
         return True
     return False
 
