@@ -87,7 +87,7 @@ class NetworkGameServer:
             result[i] = self.games[i].copy()
             pl = [p.copy() for p in self.games[i]["players"]]
             result[i]["players"] = pl
-            result[i]["open teams"] = list(set(result[i]["game"].teams) - {p["team"] for p in pl})
+            result[i]["open teams"] = [t for t in result[i]["game"].teams if t not in {p["team"] for p in pl}]
             for p in pl:
                 del p["client"]
             #del result[i]["lock"]

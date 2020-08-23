@@ -140,7 +140,7 @@ class Jrap(Game):
 
 
     def __init__(self, **kwargs):
-        super().__init__(backgroundColor=Colors.background, **kwargs)
+        super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
 
         self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
         self.load_state = lambda x:(lambda player, cells, holes: (
@@ -182,8 +182,8 @@ class Jrap(Game):
         self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn])
         self.gameOverMessage.GETvisible = lambda g: g.over
 
-        self.debugger = JrapDebugger(self, Layers.debug)
-        self.debugger.visible = False
+        if 1:
+            self.debugger = JrapDebugger(self, Layers.debug)
 
         self.keys.skipTurn = pygame.K_u
 
