@@ -38,6 +38,7 @@ import chess, reversi, go, jrap
 import json
 import traceback
 import sys
+import asyncio
 
 games = {
     'chess'     : chess.Chess,
@@ -53,31 +54,30 @@ class NetworkGameServer:
         if id in self.list_games():
             print('game {} already exists'.format(id), flush=True)
             return
-        with self.server_lock:
-            game = games[name](headless=True)
-            self.games[id] = {
-                "type":name,
-                "players":[],
-                "lock":threading.RLock(),
-                "game":game
-            }
+        game = games[name](headless=True)
+        self.games[id] = {
+            "type":name,
+            "players":[],
+            #"lock":threading.RLock(),
+            "game":game
+        }
         return id
-    def join_game(self, i,team, user, client):
+    async def join_game(self, i,team, user, client):
         if i not in self.games:
             raise Exception("game id doesn't exist")
-        with self.games[i]["lock"]:
-            player = {"user":user, "team":team, "client":client}
-            self.games[i]["players"].append(player)
-            self.send_gamestate(i, player)
+        #with self.games[i]["lock"]:
+        player = {"user":user, "team":team, "client":client}
+        self.games[i]["players"].append(player)
+        await self.send_gamestate(i, player)
         return player
-    def broadcast_move(self, game_id):
-        with self.games[game_id]["lock"]:
-            l = self.games[game_id]["players"].copy()
-            for player in l:
-                self.send_gamestate(game_id,  player)
-    def send_gamestate(self, game_id, player):
+    async def broadcast_move(self, game_id):
+        #with self.games[game_id]["lock"]:
+        l = self.games[game_id]["players"].copy()
+        for player in l:
+            await self.send_gamestate(game_id, player)
+    async def send_gamestate(self, game_id, player):
         try:
-            player["client"].wfile.write((json.dumps({"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})+"\n").encode())
+            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})
         except:
             print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
@@ -90,18 +90,25 @@ class NetworkGameServer:
             result[i]["open teams"] = list(set(result[i]["game"].teams) - {p["team"] for p in pl})
             for p in pl:
                 del p["client"]
-            del result[i]["lock"]
+            #del result[i]["lock"]
             del result[i]["game"]
         print(result,flush=True)
         return result
         
-    def __init__(self,ip="localhost"):
+    def __init__(self):
         self.games = {}
-        self.server_lock = threading.RLock()
+
+    async def serve(self, ip="localhost"):
+        server = await asyncio.start_server(self.a, host=ip, port=9974)
         self.next_game_id = 0
-        with ThreadedTCPServer((ip,port), self.makeHandler()) as server:
-            print("server listening",flush=True)
-            server.serve_forever()
+        print("server listening",flush=True)
+        async with server:
+            await server.serve_forever()
+        
+        #self.server_lock = threading.RLock()
+        #with ThreadedTCPServer((ip,9999), self.makeHandler()) as server:
+        #    print("server listening",flush=True)
+        #    server.serve_forever()
 
     def makeHandler(self):
         s = self
@@ -114,42 +121,49 @@ class NetworkGameServer:
                     print(e,flush=True)
         return MoveHandler
 
-    def a(self,client):
+    async def a(self,reader, writer):
         print("connected",flush=True)
         game_id = None
         player = None
         server = self
+        client = (reader, writer)
         while True:
             try:
-                r = json.loads(client.rfile.readline().strip())
+                #print("waiting for move",flush=True)
+                r = await recieve(client)
+                print("recieved {}".format(r),flush=True)
             except:
+                #print(traceback.format_exc(),flush=True)
                 if game_id != None:
-                    with server.games[game_id]["lock"]:
-                        server.games[game_id]["players"].remove(player)
+                    server.games[game_id]["players"].remove(player)
                 return
             if r["action"] == "create":
                 server.create_game(r["name"], r["id"])
             elif r["action"] == "join":
                 if game_id != None:
-                    with server.games[game_id]["lock"]:
-                        server.games[game_id]["players"].remove(player)
+                    server.games[game_id]["players"].remove(player)
                 game_id = r["id"]
-                player = server.join_game(game_id,r["team"],r["user"],client)
+                player = await server.join_game(game_id,r["team"],r["user"],client)
             elif r["action"] == "move":
                 if r["move"]["player"] != player["team"]:
                     print("trying to move for the wrong team",flush=True)
                     continue
                 if server.games[game_id]["game"].attemptMove(r["move"]):
                     print("successfully applied move to gamestate",flush=True)
-                    server.broadcast_move(game_id)
+                    await server.broadcast_move(game_id)
                 else:
                     print("move was illegal",flush=True)
             elif r["action"] == "list":
-                client.wfile.write((json.dumps(server.list_games())+"\n").encode())
+                await send(client, server.list_games())
 
-class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-    pass
+#class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+#    pass
 
+async def send(client, message):
+    client[1].write((json.dumps(message)+"\n").encode())
+    await client[1].drain()
+async def recieve(client):
+    return json.loads((await client[0].readline()).strip())
         
 if __name__ == "__main__":
-    server = NetworkGameServer(ip="localhost" if len(sys.argv)==1 else sys.argv[1])
+    asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))

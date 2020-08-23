@@ -24,7 +24,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,size=(1000,1000),backgroundColor=(245,245,235),scale=100,center=(0,0),headless=False,name='continuous engine'):
+    def __init__(self,size=(750,750),backgroundColor=(245,245,235),scale=100,center=(0,0),headless=False,name='continuous engine'):
         self.size = self.width, self.height = size
         self.headless = headless
         if not headless:

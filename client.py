@@ -36,9 +36,8 @@ class NetworkGame:
         self.server = None
         self.live_mode = False
         self.server_state = {}
-        self.lock = threading.RLock()
+        self.game.handlers[pygame.USEREVENT] = lambda e:self.game.load_state(e.state)
         self.game.keyPress[pygame.K_n] = lambda e:(setattr(self,"live_mode", not self.live_mode), self.update_to_server_state() if self.live_mode else None) if self.server!=None else None
-        self.game.handle = self.handle
         self.f = self.game.attemptMove
         self.game.attemptMove = self.attemptMove
 
@@ -63,20 +62,17 @@ class NetworkGame:
         a = asyncio.get_running_loop().run_in_executor(None, self.game.run)
         await asyncio.gather(self.server_listener(), a)
         #threading.Thread(target=(lambda :print("hi",flush=True))).start()
-    async def run():
-        await self.game.run()
-
-    def handle(self, event):
-        if event.type in self.game.handlers:
-            with self.lock:
-                self.game.handlers[event.type](event)
+#    def handle(self, event):
+#        if event.type in self.game.handlers:
+#            with self.lock:
+#                self.game.handlers[event.type](event)
 
     def update_to_server_state(self):
         if not self.server_state:
             return
-        with self.lock:
-            self.game.load_state(self.server_state)
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT))
+        #with self.lock:
+            #self.game.load_state(self.server_state)
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT, state=self.server_state))
             
     async def server_listener(self):
         while True:
@@ -116,6 +112,7 @@ def send(server, m):
     #server.sendall((json.dumps(m)+"\n").encode())
     #server.makefile(mode="w").write((json.dumps(m)+"\n"))
     server[1].write((json.dumps(m)+"\n").encode())
+    #asyncio.get_event_loop().create_task(server[1].drain())
     #asyncio.create_task(server[1].drain())
     #await server[1].drain()
 
@@ -128,6 +125,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
     #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #s.connect((ip,port))
     s = await asyncio.open_connection(host=ip, port=port)
+
     print("connected to {}".format(ip))
 
     send(s, {"action":"list"})
@@ -147,6 +145,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
                 print('{} is already taken in game {}'.format(team, id), flush=True)
         else:
             available_colors = [x for x in ids[id]["open teams"] if x not in [p["team"] for p in ids[id]["players"]]]
+
             if available_colors:
                 await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,available_colors[0], username)
             else:
