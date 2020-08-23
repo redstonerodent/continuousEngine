@@ -26,30 +26,42 @@ returns to lobby state
 
 The server needs an abstract  version of the game. This must implement the following:
     __init__ to create a new game
-    attempt_move
+    attemptMove
     get_state
+    teams
 """
    
 
 import socketserver
 import threading
-import chess
+import chess, reversi, go, jrap
 import json
 import traceback
 import sys
 import asyncio
+
+games = {
+    'chess'     : chess.Chess,
+    'reversi'   : reversi.Reversi,
+    'go'        : go.Go,
+    'jrap'      : jrap.Jrap,
+    }
+
+port = 9974
+
 class NetworkGameServer:
-    async def create_game(self, name):
-        #with self.server_lock:
-        new_id = min(range(10000),key=(lambda i:i not in self.games))
-        game = chess.Chess(headless=True).game 
-        self.games[new_id] = {
-                "type":name,
-                "players":[],
-                #"lock":threading.RLock(),
-                "game":game
+    def create_game(self, name, id):
+        if id in self.list_games():
+            print('game {} already exists'.format(id), flush=True)
+            return
+        game = games[name](headless=True)
+        self.games[id] = {
+            "type":name,
+            "players":[],
+            #"lock":threading.RLock(),
+            "game":game
         }
-        return new_id
+        return id
     async def join_game(self, i,team, user, client):
         if i not in self.games:
             raise Exception("game id doesn't exist")
@@ -75,6 +87,7 @@ class NetworkGameServer:
             result[i] = self.games[i].copy()
             pl = [p.copy() for p in self.games[i]["players"]]
             result[i]["players"] = pl
+            result[i]["open teams"] = list(set(result[i]["game"].teams) - {p["team"] for p in pl})
             for p in pl:
                 del p["client"]
             #del result[i]["lock"]
@@ -84,8 +97,10 @@ class NetworkGameServer:
         
     def __init__(self):
         self.games = {}
+
     async def serve(self, ip="localhost"):
-        server = await asyncio.start_server(self.a, host=ip, port=9999)
+        server = await asyncio.start_server(self.a, host=ip, port=9974)
+        self.next_game_id = 0
         print("server listening",flush=True)
         async with server:
             await server.serve_forever()
@@ -108,30 +123,27 @@ class NetworkGameServer:
 
     async def a(self,reader, writer):
         print("connected",flush=True)
-        game_id = -1
+        game_id = None
         player = None
         server = self
         client = (reader, writer)
         while True:
             try:
+                #print("waiting for move",flush=True)
                 r = await recieve(client)
                 print("recieved {}".format(r),flush=True)
             except:
-                #print(traceback.format_exc())
-                print("exception",flush=True)
-                if game_id != -1:
-                    #with server.games[game_id]["lock"]:
+                #print(traceback.format_exc(),flush=True)
+                if game_id != None:
                     server.games[game_id]["players"].remove(player)
                 return
             if r["action"] == "create":
-                await server.create_game(r["name"])
+                server.create_game(r["name"], r["id"])
             elif r["action"] == "join":
-                if game_id != -1:
-                    #with server.games[game_id]["lock"]:
+                if game_id != None:
                     server.games[game_id]["players"].remove(player)
-                i = int(r["id"])
-                player = await server.join_game(i,r["team"],r["user"],client)
-                game_id = i
+                game_id = r["id"]
+                player = await server.join_game(game_id,r["team"],r["user"],client)
             elif r["action"] == "move":
                 if r["move"]["player"] != player["team"]:
                     print("trying to move for the wrong team",flush=True)

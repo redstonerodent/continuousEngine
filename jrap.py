@@ -96,8 +96,9 @@ class JrapVoronoi(CachedImg):
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
             return self.mask
         super().__init__(game, layer, 'voronoi', gen)
-        self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
-        self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
+        if not game.headless:
+            self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
+            self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
     def reset(self, cells):
         # cells is a list of ( point, color )
         self.diagram = Voronoi(Point(board_rad, board_rad), Point(-board_rad, -board_rad))
@@ -112,6 +113,7 @@ class JrapVoronoi(CachedImg):
         # vertices on the board and intersections with the boundary
         self.board_pts = {p: (lambda pts: sum(([pts[i]] if on_board(pts[i]) else [slide_to_circle(pts[i], pts[i-1], Point(0,0), board_rad)]*on_board(pts[i-1])+[slide_to_circle(pts[i], pts[(i+1)%len(pts)], Point(0,0), board_rad)]*on_board(pts[(i+1)%len(pts)]) for i in range(len(pts))),[]))(self.diagram.voronoi_vertices[p]) for p,_ in cells}
 
+        self.game.clearCache()
 
 class JrapPenguin(CachedImg):
     def __init__(self, game):
@@ -120,103 +122,113 @@ class JrapPenguin(CachedImg):
 
 class JrapDebugger(Renderable):
     def render(self):
-        for p in game.voronoi.player:
-            drawCircle(self.game, Colors.debug[int(game.new_hole.contains_cell(p))], p, 3, fixedRadius=True)
-        if game.mousePos():
-            for p in game.voronoi.board_pts[game.voronoi.diagram.nearest(game.mousePos())]:
-                drawCircle(self.game, Colors.debug[(p in game.new_hole)+1], p, 3, fixedRadius=True)
+        for p in self.game.voronoi.player:
+            drawCircle(self.game, Colors.debug[int(self.game.new_hole.contains_cell(p))], p, 3, fixedRadius=True)
+        if self.game.mousePos():
+            for p in self.game.voronoi.board_pts[self.game.voronoi.diagram.nearest(self.game.mousePos())]:
+                drawCircle(self.game, Colors.debug[(p in self.game.new_hole)+1], p, 3, fixedRadius=True)
+
+class Jrap(Game):
+    make_initial_state = lambda self:('white',
+        [(tuple(random.uniform(-board_rad,board_rad) for _ in range(2)), p) for _ in range(num_cells) for p in self.teams],
+        # [((lambda r, theta: (r*math.cos(theta), r*math.sin(theta)))(random.uniform(0,board_rad), random.uniform(0, 2*math.pi)),p) for _ in range(num_cells) for p in self.teams],
+        []
+        )
+
+    teams = ['white', 'blue']
+    inc_turn = {'white':'blue','blue':'white'}
 
 
-players = ['white', 'blue']
-inc_turn = {'white':'blue','blue':'white'}
+    def __init__(self, **kwargs):
+        super().__init__(backgroundColor=Colors.background, **kwargs)
 
-start_state = ('white',
-    [(tuple(random.uniform(-board_rad,board_rad) for _ in range(2)), p) for _ in range(num_cells) for p in players],
-    # [((lambda r, theta: (r*math.cos(theta), r*math.sin(theta)))(random.uniform(0,board_rad), random.uniform(0, 2*math.pi)),p) for _ in range(num_cells) for p in players],
-    []
-    )
+        self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
+        self.load_state = lambda x:(lambda player, cells, holes: (
+            self.clearCache(),
+            setattr(self, 'turn', player),
+            print(self.turn),
+            self.voronoi.reset([(Point(*p), c) for p,c in cells]),
+            self.clearLayer(Layers.holes),
+            [JrapHole(self, Layers.holes, [Point(*x) for x in h]) for h in holes],
+            setattr(self, 'valid_move', False),
+            setattr(self, 'over', any(Point(0,0) in h for h in self.layers[Layers.holes])),
+            self.updateMove(self.mousePos())
+            ))(*x)
 
-game = Game(start_state, backgroundColor=Colors.background)
+        self.hammer = Disk(self, Layers.hammer, None, None, hammer_rad)
+        self.hammer.GETvisible = lambda g: bool(g.mousePos())
+        self.hammer.GETloc = lambda g: g.mousePos()
+        self.hammer.GETcolor = lambda g: Colors.hammer[g.turn]
 
-game.save_state = lambda: (game.turn, [(p.coords, game.voronoi.player[p]) for p in game.voronoi.player], [h.hits for h in game.layers[Layers.holes]])
-game.load_state = lambda x:(lambda player, cells, holes: (
-    game.clearCache(),
-    setattr(game, 'turn', player),
-    game.voronoi.reset([(Point(*p), c) for p,c in cells]),
-    game.clearLayer(Layers.holes),
-    [JrapHole(game, Layers.holes, h) for h in holes],
-    setattr(game, 'valid_move', False),
-    setattr(game, 'over', any(Point(0,0) in h for h in game.layers[Layers.holes])),
-    updateMove(game.mousePos())
-    ))(*x)
+        self.hammer_border = Circle(self, Layers.hammer_border, None, None, hammer_rad)
+        self.hammer_border.GETvisible = lambda g: g.hammer.visible
+        self.hammer_border.GETloc = lambda g: g.hammer.loc
+        self.hammer_border.GETcolor = lambda g: Colors.legal if g.valid_move else Colors.illegal
 
-game.hammer = Disk(game, Layers.hammer, None, None, hammer_rad)
-game.hammer.GETvisible = lambda g: bool(g.mousePos())
-game.hammer.GETloc = lambda g: g.mousePos()
-game.hammer.GETcolor = lambda g: Colors.hammer[g.turn]
+        self.new_hole = JrapHole(self, Layers.new_hole, [])
+        self.new_hole.GETcolor = lambda g: Colors.ghost_hole[g.turn]
 
-game.hammer_border = Circle(game, Layers.hammer_border, None, None, hammer_rad)
-game.hammer_border.GETvisible = lambda g: g.hammer.visible
-game.hammer_border.GETloc = lambda g: g.hammer.loc
-game.hammer_border.GETcolor = lambda g: Colors.legal if g.valid_move else Colors.illegal
+        self.voronoi = JrapVoronoi(self, Layers.voronoi)
 
-game.new_hole = JrapHole(game, Layers.new_hole, [])
-game.new_hole.GETcolor = lambda g: Colors.ghost_hole[g.turn]
+        self.penguin = JrapPenguin(self)
 
-game.voronoi = JrapVoronoi(game, Layers.voronoi)
+        self.warning = Disk(self, Layers.warning, Colors.illegal, Point(0,0), 34, fixedRadius=True)
+        self.warning.GETvisible = lambda g: Point(0,0) in self.new_hole
 
-game.penguin = JrapPenguin(game)
+        Circle(self, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if g.mousePos() and on_board(g.mousePos()) else Colors.illegal
 
-game.warning = Disk(game, Layers.warning, Colors.illegal, Point(0,0), 34, fixedRadius=True)
-game.warning.GETvisible = lambda g: Point(0,0) in game.new_hole
+        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
+        self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", self.width//2, self.height//2)
+        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn])
+        self.gameOverMessage.GETvisible = lambda g: g.over
 
-Circle(game, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if g.mousePos() and on_board(g.mousePos()) else Colors.illegal
+        self.debugger = JrapDebugger(self, Layers.debug)
+        self.debugger.visible = False
 
-font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-gameOverMessage = FixedText(game, Layers.game_over, Colors.text, font, "", game.width//2, game.height//2)
-gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(inc_turn[game.turn])
-gameOverMessage.GETvisible = lambda g: g.over
+        self.keys.skipTurn = pygame.K_u
 
-game.debugger = JrapDebugger(game, Layers.debug)
+        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
 
-def attemptMove(pos):
-    updateMove(pos)
-    if not game.valid_move: return
-    game.record_state()
-    if Point(0,0) in JrapHole(game, Layers.holes, game.new_hole.hits):
-        game.over = True
-    for h in game.to_remove:
-        game.layers[Layers.holes].remove(h)
-    game.turn = inc_turn[game.turn]
+        self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
+
+        self.reset_state()
+
+        self.process = lambda: self.updateMove(self.mousePos())
+        self.viewChange = lambda: self.clearCache()
 
 
-def updateMove(pos):
-    if pos:
-        game.new_hole.update([pos])
-        holes = game.layers[Layers.holes].copy()
-        game.to_remove = []
-        while any(game.new_hole.intersecting(h) for h in holes):
-            hole = next(h for h in holes if game.new_hole.intersecting(h))
-            game.new_hole.merge(hole)
-            holes.remove(hole)
-            game.to_remove.append(hole)
-        game.valid_move = (not game.over
-                    and on_board(pos) 
-                    and game.voronoi.player[game.voronoi.diagram.nearest(pos)] == game.turn
-                    and not any(pos in h for h in game.layers[Layers.holes])
-                    )
 
-game.keys.skipTurn = pygame.K_u
-
-game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
+    def attemptMove(self, move):
+        print(move, flush=True)
+        if self.turn != move["player"]: return False
+        pos = Point(*move["location"])
+        self.updateMove(pos)
+        if not self.valid_move: return
+        self.record_state()
+        if Point(0,0) in JrapHole(self, Layers.holes, self.new_hole.hits):
+            self.over = True
+        for h in self.to_remove:
+            self.layers[Layers.holes].remove(h)
+        self.turn = self.inc_turn[self.turn]
+        return True
 
 
-game.process = lambda: updateMove(game.mousePos())
-game.click[1] = lambda _: attemptMove(game.mousePos())
-game.viewChange = lambda: game.clearCache()
+    def updateMove(self, pos):
+        if pos:
+            self.new_hole.update([pos])
+            holes = self.layers[Layers.holes].copy()
+            self.to_remove = []
+            while any(self.new_hole.intersecting(h) for h in holes):
+                hole = next(h for h in holes if self.new_hole.intersecting(h))
+                self.new_hole.merge(hole)
+                holes.remove(hole)
+                self.to_remove.append(hole)
+            self.valid_move = (not self.over
+                        and on_board(pos) 
+                        and self.voronoi.player[self.voronoi.diagram.nearest(pos)] == self.turn
+                        and not any(pos in h for h in self.layers[Layers.holes])
+                        )
 
 
-game.load_state(start_state)
-
-while 1:
-    game.update()
+if __name__=="__main__":
+    run_local(Jrap)

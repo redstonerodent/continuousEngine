@@ -7,16 +7,16 @@ def run_local(game_class):
     asyncio.run(run_local_async(game_class))
 def run_local_async(game_class):
     #g = await asyncio.get_running_loop().run_in_executor(None, game_class)
-    game_class().game.run()
+    game_class().run()
     
 class Game:
-    def pygame_event_loop(self, loop):
-        while 1:
-            #print("waiting  for event",flush=True)
-            #print("in Thread {}".format(threading.currentThread().getName()), flush=True)
-            event=pygame.event.wait()
-            #print("event!",flush=True)
-            asyncio.run_coroutine_threadsafe(self.event_queue.put(event),loop)
+    # def pygame_event_loop(self, loop):
+    #     while 1:
+    #         #print("waiting  for event",flush=True)
+    #         #print("in Thread {}".format(threading.currentThread().getName()), flush=True)
+    #         event=pygame.event.wait()
+    #         #print("event!",flush=True)
+    #         asyncio.run_coroutine_threadsafe(self.event_queue.put(event),loop)
     def run(self):
         #creates a window with the game, and the current thread becomes an event monitoring thread for the game
         #self.event_queue = asyncio.Queue()
@@ -24,7 +24,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,initialState=None,size=(700,700),backgroundColor=(245,245,235),scale=70,center=(0,0),headless=False):
+    def __init__(self,size=(750,750),backgroundColor=(245,245,235),scale=100,center=(0,0),headless=False,name='continuous engine'):
         self.size = self.width, self.height = size
         self.headless = headless
         if not headless:
@@ -33,6 +33,8 @@ class Game:
         centerX, centerY = center
         self.x_offset_home, self.y_offset_home = self.width/scale/2 - centerX, self.height/scale/2 - centerY
         self.scale, self.x_offset, self.y_offset = self.scale_home, self.x_offset_home, self.y_offset_home
+
+        pygame.display.set_caption(name)
 
         # objects are assigned to 'layers' which give rendering order
         self.layerlist = []
@@ -78,7 +80,7 @@ class Game:
             self.keys.panLeft       : lambda e: self.pan(self.panDist,0),
             self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
             self.keys.resetView     : lambda e: self.resetView(),
-            self.keys.resetGame     : lambda e: (self.record_state(), self.load_state(self.initialState)),
+            self.keys.resetGame     : lambda e: (self.record_state(), self.reset_state()),
             self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
             self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
@@ -100,15 +102,18 @@ class Game:
         self.cache = {}
         self.clearCache = lambda: setattr(self, 'cache', {})
 
-        self.history = [initialState]
+        self.initialState = self.make_initial_state()
+        self.history = [self.initialState]
         self.future = []
-        self.initialState = initialState
         self.record_state = lambda:(self.history.append(self.save_state()),setattr(self,'future',[]))
 
         # should be overwritten by user
         self.save_state = lambda :None # returns description of state
         self.load_state = lambda _:None # implements description of state
         self.get_state = lambda team:self.save_state() #returns state from point of view of team
+        self.make_initial_state = lambda:None # creates a fresh initial state (perhaps with randomness)
+
+        self.reset_state = lambda: self.load_state(self.initialState)
 
         # for anything that should be recomputed before each render
         self.process = lambda: None
@@ -373,6 +378,14 @@ class BorderDisk(Circle):
     def render(self):
         super().render(color=self.fill_color, width=0)
         super().render(color=self.border_color)
+
+class ScreenBorder(Renderable):
+    def __init__(self, game, layer, color, width):
+        super().__init__(game, layer)
+        self.color, self.width = color, width
+        self.rect = pygame.Rect((0,0), (game.width, game.height))
+    def render(self):
+        pygame.draw.rect(self.game.screen, self.color, self.rect, self.width)
 
 def write(screen, font, text, x, y, color, halign='c', valign='c'):
     # x and y are pixel values

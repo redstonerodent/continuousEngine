@@ -69,8 +69,6 @@ pivots = lambda pcs, t, pt: [(pv,[pc for pc in pcs if core_in_path(pc.loc, pt, p
                 ) ({p for p in pcs if dist_to_line(p.loc, pt, pv.loc) < 3*piece_rad})
             ]
 
-inc_turn = {'WHITE':'BLACK', 'BLACK':'WHITE'}
-
 class Layers:
     BOUNDARY    = 1
     PIECES      = 2
@@ -80,15 +78,15 @@ class Layers:
     COUNT       = 10
 
 class Colors:
-    fill        = {'WHITE': (205,205,205), 'BLACK': (50, 50, 50 )}
-    core        = {'WHITE': (225,225,225), 'BLACK': (30, 30, 30 )}
-    border      = {'WHITE': (80, 80, 80 ), 'BLACK': (135,135,135)}
-    newfill     = {'WHITE': (255,255,255), 'BLACK':(0,0,0)}
+    fill        = {'white': (205,205,205), 'black': (50, 50, 50 )}
+    core        = {'white': (225,225,225), 'black': (30, 30, 30 )}
+    border      = {'white': (80, 80, 80 ), 'black': (135,135,135)}
+    newfill     = {'white': (255,255,255), 'black':(0,0,0)}
     flipper     = (0,255,0)
     blocker     = (255,0,0)
     guide       = (0,255,255)
     background  = (0,130,30)
-    text        = {'WHITE': (255,255,255), 'BLACK':(0,0,0), 'GAMEOVER':(230,20,128)}
+    text        = {'white': (255,255,255), 'black':(0,0,0), 'GAMEOVER':(230,20,128)}
     boundary    = (0,0,0)
     debug       = (255,0,0)
 
@@ -125,95 +123,104 @@ class ReversiGuide(Segment):
         self.GETvisible = lambda g: g.mousePos() and self.piece in g.pivots
         self.GETp2 = lambda g: g.mousePos()
 
-start_state = ('WHITE',
-    [('WHITE', ( .5, .5)),
-     ('WHITE', (-.5,-.5)),
-     ('BLACK', ( .5,-.5)),
-     ('BLACK', (-.5, .5))],
-    )
+class Reversi(Game):
+    make_initial_state = lambda self: ('black',
+        [('white', ( .5, .5)),
+         ('white', (-.5,-.5)),
+         ('black', ( .5,-.5)),
+         ('black', (-.5, .5))],
+        )
 
-game = Game(
-    initialState=start_state,
-    backgroundColor=Colors.background
-)
+    teams = ['black', 'white']
+    inc_turn = {'white':'black', 'black':'white'}
 
-game.save_state = lambda: (game.turn, [(p.team, p.loc.coords) for p in game.layers[Layers.PIECES]])
-game.load_state = lambda x: (lambda turn, pieces:(
-    game.clearLayer(Layers.PIECES),
-    game.clearLayer(Layers.PIECES + Layers.CORES),
-    game.clearLayer(Layers.GUIDES),
-    [game.makePiece(team, Point(*coords)) for team, coords in pieces],
-    setattr(game, 'flippers', set()),
-    setattr(game, 'blockers', set()),
-    setattr(game, 'pivots', []),
-    setattr(game, 'turn', turn),
-    setattr(game, 'over', not any(p.valid_tangents for p in game.layers[Layers.PIECES]))
-    ))(*x)
+    def __init__(self, **kwargs):
+        super().__init__(backgroundColor=Colors.background, name='continuous reversi', **kwargs)
 
-Circle(game, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if game.rawMousePos == None or game.over or on_board(game.mousePos()) else Colors.blocker
+        self.save_state = lambda: (self.turn, [(p.team, p.loc.coords) for p in self.layers[Layers.PIECES]])
+        self.load_state = lambda x: (lambda turn, pieces:(
+            self.clearLayer(Layers.PIECES),
+            self.clearLayer(Layers.PIECES + Layers.CORES),
+            self.clearLayer(Layers.GUIDES),
+            [self.makePiece(team, Point(*coords)) for team, coords in pieces],
+            setattr(self, 'flippers', set()),
+            setattr(self, 'blockers', set()),
+            setattr(self, 'pivots', []),
+            setattr(self, 'turn', turn),
+            setattr(self, 'over', not any(p.valid_tangents for p in self.layers[Layers.PIECES]))
+            ))(*x)
 
-FixedText(game, Layers.COUNT, Colors.text['BLACK'], font, 0, game.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK'])
-FixedText(game, Layers.COUNT, Colors.text['WHITE'], font, 0, game.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE'])
+        Circle(self, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or self.over or on_board(self.mousePos()) else Colors.blocker
 
-gameOverMessage = FixedText(game, Layers.COUNT, Colors.text['GAMEOVER'], font, "", game.width//2, game.height//2, *'cc')
-gameOverMessage.GETvisible = lambda g: g.over
-gameOverMessage.GETtext = lambda g: "Game Over!  "+(
-    lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(
-    len([0 for p in g.layers[Layers.PIECES] if p.team == 'WHITE']), len([0 for p in g.layers[Layers.PIECES] if p.team == 'BLACK']))
+        FixedText(self, Layers.COUNT, Colors.text['black'], font, 0, self.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])
+        FixedText(self, Layers.COUNT, Colors.text['white'], font, 0, self.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'white'])
 
-game.makePiece = lambda t,loc: (lambda pieces,new: (
-    # we keep track of the locations a piece could fit tangent to two existing pieces
-    # this is only updated when a new piece is placed, for speed
-    # each such locations is in the set 'p.valid_tangents,' where p is the later of the two pieces it's tangent to
-    # when we add a piece, we need to compute all the new valid tangents:
-    setattr(new, 'valid_tangents', {pt for pc in pieces for pt in double_tangents(loc, pc) if on_board(pt) and all(pt>>p > (2*piece_rad)**2 for p in pieces)}),
-    # and remove any points the new piece overlaps:
-    [setattr(p, 'valid_tangents', {pt for pt in p.valid_tangents if pt>>loc > (2*piece_rad)**2}) for p in game.layers[Layers.PIECES]]
-    ))([p.loc for p in game.layers[Layers.PIECES]], ReversiPiece(game, t, loc))
+        self.gameOverMessage = FixedText(self, Layers.COUNT, Colors.text['GAMEOVER'], font, "", self.width//2, self.height//2, *'cc')
+        self.gameOverMessage.GETvisible = lambda g: g.over
+        self.gameOverMessage.GETtext = lambda g: "Game Over!  "+(
+            lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(
+            len([0 for p in g.layers[Layers.PIECES] if p.team == 'white']), len([0 for p in g.layers[Layers.PIECES] if p.team == 'black']))
 
-nextPiece = ReversiPiece(game, None, None, Layers.NEWPIECE)
-nextPiece.GETteam = lambda g: g.turn
-nextPiece.GETvisible = lambda g: g.mousePos() and not g.over
-nextPiece.GETloc = lambda g: g.mousePos()
-nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
-nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
+        self.makePiece = lambda t,loc: (lambda pieces,new: (
+            # we keep track of the locations a piece could fit tangent to two existing pieces
+            # this is only updated when a new piece is placed, for speed
+            # each such locations is in the set 'p.valid_tangents,' where p is the later of the two pieces it's tangent to
+            # when we add a piece, we need to compute all the new valid tangents:
+            setattr(new, 'valid_tangents', {pt for pc in pieces for pt in double_tangents(loc, pc) if on_board(pt) and all(pt>>p > (2*piece_rad)**2 for p in pieces)}),
+            # and remove any points the new piece overlaps:
+            [setattr(p, 'valid_tangents', {pt for pt in p.valid_tangents if pt>>loc > (2*piece_rad)**2}) for p in self.layers[Layers.PIECES]]
+            ))([p.loc for p in self.layers[Layers.PIECES]], ReversiPiece(self, t, loc))
 
-def attemptMove(_):
-    updateMove()
-    if game.blockers or not game.pivots: return
-    game.record_state()
-    game.makePiece(game.turn, game.mousePos())
-    for p in game.flippers: p.team = inc_turn[p.team]
-    game.turn = inc_turn[game.turn]
-    # game is over if there's nowhere to fit another piece
-    # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
-    if not any(p.valid_tangents for p in game.layers[Layers.PIECES]):
-        game.over = True
+        self.nextPiece = ReversiPiece(self, None, None, Layers.NEWPIECE)
+        self.nextPiece.GETteam = lambda g: g.turn
+        self.nextPiece.GETvisible = lambda g: g.mousePos() and not g.over
+        self.nextPiece.GETloc = lambda g: g.mousePos()
+        self.nextPiece.GETborder_color = lambda g: Colors.flipper if g.pivots and not g.blockers else Colors.blocker
+        self.nextPiece.GETfill_color = lambda g: Colors.newfill[g.turn]
 
-def updateMove():
-    pos = game.mousePos()
-    if not game.over and pos and on_board(pos):
-        game.blockers = {p for p in game.layers[Layers.PIECES] if overlap(pos, p.loc)}
-        game.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(game.layers[Layers.PIECES], game.turn, pos))
-        game.flippers = {p for ps in flipped for p in ps}
-    else: game.blockers, game.pivots, game.flippers = set(), [], set()
+        self.process = self.updateMove
 
-game.process = updateMove
+        self.reset_state()
 
-game.load_state(start_state)
 
-# test speed:
-if 0:
-    import random
-    spread = 10
-    count = 100
-    [game.makePiece(random.choice(['WHITE','BLACK']),Point(random.random()*spread-spread/2,random.random()*spread-spread/2)) for _ in range(count)]
+        # test speed:
+        if 0:
+            import random
+            spread = 10
+            count = 100
+            [self.makePiece(random.choice(['white','black']),Point(random.random()*spread-spread/2,random.random()*spread-spread/2)) for _ in range(count)]
 
-game.click[1] = attemptMove
+        self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
 
-game.keys.skipTurn = pygame.K_u
+        self.keys.skipTurn = pygame.K_u
 
-game.keyPress[game.keys.skipTurn] = lambda _: setattr(game, 'turn', inc_turn[game.turn])
+        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
 
-while 1: 
-    game.update()
+
+    def attemptMove(self, move):
+        print(move, flush=True)
+        if self.turn != move["player"]: return False
+        pos = Point(*move["location"])
+        self.updateMove(pos)
+        if self.blockers or not self.pivots: return False
+        self.record_state()
+        self.makePiece(self.turn, pos)
+        for p in self.flippers: p.team = self.inc_turn[p.team]
+        self.turn = self.inc_turn[self.turn]
+        # game is over if there's nowhere to fit another piece
+        # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
+        if not any(p.valid_tangents for p in self.layers[Layers.PIECES]):
+            self.over = True
+        return True
+
+    def updateMove(self, pos=None):
+        pos = pos or self.mousePos()
+        if not self.over and pos and on_board(pos):
+            self.blockers = {p for p in self.layers[Layers.PIECES] if overlap(pos, p.loc)}
+            self.pivots, flipped = (lambda t: zip(*t) if t else ([],[]))(pivots(self.layers[Layers.PIECES], self.turn, pos))
+            self.flippers = {p for ps in flipped for p in ps}
+        else: self.blockers, self.pivots, self.flippers = set(), [], set()
+
+
+if __name__=="__main__":
+    run_local(Reversi)
