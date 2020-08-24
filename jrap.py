@@ -50,7 +50,6 @@ class JrapHole(Renderable):
         poly_ints = intersect_polygon_circle_arcs(self.poly, Point(0,0), board_rad)
         # angular intervals circles cover
         circle_ints = [(atan2(*a),atan2(*b)) for a,b in filter(lambda x:x, ((intersect_circles(Point(0,0), p, board_rad, hammer_rad)) for p in self.hits))]
-        print(circle_ints)
         self.intervals = poly_ints+circle_ints
 
 
@@ -58,13 +57,13 @@ class JrapHole(Renderable):
         for h in self.hits:
             drawCircle(self.game, self.color, h, hammer_rad)
         drawPolygon(self.game, self.color, self.poly)
-        if 1:
+        if 0:
             for h in self.hits:
                 drawCircle(self.game, Colors.debug[0], h, hammer_rad, width=2)
             drawPolygon(self.game, Colors.debug[0], self.poly, width=2)
-            for a,b in filter(lambda x:x, ((intersect_circles(Point(0,0), p, board_rad, hammer_rad)) for p in self.hits)):
-                drawCircle(self.game, Colors.debug[3], a, 5, fixedRadius=True)
-                drawCircle(self.game, Colors.debug[4], b, 5, fixedRadius=True)
+            for a,b in self.intervals:
+                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
+                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
 
 
     def intersecting(self, other):
@@ -82,7 +81,7 @@ class JrapHole(Renderable):
 
     def contains_cell(self, cell):
         # is the intersection of the voronoi cell and the board completely inside this hole?
-        return all(p in self for p in self.game.voronoi.board_pts[cell]) and (self.game.voronoi.uncovered_arcs[cell]==[] or interval_cover_circle(self.intervals + self.game.voronoi.uncovered_arcs[cell]))
+        return all(p in self for p in self.game.voronoi.board_pts[cell]) and (self.game.voronoi.uncovered_arcs[cell]==[] or tracefn(interval_cover_circle)(self.intervals + self.game.voronoi.uncovered_arcs[cell]))
 
 
 class JrapVoronoi(CachedImg):
@@ -123,10 +122,16 @@ class JrapPenguin(CachedImg):
 class JrapDebugger(Renderable):
     def render(self):
         for p in self.game.voronoi.player:
-            drawCircle(self.game, Colors.debug[int(self.game.new_hole.contains_cell(p))], p, 3, fixedRadius=True)
+            drawCircle(self.game, Colors.debug[p in self.game.open_cells[self.game.voronoi.player[p]]], p, 3, fixedRadius=True)
         if self.game.mousePos():
-            for p in self.game.voronoi.board_pts[self.game.voronoi.diagram.nearest(self.game.mousePos())]:
+            n = self.game.voronoi.diagram.nearest(self.game.mousePos())
+            for p in self.game.voronoi.board_pts[n]:
                 drawCircle(self.game, Colors.debug[(p in self.game.new_hole)+1], p, 3, fixedRadius=True)
+
+            for a,b in self.game.voronoi.uncovered_arcs[n]:
+                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
+                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
+
 
 class Jrap(Game):
     make_initial_state = lambda self:('white',
@@ -151,7 +156,8 @@ class Jrap(Game):
             self.clearLayer(Layers.holes),
             [JrapHole(self, Layers.holes, [Point(*x) for x in h]) for h in holes],
             setattr(self, 'valid_move', False),
-            setattr(self, 'over', any(Point(0,0) in h for h in self.layers[Layers.holes])),
+            setattr(self, 'open_cells', self.get_open_cells()),
+            setattr(self, 'swimming', any(Point(0,0) in h for h in self.layers[Layers.holes])),
             self.updateMove(self.mousePos())
             ))(*x)
 
@@ -179,15 +185,15 @@ class Jrap(Game):
 
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
         self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", self.width//2, self.height//2)
-        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn])
-        self.gameOverMessage.GETvisible = lambda g: g.over
+        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn]) if self.swimming else "{} has no moves. :(".format(self.turn)
+        self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
 
         if 1:
             self.debugger = JrapDebugger(self, Layers.debug)
 
         self.keys.skipTurn = pygame.K_u
 
-        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
+        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn]) if not self.swimming else None
 
         self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
 
@@ -196,6 +202,7 @@ class Jrap(Game):
         self.process = lambda: self.updateMove(self.mousePos())
         self.viewChange = lambda: self.clearCache()
 
+    get_open_cells = lambda self: {t: [cell for cell in self.voronoi.player if self.voronoi.player[cell]==t and not any(h.contains_cell(cell) for h in self.layers[Layers.holes])] for t in self.teams}
 
 
     def attemptMove(self, move):
@@ -205,10 +212,12 @@ class Jrap(Game):
         self.updateMove(pos)
         if not self.valid_move: return
         self.record_state()
-        if Point(0,0) in JrapHole(self, Layers.holes, self.new_hole.hits):
-            self.over = True
         for h in self.to_remove:
             self.layers[Layers.holes].remove(h)
+        new = JrapHole(self, Layers.holes, self.new_hole.hits)
+        self.open_cells = self.get_open_cells()
+        if Point(0,0) in new:
+            self.swimming = True
         self.turn = self.inc_turn[self.turn]
         return True
 
@@ -223,7 +232,7 @@ class Jrap(Game):
                 self.new_hole.merge(hole)
                 holes.remove(hole)
                 self.to_remove.append(hole)
-            self.valid_move = (not self.over
+            self.valid_move = (not self.swimming
                         and on_board(pos) 
                         and self.voronoi.player[self.voronoi.diagram.nearest(pos)] == self.turn
                         and not any(pos in h for h in self.layers[Layers.holes])

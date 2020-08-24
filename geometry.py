@@ -119,11 +119,11 @@ def convex_hull(points):
     return ans
 
 # do the intervals xs cover interval? intervals are tuples of endpoints and are closed; assumes xs is sorted
-interval_cover_sorted = lambda xs, interval: xs[0][0] <= interval[0] and interval_cover(xs[1:], (xs[0][1], interval[1])) if xs else interval[0] > interval[1]
+interval_cover_sorted = lambda xs, interval: xs[0][0] <= interval[0] and interval_cover(xs[1:], (max(interval[0], xs[0][1]), interval[1])) if xs else interval[0] >= interval[1]
 # do the intervals xs cover interval? doesn't assume xs is sorted
 interval_cover = lambda xs, interval: interval_cover_sorted(sorted(xs), interval)
 # do the intervals xs cover all angles (0 to tau)? endpoints are taken mod tau, and assumed to be given in counterclockwise (increasing) direction
-interval_cover_circle = lambda xs: (lambda cleaned: interval_cover_sorted(cleaned, (cleaned[0][0], cleaned[0][0]+2*pi)))(sorted((a%(2*pi), b%(2*pi) + 2*pi*(a%(2*pi)>b%(2*pi))) for a,b in xs)) if xs else False
+interval_cover_circle = lambda xs: interval_cover([interval for a,b in xs for interval in ([(a%(2*pi), b%(2*pi))] if b%(2*pi) > a%(2*pi) else [(a%(2*pi), 2*pi),(0, b%(2*pi))])], (0,2*pi))
 
 def intersect_polygon_circle_arcs(pts, p, r):
     # list of angular intervals of arcs of the circle of radius r centered at p contained in the polygon with vertices pts
@@ -131,10 +131,11 @@ def intersect_polygon_circle_arcs(pts, p, r):
     starts, ends = [], []
     for i in range(len(pts)):
         if pts[i]>>p >= r**2:
-            if pts[(i+1)%len(pts)]>>p < r**2:
+            if nearest_on_segment(p, pts[i], pts[(i+1)%len(pts)])>>p < r**2:
                 ends.append(atan2(*(slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r) - p)))
-            if pts[i-1]>>p < r**2:
+            if nearest_on_segment(p, pts[i], pts[i-1])>>p < r**2:
                 starts.append(atan2(*(slide_to_circle(pts[i], pts[i-1], p, r) - p)))
+
     return [(s, min(ends, key=lambda e: (e-s)%(2*pi))) for s in starts]
 
 ## for computing voronoi diagrams
