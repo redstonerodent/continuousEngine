@@ -26,19 +26,21 @@ This is a project to implement continuous versions of discrete games in python.
 
 ## Installation
 
-You will need Python 3.7 or later (for async) and pygame. Everything has been tested in Python 3.8.5 and pygame 2.0.0dev10.
+You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.5 and pygame 2.0.0dev10.
 
 ### Python
 
-You can get Python 3.8 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.8`). I suggest making 3.8 the default Python version, which (at least on Ubuntu) you can do with `update-alternatives`.
+You can get Python 3.8 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.8`). I suggest making 3.8 the default Python version, which (at least on Ubuntu) you can do with `update-alternatives`; otherwise, replace `python` with `python3.8` in all the following commands.
 
 ### Pygame
 
-Can be installed with pip: `pip install pygame==2.0.0dev10`.
+Can be installed with pip: `pip install pygame==2.0.0dev10`. If you don't have pip installed, try `python -m pip install pygame==2.0.0dev10`
 
 ### ContinuousEngine
 
 Clone this repo: `git clone https://github.com/redstonerodent/continuousEngine.git` or click the download button above.
+
+To update, run `git pull`.
 
 
 ## Usage

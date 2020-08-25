@@ -103,7 +103,7 @@ class Game:
         self.clearCache = lambda: setattr(self, 'cache', {})
 
         self.initialState = self.make_initial_state()
-        self.history = [self.initialState]
+        self.history = []
         self.future = []
         self.record_state = lambda:(self.history.append(self.save_state()),setattr(self,'future',[]))
 

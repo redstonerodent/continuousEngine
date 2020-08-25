@@ -4,7 +4,7 @@
 
 ## Common to all games
 
-These are defined in `continuousEngine.py`, and thus available in all games (though the meaning of undo/redo/restart is different in different games).
+These are defined in `continuousEngine.py` (or `client.py`), and thus available in all games (though the meaning of undo/redo/restart is different in different games).
 
 ### View navigation
 
@@ -17,6 +17,7 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 * Undo: `;`(z)
 * Redo: `q`(x)
 * Restart: `p`(r)
+* Enter/exit live mode (for network play): `n`(l)
 
 ### Debug
 

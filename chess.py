@@ -22,6 +22,9 @@ future_guide_color = (245, 200, 245)
 move_guide_color = (150,0,255)
 capture_guide_color = (255,0,150)
 
+outline_color = (100,100,100)
+turn_indicator_color = {'white':(255,255,255), 'black':(0,0,0)}
+
 threatened_color = (255,0,0)
 
 alpha = 100
@@ -56,6 +59,8 @@ class Constants:
 
 class Layers:
 #     0: background
+    OUTLINE         = .3
+    TURN_INDICATOR  = .5
     SHOWN_PIECES    = 1 # middle-clicked attacks, Guides
     FUTURE_MOVES    = 2 # future_guide for range after this move 
     PIECES          = 3 # pieces
@@ -336,10 +341,14 @@ class Chess(Game):
         ActivePiece(self)
 
         self.move_guide = Guide(self, Layers.GUIDE, None, thick=False)
-        self.move_guide.GETvisible = lambda game: self.active_piece != None
+        self.move_guide.GETvisible = lambda g: g.active_piece != None
 
         self.ghost = Ghost(self)
         self.ghost.threatening = []
+
+        ScreenBorder(self, Layers.OUTLINE, outline_color, 12)
+        self.turn_indicator =  ScreenBorder(self, Layers.TURN_INDICATOR, None, 10)
+        self.turn_indicator.GETcolor = lambda g: turn_indicator_color[g.turn]
 
         self.click[1] = lambda e: self.attemptMove({"player":self.active_piece.color, "selected":self.active_piece.loc.coords, "location":self.point(*e.pos).coords}) if self.active_piece else selectPiece(self, self.point(*e.pos))
         self.click[2] = lambda e: toggleShown(self, self.point(*e.pos))
