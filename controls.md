@@ -18,6 +18,11 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 * Redo: `q`(x)
 * Restart: `p`(r)
 
+### Debug
+
+* Print current state: backquote
+
+
 ## Chess
 
 * Select piece: left click
@@ -48,4 +53,8 @@ These are defined in `continuousEngine.py`, and thus available in all games (tho
 
 * Place ghost piece: space
 * Clear ghost pieces: `esc`
-* Debug tools: right shift, enter, numbers
+
+## Jrap
+
+* Make hole: left click
+* Skip turn: `u`(f)

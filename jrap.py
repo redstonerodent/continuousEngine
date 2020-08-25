@@ -188,7 +188,7 @@ class Jrap(Game):
         self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn]) if self.swimming else "{} has no moves. :(".format(self.turn)
         self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
 
-        if 1:
+        if 0:
             self.debugger = JrapDebugger(self, Layers.debug)
 
         self.keys.skipTurn = pygame.K_u
