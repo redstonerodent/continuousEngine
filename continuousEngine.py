@@ -28,14 +28,14 @@ class Game:
         self.headless = headless
         if not headless:
             self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
-        self.size = lambda: pygame.display.get_window_size()
-        self.width = lambda: self.size()[0]
-        self.height = lambda: self.size()[1]
-        self.spread = spread
-        self.center = center
-
-        self.resetView()
-        pygame.display.set_caption(name)
+            self.size = lambda: pygame.display.get_window_size()
+            self.width = lambda: self.size()[0]
+            self.height = lambda: self.size()[1]
+            self.spread = spread
+            self.center = center
+        
+            self.resetView()
+            pygame.display.set_caption(name)
 
         # objects are assigned to 'layers' which give rendering order
         self.layerlist = []
