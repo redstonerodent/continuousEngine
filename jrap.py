@@ -87,6 +87,8 @@ class JrapHole(Renderable):
 class JrapVoronoi(CachedImg):
     def __init__(self, game, layer):
         def gen(_):
+            self.mask = pygame.Surface(self.game.size()).convert_alpha(self.game.screen)
+            self.scratch = pygame.Surface(self.game.size()).convert_alpha(self.mask)
             self.mask.fill((0,0,0,0))
             self.scratch.fill((0,0,0,0))
             drawCircle(self.game, (255,255,255, Colors.voronoi_opacity), Point(0,0), board_rad, surface=self.mask)
@@ -95,9 +97,6 @@ class JrapVoronoi(CachedImg):
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
             return self.mask
         super().__init__(game, layer, 'voronoi', gen)
-        if not game.headless:
-            self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
-            self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
     def reset(self, cells):
         # cells is a list of ( point, color )
         self.diagram = Voronoi(Point(board_rad, board_rad), Point(-board_rad, -board_rad))
@@ -184,7 +183,7 @@ class Jrap(Game):
         Circle(self, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if g.mousePos() and on_board(g.mousePos()) else Colors.illegal
 
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-        self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", self.width//2, self.height//2)
+        self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", 0,0, hborder='c',vborder='c')
         self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.next_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
         self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
 
@@ -233,6 +232,11 @@ class Jrap(Game):
                         and self.voronoi.player[self.voronoi.diagram.nearest(pos)] == self.turn
                         and not any(pos in h for h in self.layers[Layers.holes])
                         )
+
+    def resize(self):
+        self.voronoi.mask = pygame.Surface(self.size()).convert_alpha(self.screen)
+        self.voronoi.scratch = pygame.Surface(self.size()).convert_alpha(self.voronoi.mask)
+
 
 
 if __name__=="__main__":

@@ -79,7 +79,7 @@ class Sky(Game):
         return dot
 
     def __init__(self, **kwargs):
-        super().__init__(center=(n/2,n/2), name='sky', **kwargs)
+        super().__init__(center=Point(n/2,n/2), spread=n, name='sky', **kwargs)
 
 
         self.addDot = lambda x,y: CachedImg(self, Layers.TRIALS, countVisible(solution,x,y), self.makeDot, Point(x, y)) if any([x<0,y<0,x>n,y>n]) else None

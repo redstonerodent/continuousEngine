@@ -134,7 +134,7 @@ class Reversi(Game):
     teams = ['black', 'white']
 
     def __init__(self, **kwargs):
-        super().__init__(backgroundColor=Colors.background, name='continuous reversi', **kwargs)
+        super().__init__(backgroundColor=Colors.background, spread=board_rad, name='continuous reversi', **kwargs)
 
         self.save_state = lambda: (self.turn, [(p.team, p.loc.coords) for p in self.layers[Layers.PIECES]])
         self.load_state = lambda x: (lambda turn, pieces:(
@@ -153,10 +153,10 @@ class Reversi(Game):
 
         Circle(self, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or self.over or on_board(self.mousePos()) else Colors.blocker
 
-        FixedText(self, Layers.COUNT, Colors.text['black'], font, 0, self.width-30,30, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])
-        FixedText(self, Layers.COUNT, Colors.text['white'], font, 0, self.width-30,60, *'rt').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'white'])
+        FixedText(self, Layers.COUNT, Colors.text['black'], font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])
+        FixedText(self, Layers.COUNT, Colors.text['white'], font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'white'])
 
-        self.gameOverMessage = FixedText(self, Layers.COUNT, Colors.text['GAMEOVER'], font, "", self.width//2, self.height//2, *'cc')
+        self.gameOverMessage = FixedText(self, Layers.COUNT, Colors.text['GAMEOVER'], font, "", 0,0, hborder='c', vborder='c')
         self.gameOverMessage.GETvisible = lambda g: g.over
         self.gameOverMessage.GETtext = lambda g: "Game Over!  "+(
             lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(

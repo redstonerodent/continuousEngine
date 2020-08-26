@@ -100,10 +100,6 @@ class GoVoronoi(CachedImg):
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
             return self.mask
         super().__init__(game, layer, None, gen)
-        if not game.headless:
-            self.mask = pygame.Surface(self.game.size).convert_alpha(self.game.screen)
-            self.scratch = pygame.Surface(self.game.size).convert_alpha(self.mask)
-
 
 class GoDebugger(Renderable):
     render = lambda self: (
@@ -116,7 +112,7 @@ class Go(Game):
     teams = ['black', 'white']
 
     def __init__(self, **kwargs):
-        super().__init__(backgroundColor=Colors.background, name='continuous go', scale=50, **kwargs)
+        super().__init__(backgroundColor=Colors.background, spread=board_rad, name='continuous go', **kwargs)
 
 
         self.save_state = lambda: (self.turn, self.capturedCount.copy(), {team:[p.loc.coords for p in self.layers[Layers.PIECES[team]]] for team in self.teams})
@@ -141,8 +137,8 @@ class Go(Game):
 
         Circle(self, Layers.BOUNDARY, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or on_board(self.mousePos()) else Colors.blocker
 
-        FixedText(self, Layers.COUNT, Colors.text['black'], font, None, self.width-30,30, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
-        FixedText(self, Layers.COUNT, Colors.text['white'], font, None, self.width-30,60, *'rt').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
+        FixedText(self, Layers.COUNT, Colors.text['black'], font, None, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
+        FixedText(self, Layers.COUNT, Colors.text['white'], font, None, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
         self.debugger = GoDebugger(self, Layers.DEBUG)
         self.debugger.visible = False
 
@@ -294,6 +290,9 @@ class Go(Game):
     def updateTerritory(self):
         self.territory = {t:sum(intersect_polygon_circle_area(self.voronoi.diagram.voronoi_vertices[pc.loc], Point(0,0), board_rad) for pc in self.layers[Layers.PIECES[t]]) / pi * piece_rad**2 for t in self.teams}
 
+    def resize(self):
+        self.voronoi.mask = pygame.Surface(self.size()).convert_alpha(self.screen)
+        self.voronoi.scratch = pygame.Surface(self.size()).convert_alpha(self.voronoi.mask)
 
 
 if __name__=="__main__":

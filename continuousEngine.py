@@ -24,16 +24,17 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,size=(1000,1000),backgroundColor=(245,245,235),scale=100,center=(0,0),headless=False,name='continuous engine'):
-        self.size = self.width, self.height = size
+    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine'):
         self.headless = headless
         if not headless:
-            self.screen = pygame.display.set_mode(self.size)
-        self.scale_home = scale
-        centerX, centerY = center
-        self.x_offset_home, self.y_offset_home = self.width/scale/2 - centerX, self.height/scale/2 - centerY
-        self.scale, self.x_offset, self.y_offset = self.scale_home, self.x_offset_home, self.y_offset_home
+            self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
+        self.size = lambda: pygame.display.get_window_size()
+        self.width = lambda: self.size()[0]
+        self.height = lambda: self.size()[1]
+        self.spread = spread
+        self.center = center
 
+        self.resetView()
         pygame.display.set_caption(name)
 
         # objects are assigned to 'layers' which give rendering order
@@ -45,7 +46,8 @@ class Game:
             pygame.QUIT: lambda e: sys.exit(),
             pygame.MOUSEBUTTONDOWN: lambda e: self.click[e.button](e) if e.button in self.click else print('unknown click:',e.button),
             pygame.MOUSEMOTION: lambda e: ([self.drag[k](e) if k in self.drag else print('unknown motion:',k) for k in range(-1,3) if k<0 or e.buttons[k]]),
-            pygame.KEYDOWN: lambda e: self.keyPress[e.key](e) if e.key in self.keyPress else self.numKey((e.key%1073741864-8)%10) if pygame.K_KP_1<=e.key<=pygame.K_KP_0 or pygame.K_0<=e.key<=pygame.K_9 else print('unknown key:',e.key)
+            pygame.KEYDOWN: lambda e: self.keyPress[e.key](e) if e.key in self.keyPress else self.numKey((e.key%1073741864-8)%10) if pygame.K_KP_1<=e.key<=pygame.K_KP_0 or pygame.K_0<=e.key<=pygame.K_9 else print('unknown key:',e.key),
+            pygame.VIDEORESIZE: lambda e: (setattr(self, 'needViewChange', True), setattr(self, 'needResize', True)),
         }
 
         self.panDist = 100
@@ -117,23 +119,26 @@ class Game:
 
         self.reset_state = lambda: self.load_state(self.initialState)
 
-        # for anything that should be recomputed before each render
-        self.process = lambda: None
-        # for anything that should be recomputed whenever the camera moves
-        self.viewChange = lambda: None
+    # for anything that should be recomputed before each render
+    process = lambda self: None
+    # for anything that should be recomputed whenever the camera moves
+    viewChange = lambda self: None
+    # for anything that should be recomputed whenever the window size changes
+    resize = lambda self: None
+        
 
-        self.turn = None
-        self.next_turn = lambda: None
-        # is skipping your turn a legal move?
-        self.allow_skip = False
+    turn = None
+    next_turn = lambda self: None
+    # is skipping your turn a legal move?
+    allow_skip = False
 
 
 
     # screen borders
     x_min = lambda self:-self.x_offset
-    x_max = lambda self:self.width/self.scale-self.x_offset
+    x_max = lambda self:self.width()/self.scale-self.x_offset
     y_min = lambda self:-self.y_offset
-    y_max = lambda self:self.width/self.scale-self.y_offset
+    y_max = lambda self:self.height()/self.scale-self.y_offset
 
     # convert between pixels on screen and points in abstract game space
     pixel = lambda self,p: (int((p.x+self.x_offset)*self.scale), int((p.y+self.y_offset)*self.scale))
@@ -150,7 +155,9 @@ class Game:
             self.needViewChange = True
 
     def resetView(self):
-        self.scale, self.x_offset, self.y_offset = self.scale_home, self.x_offset_home, self.y_offset_home
+        self.size()
+        self.scale = min(self.size()) / 2 / self.spread
+        self.x_offset, self.y_offset = Point(*self.size())/2/self.scale - self.center
         self.needViewChange = True
 
  
@@ -177,7 +184,7 @@ class Game:
             for obj in self.layers[l]:
                 if obj.visible:
                     obj.render()
-
+        print(self.x_offset)
         pygame.display.flip()
 
     def update(self):
@@ -185,9 +192,12 @@ class Game:
         #event = await self.event_queue.get()
         event = pygame.event.wait()
         self.needViewChange = False
+        self.needResize = False
         while event:
             self.handle(event)
             event = pygame.event.poll()
+        if self.needResize:
+            self.resize()
         if self.needViewChange:
             self.viewChange()
         self.process()
@@ -326,7 +336,7 @@ class CachedImg(Renderable):
         surf = self.game.cache[self.key]
         if self.loc:
             px,py = self.game.pixel(self.loc)
-            if -surf.get_width() <= px <= self.game.width+surf.get_width() and -surf.get_height() <= py <= self.game.height+surf.get_height():
+            if -surf.get_width() <= px <= self.game.width()+surf.get_width() and -surf.get_height() <= py <= self.game.height()+surf.get_height():
                 shiftx = {'l':0,'c':surf.get_width()//2,'r':surf.get_width()}[self.halign]
                 shifty = {'t':0,'c':surf.get_height()//2,'b':surf.get_height()}[self.valign]
                 self.game.screen.blit(surf, (px-shiftx, py-shifty))
@@ -344,11 +354,11 @@ class Text(Renderable):
 
 class FixedText(Renderable):
     # text centered at pixel (x,y); fixed on screen. doesn't move with zoom/pan
-    def __init__(self, game, layer, color, font, text, x, y, halign='c', valign='c'):
+    def __init__(self, game, layer, color, font, text, x, y, **kwargs):
         super().__init__(game, layer)
-        self.font, self.text, self.x, self.y, self.color, self.halign, self.valign = font, text, x, y, color, halign, valign
+        self.font, self.text, self.x, self.y, self.color, self.kwargs = font, text, x, y, color, kwargs
     def render(self):
-        write(self.game.screen, self.font, self.text, self.x, self.y, self.color, self.halign, self.valign)
+        write(self.game.screen, self.font, self.text, self.x, self.y, self.color, **self.kwargs)
 
 class Rectangle(Renderable):
     def __init__(self, game, layer, color, loc, dx, dy):
@@ -390,11 +400,10 @@ class ScreenBorder(Renderable):
     def __init__(self, game, layer, color, width):
         super().__init__(game, layer)
         self.color, self.width = color, width
-        self.rect = pygame.Rect((0,0), (game.width, game.height))
     def render(self):
-        pygame.draw.rect(self.game.screen, self.color, self.rect, self.width)
+        pygame.draw.rect(self.game.screen, self.color, pygame.Rect((0,0), (self.game.width(), self.game.height())), self.width)
 
-def write(screen, font, text, x, y, color, halign='c', valign='c'):
+def write(screen, font, text, x, y, color, halign='c', valign='c', hborder='l', vborder='t'):
     # x and y are pixel values
     # halign is horizontal alignment:
     #   c -> centered around x
@@ -404,10 +413,23 @@ def write(screen, font, text, x, y, color, halign='c', valign='c'):
     #   c -> centered around y
     #   t -> top edge at y
     #   b -> bottom edge at y
+    # hborder is which boundary of the screen to follow:
+    #   l -> fixed distance from left edge
+    #   c -> fixed distance from horizontal center
+    #   r -> fixed distance from right edge (x should be negative)
+    # vborder is which boundary of the screen to follow:
+    #   t -> fixed distance from top edge
+    #   c -> fixed distance from vertical center
+    #   b -> fixed distance from bottom edge (y should be negative)
+
+    if not ({halign, hborder} < set('lcr') and {valign, vborder} < set('tcb')): raise ValueError
+
     text = str(text)
     written = font.render(text,True,color)
-    width, height = font.size(text)
-    if halign not in 'lcr' or valign not in 'tcb': raise ValueError
-    shiftx = {'l':0,'c':width//2,'r':width}[halign]
-    shifty = {'t':0,'c':height//2,'b':height}[valign]
-    screen.blit(written, (x-shiftx, y-shifty))
+    twidth, theight = font.size(text)
+    swidth, sheight = screen.get_size()
+    hdic = {'l':0, 'c': 1/2, 'r': 1}
+    vdic = {'t':0, 'c': 1/2, 'b': 1}
+    shiftx = int(hdic[halign]*twidth - hdic[hborder]*swidth)
+    shifty = int(vdic[valign]*theight - vdic[vborder]*sheight)
+    screen.blit(written, (int(x - hdic[halign]*twidth + hdic[hborder]*swidth), int(y - vdic[valign]*theight + vdic[vborder]*sheight)))
