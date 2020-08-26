@@ -79,7 +79,7 @@ epsilon = 10**-10
 # intersections of circles of radius r1 and r2 centered at p1 or p2. a tuple with either 0 or 2 elements. if r2 is not given, both circles have radius r1
 # order: given (a,b) where (a,p2,b) is counterclockwise around p1
 intersect_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (lambda d: (m-d, m+d)
-            )(~(p2-p1) @ ((r1**2-(p1>>m))**.5 + epsilon))
+            )(~(p2-p1) @ ((r1**2-(p1>>m) + epsilon)**.5))
         )(p1 + (p2-p1)@((r1**2-r2**2+dsq) / 2 / (dsq**.5))) if abs(r1-r2) < dsq**.5 < r1+r2 else ()
     )(r2 or r1, p1>>p2)
 # intersections of line a-b and circle of radius r centered at p. a tuple with either 0 or 2 elements.

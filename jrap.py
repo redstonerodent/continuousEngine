@@ -60,7 +60,7 @@ class JrapHole(Renderable):
         if 0:
             for h in self.hits:
                 drawCircle(self.game, Colors.debug[0], h, hammer_rad, width=2)
-            drawPolygon(self.game, Colors.debug[0], self.poly, width=2)
+            drawPolygon(self.game, Colors.debug[1], self.poly, width=2)
             for a,b in self.intervals:
                 drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
                 drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
