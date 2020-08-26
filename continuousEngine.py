@@ -184,7 +184,6 @@ class Game:
             for obj in self.layers[l]:
                 if obj.visible:
                     obj.render()
-        print(self.x_offset)
         pygame.display.flip()
 
     def update(self):

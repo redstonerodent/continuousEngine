@@ -154,7 +154,7 @@ async def initial_script(_, game, ip='localhost', game_id=None, team=None, usern
 
     async def attempt_joining(id):
         if team != None:
-            if team not in ids[id]["open teams"]:
+            if team not in ids[id]["open teams"]+["spectator"]:
                 print("team {} doesn't exist".format(team), flush=True)
                 sys.exit()
 
@@ -168,7 +168,7 @@ async def initial_script(_, game, ip='localhost', game_id=None, team=None, usern
             if available_colors:
                 await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,available_colors[0], username)
             else:
-                print('{} is full'.format(id), flush=True)
+                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,"spectator", username)
 
     if game_id == None:
         for i in ids:
