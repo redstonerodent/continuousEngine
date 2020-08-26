@@ -14,6 +14,7 @@ These are defined in `continuousEngine.py` (or `client.py`), and thus available 
 
 ### Game history
 
+* Skip turn: `u`(f)
 * Undo: `;`(z)
 * Redo: `q`(x)
 * Restart: `p`(r)
@@ -48,7 +49,6 @@ These are defined in `continuousEngine.py` (or `client.py`), and thus available 
 ## Reversi & Go
 
 * Place piece: left click
-* Skip turn: `u`(f)
 
 ## Go (but not Reversi)
 
@@ -58,4 +58,3 @@ These are defined in `continuousEngine.py` (or `client.py`), and thus available 
 ## Jrap
 
 * Make hole: left click
-* Skip turn: `u`(f)

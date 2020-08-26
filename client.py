@@ -36,8 +36,27 @@ class NetworkGame:
         self.server = None
         self.live_mode = False
         self.server_state = {}
-        self.game.handlers[pygame.USEREVENT] = lambda e:self.game.load_state(e.state)
+        self.server_history = []
+        self.game.handlers[pygame.USEREVENT] = lambda e: (
+            self.game.load_state(e.state),
+            self.server_history.append(e.state),
+            setattr(self.game, 'history', self.server_history[:-1]),
+            setattr(self.game, 'future', []),
+            )
         self.game.keyPress[pygame.K_n] = lambda e:(setattr(self,"live_mode", not self.live_mode), self.update_to_server_state() if self.live_mode else None) if self.server!=None else None
+        
+        if game.allow_skip:
+            pass
+        else:
+            # exit live mode when skipping
+            self.game.keyPress[self.game.keys.skipTurn] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.skipTurn])
+
+        # viewing history exits live mode
+        self.game.keyPress[self.game.keys.undo] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.undo])
+        self.game.keyPress[self.game.keys.redo] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.redo])
+        self.game.keyPress[self.game.keys.resetGame] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.resetGame])
+
+
         self.f = self.game.attemptMove
         self.game.attemptMove = self.attemptMove
 

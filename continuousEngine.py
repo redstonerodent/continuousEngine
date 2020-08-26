@@ -124,6 +124,8 @@ class Game:
 
         self.turn = None
         self.next_turn = lambda: None
+        # is skipping your turn a legal move?
+        self.allow_skip = False
 
 
 
