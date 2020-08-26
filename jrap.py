@@ -141,8 +141,6 @@ class Jrap(Game):
         )
 
     teams = ['white', 'blue']
-    inc_turn = {'white':'blue','blue':'white'}
-
 
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
@@ -160,6 +158,8 @@ class Jrap(Game):
             setattr(self, 'swimming', any(Point(0,0) in h for h in self.layers[Layers.holes])),
             self.updateMove(self.mousePos())
             ))(*x)
+
+        self.next_turn = lambda: {'white':'blue','blue':'white'}[self.turn]
 
         self.hammer = Disk(self, Layers.hammer, None, None, hammer_rad)
         self.hammer.GETvisible = lambda g: bool(g.mousePos())
@@ -185,15 +185,11 @@ class Jrap(Game):
 
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
         self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", self.width//2, self.height//2)
-        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.inc_turn[self.turn]) if self.swimming else "{} has no moves. :(".format(self.turn)
+        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.next_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
         self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
 
         if 0:
             self.debugger = JrapDebugger(self, Layers.debug)
-
-        self.keys.skipTurn = pygame.K_u
-
-        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn]) if not self.swimming else None
 
         self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
 
@@ -218,7 +214,7 @@ class Jrap(Game):
         self.open_cells = self.get_open_cells()
         if Point(0,0) in new:
             self.swimming = True
-        self.turn = self.inc_turn[self.turn]
+        self.turn = self.next_turn()
         return True
 
 

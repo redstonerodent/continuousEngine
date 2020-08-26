@@ -311,8 +311,6 @@ class Chess(Game):
     ])
 
     teams = ['white', 'black']
-    inc_turn = {'white':'black', 'black':'white'}
-
     
     def __init__(self,**kwargs):
         super().__init__(name='continuous chess', **kwargs)
@@ -329,6 +327,8 @@ class Chess(Game):
             setattr(self, 'capture', []),
             setattr(self, 'blocking', []),
         ))(state[1]))
+
+        self.next_turn = lambda: {'white':'black', 'black':'white'}[self.turn]
         
         self.reset_state()
 
@@ -389,7 +389,7 @@ def attemptMove(game, mouse_pos):
 
         game.active_piece = None
         updateMove(game)
-        game.turn = game.inc_turn[game.turn]
+        game.turn = game.next_turn()
         return True
     return False
 
@@ -397,7 +397,7 @@ def selectPiece(game, mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
     if len(clicked_on) > 1:
         raise ValueError('overlapping pieces: {}'.format(str(clicked_on)))
-    elif clicked_on:
+    elif clicked_on and clicked_on[0].color==game.turn:
         game.active_piece = clicked_on[0]
         game.move_guide.piece = game.active_piece
         game.future_guide.piece = game.active_piece

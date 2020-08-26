@@ -132,7 +132,6 @@ class Reversi(Game):
         )
 
     teams = ['black', 'white']
-    inc_turn = {'white':'black', 'black':'white'}
 
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, name='continuous reversi', **kwargs)
@@ -149,6 +148,8 @@ class Reversi(Game):
             setattr(self, 'turn', turn),
             setattr(self, 'over', not any(p.valid_tangents for p in self.layers[Layers.PIECES]))
             ))(*x)
+
+        self.next_turn = lambda: {'white':'black', 'black':'white'}[self.turn]
 
         Circle(self, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or self.over or on_board(self.mousePos()) else Colors.blocker
 
@@ -192,10 +193,6 @@ class Reversi(Game):
 
         self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
 
-        self.keys.skipTurn = pygame.K_u
-
-        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
-
 
     def attemptMove(self, move):
         print(move, flush=True)
@@ -205,8 +202,8 @@ class Reversi(Game):
         if self.blockers or not self.pivots: return False
         self.record_state()
         self.makePiece(self.turn, pos)
-        for p in self.flippers: p.team = self.inc_turn[p.team]
-        self.turn = self.inc_turn[self.turn]
+        for p in self.flippers: p.team = self.turn
+        self.turn = self.next_turn()
         # game is over if there's nowhere to fit another piece
         # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
         if not any(p.valid_tangents for p in self.layers[Layers.PIECES]):

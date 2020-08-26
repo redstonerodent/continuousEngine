@@ -114,7 +114,6 @@ class GoDebugger(Renderable):
 class Go(Game):
     make_initial_state = lambda self: ('black', {t:0 for t in self.teams}, {t:set() for t in self.teams})
     teams = ['black', 'white']
-    inc_turn = {'white':'black', 'black':'white'}
 
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, name='continuous go', scale=50, **kwargs)
@@ -136,6 +135,8 @@ class Go(Game):
             self.updateTerritory(),
             self.clearCache()
             ))(*x)
+
+        self.next_turn = lambda t=None: {'white':'black', 'black':'white'}[t or self.turn]
 
         Circle(self, Layers.BOUNDARY, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or on_board(self.mousePos()) else Colors.blocker
 
@@ -178,13 +179,11 @@ class Go(Game):
         self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
         # middle click: toggle guide
         self.piece_at = lambda pos: (lambda ps: ps[0] if ps else self.nextPiece)([p for t in self.teams for p in self.layers[Layers.PIECES[t]] if pos>>p.loc < piece_rad**2])
-        self.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(piece_at(self.point(*e.pos), self).guide)
+        self.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(self.piece_at(self.point(*e.pos)).guide)
 
-        self.keys.skipTurn = pygame.K_u
         self.keys.placeGhost = pygame.K_SPACE
         self.keys.clearGuides = pygame.K_ESCAPE
 
-        self.keyPress[self.keys.skipTurn] = lambda _: setattr(self, 'turn', self.inc_turn[self.turn])
         self.keyPress[self.keys.placeGhost] = lambda _: None if self.blockers or not on_board(self.mousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(self, Layers.PIECES['GHOST'], Colors.ghost, self.mousePos(), piece_rad))
         self.keyPress[self.keys.clearGuides] = lambda _: ([setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]],
                                                             setattr(self.nextPiece.guide, 'visible', False),
@@ -200,7 +199,7 @@ class Go(Game):
         self.record_state()
         self.makePiece(self.turn, pos)
         self.removePieces(self.captures)
-        self.turn = self.inc_turn[self.turn]
+        self.turn = self.next_turn()
         [setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]]
         self.nextPiece.guide.visible = False
         self.clearLayer(Layers.PIECES['GHOST'])
@@ -216,7 +215,7 @@ class Go(Game):
         if pos and on_board(pos):
             self.blockers = {p for p in sum((self.layers[Layers.PIECES[team]] for team in self.teams+['GHOST']),[]) if overlap(pos, p.loc)}
 
-            opp = self.inc_turn[self.turn]
+            opp = self.next_turn()
             pieces = {t:{p.loc for p in self.layers[Layers.PIECES[t]]} for t in self.teams}
             new_pc_w_es = {(pos,p) for p in pieces[self.turn] if nearby(pos,p)}
             pieces[self.turn].add(pos)
@@ -274,12 +273,12 @@ class Go(Game):
             self.blockers = set()
             self.captures = set()
 
-    updateLiberties = lambda self: setattr(self, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in self.teams for pc2 in self.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in self.layers[Layers.PIECES[self.inc_turn[t]]] if sorta_nearby(pc2.loc, pc.loc)]) for t in self.teams for pc in self.layers[Layers.PIECES[t]]})
+    updateLiberties = lambda self: setattr(self, 'liberties', {pc.loc: (lambda close_pcs, close_opps: {tan for pc2 in close_pcs for tan in double_tangents(pc.loc, pc2) if on_board(tan) and not any(overlap(tan, p) for p in close_pcs) and connected(pc.loc, tan, close_opps)})([pc2.loc for t2 in self.teams for pc2 in self.layers[Layers.PIECES[t2]] if pc2 != pc and sorta_nearby(pc2.loc,pc.loc)], [pc2.loc for pc2 in self.layers[Layers.PIECES[self.next_turn(t)]] if sorta_nearby(pc2.loc, pc.loc)]) for t in self.teams for pc in self.layers[Layers.PIECES[t]]})
 
     def updateGraph(self):
         pieces = {t:[p.loc for p in self.layers[Layers.PIECES[t]]] for t in self.teams}
         w_es = {t:weak_edges(pieces[t]) for t in self.teams}
-        self.edges = {t:filter_edges(w_es[t], w_es[self.inc_turn[t]] | boundary_cuts(pieces[self.inc_turn[t]])) for t in self.teams}
+        self.edges = {t:filter_edges(w_es[t], w_es[self.next_turn(t)] | boundary_cuts(pieces[self.next_turn(t)])) for t in self.teams}
         self.potentialEdges = {t:w_es[t]-self.edges[t] for t in self.teams}
         self.components = {t:components(pieces[t], list(self.edges[t])) for t in self.teams}
 

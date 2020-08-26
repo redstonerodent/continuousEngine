@@ -70,6 +70,7 @@ class Game:
             'redo'      : pygame.K_q,
             'resetGame' : pygame.K_p,
             'printState': pygame.K_BACKQUOTE,
+            'skipTurn'  : pygame.K_u,
         })
 
         self.keyPress = {
@@ -84,6 +85,7 @@ class Game:
             self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
             self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
+            self.keys.skipTurn      : lambda e: setattr(self, 'turn', self.next_turn())
         }
 
         self.drag = {
@@ -119,6 +121,9 @@ class Game:
         self.process = lambda: None
         # for anything that should be recomputed whenever the camera moves
         self.viewChange = lambda: None
+
+        self.turn = None
+        self.next_turn = lambda: None
 
 
 
