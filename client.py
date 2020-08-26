@@ -39,7 +39,6 @@ class NetworkGame:
         self.server_history = []
         self.game.handlers[pygame.USEREVENT] = lambda e: (
             self.game.load_state(e.state),
-            self.server_history.append(e.state),
             setattr(self.game, 'history', self.server_history[:-1]),
             setattr(self.game, 'future', []),
             )
@@ -104,6 +103,7 @@ class NetworkGame:
                     print("received gamestate",flush=True)
                     self.server_state = s["state"]
                     if self.live_mode:
+                        self.server_history.append(self.server_state)
                         self.update_to_server_state()
             except Exception as e:
                 print(traceback.format_exc(),flush=True)
