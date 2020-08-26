@@ -177,13 +177,15 @@ class Go(Game):
         self.reset_state()
 
         # left click: place piece
-        self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
+        self.click[1] = lambda _: self.attemptMove({"player":self.turn, "action":"place", "location":self.mousePos().coords})
         # middle click: toggle guide
         self.piece_at = lambda pos: (lambda ps: ps[0] if ps else self.nextPiece)([p for t in self.teams for p in self.layers[Layers.PIECES[t]] if pos>>p.loc < piece_rad**2])
         self.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(self.piece_at(self.point(*e.pos)).guide)
 
         self.keys.placeGhost = pygame.K_SPACE
         self.keys.clearGuides = pygame.K_ESCAPE
+
+        self.keyPress[self.keys.skipTurn] = lambda e: self.attemptMove({"player":self.turn, "action":"skip"})
 
         self.keyPress[self.keys.placeGhost] = lambda _: None if self.blockers or not on_board(self.mousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(self, Layers.PIECES['GHOST'], Colors.ghost, self.mousePos(), piece_rad))
         self.keyPress[self.keys.clearGuides] = lambda _: ([setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]],
@@ -194,21 +196,27 @@ class Go(Game):
     def attemptMove(self, move):
         print(move, flush=True)
         if self.turn != move["player"]: return False
-        pos = Point(*move["location"])
-        self.updateMove(pos)
-        if self.blockers or not on_board(pos): return
+        
         self.record_state()
-        self.makePiece(self.turn, pos)
-        self.removePieces(self.captures)
-        self.turn = self.next_turn()
-        [setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]]
-        self.nextPiece.guide.visible = False
         self.clearLayer(Layers.PIECES['GHOST'])
-        self.updateLiberties()
-        self.updateGraph()
-        self.updateTerritory()
-        self.clearCache()
-        return True
+        
+        if move["action"] == "place":
+            pos = Point(*move["location"])
+            self.updateMove(pos)
+            if self.blockers or not on_board(pos): return
+            self.makePiece(self.turn, pos)
+            self.removePieces(self.captures)
+            self.turn = self.next_turn()
+            [setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]]
+            self.nextPiece.guide.visible = False
+            self.updateLiberties()
+            self.updateGraph()
+            self.updateTerritory()
+            self.clearCache()
+            return True
+        elif move["action"] == "skip":
+            self.turn = self.next_turn()
+            return True
 
 
     def updateMove(self, pos=None):
