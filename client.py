@@ -139,7 +139,7 @@ async def receive(server):
     return json.loads((await server[0].readline()).strip())
     #return json.loads(server.makefile(mode="r").readline().strip())
 
-async def initial_script(_, game, game_id=None, team=None, username='anonymous', ip='localhost'):
+async def initial_script(_, game, ip='localhost', game_id=None, team=None, username='anonymous'):
     # ip = "localhost" if len(sys.argv)==1 else sys.argv[1]
     #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #s.connect((ip,port))
