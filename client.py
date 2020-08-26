@@ -139,7 +139,7 @@ async def receive(server):
     return json.loads((await server[0].readline()).strip())
     #return json.loads(server.makefile(mode="r").readline().strip())
 
-async def initial_script(_, game, game_id=None, team=None, username='anonymous', ip='localhost'):
+async def initial_script(_, game, ip='localhost', game_id=None, team=None, username='anonymous'):
     # ip = "localhost" if len(sys.argv)==1 else sys.argv[1]
     #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     #s.connect((ip,port))
@@ -154,7 +154,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
 
     async def attempt_joining(id):
         if team != None:
-            if team not in ids[id]["open teams"]:
+            if team not in ids[id]["open teams"]+["spectator"]:
                 print("team {} doesn't exist".format(team), flush=True)
                 sys.exit()
 
@@ -168,7 +168,7 @@ async def initial_script(_, game, game_id=None, team=None, username='anonymous',
             if available_colors:
                 await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,available_colors[0], username)
             else:
-                print('{} is full'.format(id), flush=True)
+                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,"spectator", username)
 
     if game_id == None:
         for i in ids:

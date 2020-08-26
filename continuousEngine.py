@@ -26,16 +26,16 @@ class Game:
             self.update()
     def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine'):
         self.headless = headless
+        self.size = lambda: pygame.display.get_window_size()
+        self.width = lambda: self.size()[0]
+        self.height = lambda: self.size()[1]
+        self.spread = spread
+        self.center = center
+
         if not headless:
             self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
-            self.size = lambda: pygame.display.get_window_size()
-            self.width = lambda: self.size()[0]
-            self.height = lambda: self.size()[1]
-            self.spread = spread
-            self.center = center
-        
             self.resetView()
-            pygame.display.set_caption(name)
+        pygame.display.set_caption(name)
 
         # objects are assigned to 'layers' which give rendering order
         self.layerlist = []
@@ -184,7 +184,6 @@ class Game:
             for obj in self.layers[l]:
                 if obj.visible:
                     obj.render()
-        print(self.x_offset)
         pygame.display.flip()
 
     def update(self):
