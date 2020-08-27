@@ -48,6 +48,7 @@ games = {
     }
 
 port = 9974
+SERVER_STATE_FILENAME = "serverstate"
 
 class NetworkGameServer:
     def create_game(self, name, id, args):
@@ -66,8 +67,9 @@ class NetworkGameServer:
             raise Exception("game id doesn't exist")
         player = {"user":user, "team":team, "client":client}
         self.games[i]["players"].append(player)
-        await self.send_gamestate(i, player)
         await self.broadcast_game_info(i)
+        await self.send_gamestate(i, player)
+        await send(client, {"action":"history", "history":self.games[i]["game"].history})
         return player
     async def broadcast_move(self, game_id):
         l = self.games[game_id]["players"].copy()
@@ -105,26 +107,45 @@ class NetworkGameServer:
         self.games = {}
 
     async def serve(self, ip="localhost"):
+        try:
+            self.load_server_state(SERVER_STATE_FILENAME)
+        except:
+            self.games = {}
         server = await asyncio.start_server(self.a, host=ip, port=9974)
-        self.next_game_id = 0
         print("server listening",flush=True)
         try:
             async with server:
-                await server.serve_forever()
+                await asyncio.gather(server.serve_forever(),self.server_console(), self.server_save_loop())
         finally:
-            with open("continuous_games.txt") as f:
-                f.write(json.dumps(self.games, lambda o: o.get_state()))
-
-    def makeHandler(self):
-        s = self
-        class MoveHandler(socketserver.StreamRequestHandler):
-            def handle(self):
-                try:
-                    s.a(self)
-                except Exception as e:
-                    print(traceback.format_exc())
-                    print(e,flush=True)
-        return MoveHandler
+            #doesn't run if you keyboard interrupt
+            print("awoenoasioshvoihoianef",flush=True)
+    def load_server_state(self, filename):
+        with open(filename) as f:
+            self.games = json.loads(f.read())
+            for i in self.games:
+                g = games[self.games[i]["type"]](headless=True)
+                g.load_state(self.games[i]["game"]["state"])
+                g.history = self.games[i]["game"]["history"]
+                self.games[i]["game"] = g                             
+    def save_server_state(self):
+        g = self.games.copy()
+        for i in g:
+            g[i] = g[i].copy()
+            g[i]["players"]=[]
+        with open(SERVER_STATE_FILENAME,'w') as f:
+            f.write(json.dumps(g, default=lambda o: {"state": o.save_state(), "history": o.history}))
+    async def server_save_loop(self):
+        while True:
+            await asyncio.sleep(120)
+            self.save_server_state()
+    async def server_console(self):
+        while 1:
+            s = await asyncio.get_running_loop().run_in_executor(None, input)
+            if s=="q":
+                self.save_server_state()
+                sys.exit()
+            elif s=="l":
+                self.load_server_state("a.txt")
 
     async def a(self,reader, writer):
         print("connected",flush=True)
@@ -167,6 +188,7 @@ async def send(client, message):
     await client[1].drain()
 async def recieve(client):
     return json.loads((await client[0].readline()).strip())
-        
+
+
 if __name__ == "__main__":
     asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))
