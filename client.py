@@ -40,11 +40,13 @@ class NetworkGame:
         self.server_state = {}
         self.server_history = []
         self.players = {t:[] for t in game.teams+['spectator']}
+        self.id = ''
+        self.user = ''
         self.game.handlers[pygame.USEREVENT] = lambda e: (
             self.game.load_state(e.state),
             setattr(self.game, 'history', self.server_history[:-1]),
             setattr(self.game, 'future', []),
-            )
+            ) if e.action=='state' else None
         self.game.keyPress[pygame.K_n] = lambda e:(setattr(self,"live_mode", not self.live_mode), self.update_to_server_state() if self.live_mode else None) if self.server!=None else None
         
         if game.allow_skip:
@@ -67,8 +69,13 @@ class NetworkGame:
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
         class GameInfo(continuousEngine.Renderable):
             def render(_):
+                vals = {'id':self.id, 'turn':self.game.turn, 'you':self.user, 'live':self.live_mode}
+                for i,k in enumerate(vals):
+                    continuousEngine.write(game.screen, font, '{}: {}'.format(k, vals[k]), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
+
+                d = len(vals)+2
                 for i,t in enumerate(game.teams+['spectator']):
-                    continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 20, 20*(i+1), (0,0,0), halign='l', valign='t')
+                    continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 24, 24*(i+d), (0,0,0), halign='l', valign='t')
         GameInfo(game, 10**10)
 
     async def join(self,server,i,team,user):
@@ -84,6 +91,8 @@ class NetworkGame:
             }
         self.live_mode = True
         self.server=server
+        self.id = i
+        self.user = user
         send(server,d)
         print("joined game {} as user {} on team {}".format(i, user, team))
         print("started server listening thread",flush=True)
@@ -100,7 +109,7 @@ class NetworkGame:
             return
         #with self.lock:
             #self.game.load_state(self.server_state)
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, state=self.server_state))
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT, action='state', state=self.server_state))
             
     async def server_listener(self):
         while True:
@@ -120,6 +129,7 @@ class NetworkGame:
                     self.players = {t:[] for t in self.game.teams+['spectator']}
                     for pl in s["players"]:
                         self.players[pl["team"]].append(pl["user"])
+                    pygame.event.post(pygame.event.Event(pygame.USEREVENT, action='info'))
                 else:
                     print(str(s),flush = True)
             except Exception as e:
