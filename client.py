@@ -42,12 +42,26 @@ class NetworkGame:
         self.players = {t:[] for t in game.teams+['spectator']}
         self.id = ''
         self.user = ''
-        self.game.handlers[pygame.USEREVENT] = lambda e: (
-            self.game.load_state(e.state),
-            setattr(self.game, 'history', self.server_history[:-1]),
-            setattr(self.game, 'future', []),
-            ) if e.action=='state' else None
-        self.game.keyPress[pygame.K_n] = lambda e:(setattr(self,"live_mode", not self.live_mode), self.update_to_server_state() if self.live_mode else None) if self.server!=None else None
+
+        def f(e):
+            if e.action=="move":
+                self.server_history.append(self.server_state)
+                self.server_state = e.state
+                self.update_to_server_state()
+            elif e.action=="game_info":
+                self.players = {t:[] for t in self.game.teams+['spectator']}
+                for pl in e.players:
+                    self.players[pl["team"]].append(pl["user"])
+            elif e.action=="history":
+                self.server_history = e.history
+                self.update_to_server_state()
+                self.game.initialState = (self.server_history+[self.server_state])[0]
+        self.game.handlers[pygame.USEREVENT] = f
+
+        def f(_):
+            self.live_mode = not self.live_mode
+            self.update_to_server_state()
+        self.game.keyPress[pygame.K_n] = f
         
         if game.allow_skip:
             pass
@@ -107,34 +121,18 @@ class NetworkGame:
     def update_to_server_state(self):
         if not self.server_state:
             return
-        #with self.lock:
-            #self.game.load_state(self.server_state)
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, action='state', state=self.server_state))
+        if self.live_mode:
+            self.game.load_state(self.server_state)
+            self.game.history = self.server_history.copy()
+            self.game.future = []
             
     async def server_listener(self):
         while True:
             try:
-                print("listening for gamestate",flush=True)
+                print("listening",flush=True)
                 s = await receive(self.server)
-                if not s:
-                    continue
-                elif s["action"]=="move":
-                    print("received gamestate",flush=True)
-                    self.server_state = s["state"]
-                    if self.live_mode:
-                        self.server_history.append(self.server_state)
-                        self.update_to_server_state()
-                elif s["action"]=="game_info":
-                    print("received game info",flush=True)
-                    self.players = {t:[] for t in self.game.teams+['spectator']}
-                    for pl in s["players"]:
-                        self.players[pl["team"]].append(pl["user"])
-                    pygame.event.post(pygame.event.Event(pygame.USEREVENT, action='info'))
-                elif s["action"]=="history":
-                    print("received history")
-                    self.server_history = s["history"]
-                else:
-                    print(str(s),flush = True)
+                print("received", s["action"], flush=True)
+                pygame.event.post(pygame.event.Event(pygame.USEREVENT,**s))
             except Exception as e:
                 print(traceback.format_exc(),flush=True)
                 sys.exit()
