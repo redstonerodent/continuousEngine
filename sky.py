@@ -145,15 +145,6 @@ class Sky(Game):
         if 0:
             [[Text(self, Layers.GUESS, text_color,font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
 
-        self.keys.moveUp = pygame.K_UP
-        self.keys.moveDown = pygame.K_DOWN
-        self.keys.moveLeft = pygame.K_LEFT
-        self.keys.moveRight = pygame.K_RIGHT
-        self.keys.delete = pygame.K_BACKSPACE
-        self.keys.resetColors = pygame.K_j
-        self.keys.clearTrials = pygame.K_ESCAPE
-        self.keys.toggleGrid = pygame.K_i
-
         self.keyPress[self.keys.moveUp]         = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y-1)%n))
         self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%n))
         self.keyPress[self.keys.moveLeft]       = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x-1)%n, self.selector.loc.y))

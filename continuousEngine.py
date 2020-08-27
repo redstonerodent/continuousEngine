@@ -1,4 +1,4 @@
-import sys, pygame, asyncio, threading
+import sys, pygame, asyncio, threading, os, shutil
 from geometry import *
 
 pygame.init()
@@ -60,20 +60,13 @@ class Game:
             5: lambda e: self.zoom(1/self.zoomFactor, *self.point(*e.pos)),
         }
 
-        self.keys = type('keys',(object,),{
-            'zoomIn'    : pygame.K_KP_PLUS,
-            'zoomOut'   : pygame.K_KP_MINUS,
-            'panUp'     : pygame.K_COMMA, 
-            'panDown'   : pygame.K_o,
-            'panLeft'   : pygame.K_a, 
-            'panRight'  : pygame.K_e,
-            'resetView' : pygame.K_HOME,
-            'undo'      : pygame.K_SEMICOLON, 
-            'redo'      : pygame.K_q,
-            'resetGame' : pygame.K_p,
-            'printState': pygame.K_BACKQUOTE,
-            'skipTurn'  : pygame.K_u,
-        })
+        self.keys = type('',(),{})
+
+        with open('config') as f:
+            for line in f:
+                if line[0] not in "#\n":
+                    print(line)
+                    (lambda k,v: setattr(self.keys, k, getattr(pygame, 'K_'+v)))(*line.split())
 
         self.keyPress = {
             self.keys.zoomIn        : lambda e: self.zoom(self.zoomFactor,0,0),
@@ -432,3 +425,6 @@ def write(screen, font, text, x, y, color, halign='c', valign='c', hborder='l', 
     shiftx = int(hdic[halign]*twidth - hdic[hborder]*swidth)
     shifty = int(vdic[valign]*theight - vdic[vborder]*sheight)
     screen.blit(written, (int(x - hdic[halign]*twidth + hdic[hborder]*swidth), int(y - vdic[valign]*theight + vdic[vborder]*sheight)))
+
+if not os.path.exists('config'):
+    shutil.copy('config.default', 'config')

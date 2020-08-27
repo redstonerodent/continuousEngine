@@ -178,9 +178,6 @@ class Go(Game):
         self.piece_at = lambda pos: (lambda ps: ps[0] if ps else self.nextPiece)([p for t in self.teams for p in self.layers[Layers.PIECES[t]] if pos>>p.loc < piece_rad**2])
         self.click[2] = lambda e: (lambda g: setattr(g, 'visible', not g.visible))(self.piece_at(self.point(*e.pos)).guide)
 
-        self.keys.placeGhost = pygame.K_SPACE
-        self.keys.clearGuides = pygame.K_ESCAPE
-
         self.keyPress[self.keys.skipTurn] = lambda e: self.attemptMove({"player":self.turn, "action":"skip"})
 
         self.keyPress[self.keys.placeGhost] = lambda _: None if self.blockers or not on_board(self.mousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(self, Layers.PIECES['GHOST'], Colors.ghost, self.mousePos(), piece_rad))

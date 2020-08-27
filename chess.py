@@ -353,12 +353,8 @@ class Chess(Game):
         self.click[1] = lambda e: self.attemptMove({"player":self.active_piece.color, "selected":self.active_piece.loc.coords, "location":self.point(*e.pos).coords}) if self.active_piece else selectPiece(self, self.point(*e.pos))
         self.click[2] = lambda e: toggleShown(self, self.point(*e.pos))
         self.drag[-1] = lambda e: setattr(self, 'rawMousePos', e.pos)
-
-        self.keys.cancel = pygame.K_ESCAPE
-        self.keys.printHistory = pygame.K_SPACE
         
         self.keyPress[self.keys.cancel]         = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
-        self.keyPress[self.keys.printHistory]   = lambda e: (print("   CURRENT STATE"),print(self.save_state()),print("   HISTORY"),print(self.history),print("   FUTURE"),print(self.future))
 
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""

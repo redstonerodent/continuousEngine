@@ -1,0 +1,46 @@
+###     all games
+zoomIn                  KP_PLUS
+zoomOut                 KP_MINUS
+panUp                   w
+panDown                 s
+panLeft                 a
+panRight                d
+resetView               HOME
+undo                    z
+redo                    x
+resetGame               r
+skipTurn                f
+toggleLive              l
+printState              BACKQUOTE
+# pan                   right click and drag
+# zoom                  scroll wheel
+
+###    chess
+cancel                  ESCAPE
+# select piece          left click
+# move piece            left click
+# toggle show range     middle click
+
+###     go
+placeGhost              SPACE
+clearGuides             ESCAPE
+# place piece           left click
+
+###     jrap
+# make hole             left click
+
+###     reversi
+# place piece           left click
+
+###     sky
+moveUp                  UP
+moveDown                DOWN
+moveLeft                LEFT
+moveRight               RIGHT
+delete                  BACKSPACE
+resetColors             c
+clearTrials             ESCAPE
+toggleGrid              g
+# select square         left click
+# run trial             click outside grid
+# run many trials       middle click and drag
