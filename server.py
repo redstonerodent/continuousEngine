@@ -81,9 +81,10 @@ class NetworkGameServer:
         try:
             await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})
         except:
-            print(traceback.format_exc(),flush=True)
+            #print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
-            server.broadcast_game_info(game_id)
+            print("Player removed during send_gamestate",flush=True)
+            await self.broadcast_game_info(game_id)
     def get_game_info(self, i):
         result = self.games[i].copy()
         pl = [p.copy() for p in self.games[i]["players"]]
@@ -139,7 +140,7 @@ class NetworkGameServer:
                 #print(traceback.format_exc(),flush=True)
                 if game_id != None:
                     server.games[game_id]["players"].remove(player)
-                    server.broadcast_game_info(game_id)
+                    await server.broadcast_game_info(game_id)
                 return
             if r["action"] == "create":
                 server.create_game(r["name"], r["id"], r["args"])
