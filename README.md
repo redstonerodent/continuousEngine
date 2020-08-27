@@ -57,6 +57,7 @@ Run `python server.py [<ip>]`. The ip defaults to localhost, and in most cases y
 
 ### To connect to a server
 
+[this is out of date and will be updated soon]
 Run `python client.py <game> [<game_id> [<team> [<username> [<ip>]]]]` [this may change]. All arguments after `game` are optional, but must be given in order (e.g. if you specify a `username` you have to specify a `game_id` and `team`).
 
 * `game`: the type of game to play, one of `chess`, `reversi`, `go`, and `jrap`. (`sky` is single-player, and doesn't work for network play.)
