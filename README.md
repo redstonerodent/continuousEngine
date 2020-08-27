@@ -20,7 +20,7 @@ This is a project to implement continuous versions of discrete games in python.
 
 ### Other
 
-* `config.default` lists controls, and is copied to `config` the first time any game is run. You can edit `config` to change key bindings.
+* `config.default` lists controls, and is copied to `config` the first time any game is run. You can edit `config` to change key bindings (but not mouse bindings).
 * `chess_legacy.py` and `sky_legacy.py` are old versions made before `continuousEngine.py`. They may be missing features or bugfixes in the newer versions, and now serve mainly to demonstrate how the engine makes it easier.
 
 
@@ -40,7 +40,7 @@ Can be installed with pip: `pip install pygame==2.0.0dev10`. If you don't have p
 
 Clone this repo: `git clone https://github.com/redstonerodent/continuousEngine.git` or click the download button above.
 
-To update, run `git pull`.
+To update, run `git pull`. If the update adds new key bindings you want to change, you should copy the relevant portion of `config.default` to `config`. (If you don't want to change key bindings, continuousEngine will use the default.)
 
 
 ## Usage
