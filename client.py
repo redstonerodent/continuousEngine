@@ -210,12 +210,12 @@ async def initial_script(ip, game, game_id, team, username, new, args):
         if not new:
             if team:
                 for i in ids:
-                    if ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
+                    if ids[i]["players"] and ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
                         await attempt_joining(i, team)
                         joined = True
             else:
                 for i in ids:
-                    if ids[i]["type"] == game and ids[i]["open teams"]:
+                    if ids[i]["players"] and ids[i]["type"] == game and ids[i]["open teams"]:
                         await attempt_joining(i, ids[i]["open teams"][0])
                         joined = True
         if not joined:
