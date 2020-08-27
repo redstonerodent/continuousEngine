@@ -10,6 +10,8 @@ import chess, reversi, go, jrap
 import sys
 import traceback
 import asyncio
+import argparse
+import random, string
 
 games = {
     'chess'     : chess.Chess,
@@ -39,7 +41,6 @@ class NetworkGame:
         self.server_history = []
         self.game.handlers[pygame.USEREVENT] = lambda e: (
             self.game.load_state(e.state),
-            self.server_history.append(e.state),
             setattr(self.game, 'history', self.server_history[:-1]),
             setattr(self.game, 'future', []),
             )
@@ -104,6 +105,7 @@ class NetworkGame:
                     print("received gamestate",flush=True)
                     self.server_state = s["state"]
                     if self.live_mode:
+                        self.server_history.append(self.server_state)
                         self.update_to_server_state()
             except Exception as e:
                 print(traceback.format_exc(),flush=True)
@@ -139,60 +141,83 @@ async def receive(server):
     return json.loads((await server[0].readline()).strip())
     #return json.loads(server.makefile(mode="r").readline().strip())
 
-async def initial_script(_, game, ip='localhost', game_id=None, team=None, username='anonymous'):
-    # ip = "localhost" if len(sys.argv)==1 else sys.argv[1]
-    #s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #s.connect((ip,port))
+async def initial_script(ip, game, game_id, team, username, new, args):
+
     s = await asyncio.open_connection(host=ip, port=port)
 
     print("connected to {}".format(ip))
 
     send(s, {"action":"list"})
     ids = await receive(s)
-    print("listing games")
+    print("listing ids")
     print(ids,flush=True)
 
-    async def attempt_joining(id):
-        if team != None:
-            if team not in ids[id]["open teams"]+["spectator"]:
-                print("team {} doesn't exist".format(team), flush=True)
+    async def attempt_joining(id, t):
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game], *args)).join(s, id, t, username)
+
+
+    if game_id:
+        if new and game_id in ids:
+            print('{} already exists'.format(game_id), flush=True)
+            sys.exit()
+
+        while game_id not in ids:
+            send(s, {"action":"create", "name":game, "id":game_id, "args":args})
+            send(s, {"action":"list"})
+            ids = await receive(s)
+
+        if ids[game_id]["type"] != game:
+            print('{} is a game of {}, not {}'.format(game_id, ids[game_id]["type"], game), flush=True)
+            sys.exit()
+
+        if team:
+            if team not in ids[game_id]["open teams"]+["spectator"]:
+                print("team {} doesn't exist or is already taken in {}".format(team, game_id), flush=True)
                 sys.exit()
+            await attempt_joining(game_id, team)
 
-            if team not in [x["team"] for x in ids[id]["players"]]:
-                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s, id, team, username)
-            else:
-                print('{} is already taken in game {}'.format(team, id), flush=True)
         else:
-            available_colors = [x for x in ids[id]["open teams"] if x not in [p["team"] for p in ids[id]["players"]]]
+            await attempt_joining(game_id, (ids[game_id]["open teams"]+["spectator"])[0])
 
-            if available_colors:
-                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,available_colors[0], username)
+    else:
+        joined = False
+        if not new:
+            if team:
+                for i in ids:
+                    if ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
+                        await attempt_joining(i, team)
+                        joined = True
             else:
-                await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s,id,"spectator", username)
-
-    if game_id == None:
-        for i in ids:
-            if ids[i]["type"]==game:
-                await attempt_joining(i)
-        print('no available game found. make a new one by specifying an id.', flush=True)
-        sys.exit()
-
-
-    if game_id not in ids:
-        send(s, {"action":"create", "name":game, "id":game_id})
-        send(s, {"action":"list"})
-        ids = await receive(s)
-
-    if ids[game_id]["type"] != game:
-        print('{} is a game of {}, not {}'.format(game_id, ids[game_id]["type"], game), flush=True)
-        sys.exit()
-
-    await attempt_joining(game_id)
+                for i in ids:
+                    if ids[i]["type"] == game and ids[i]["open teams"]:
+                        await attempt_joining(i, ids[i]["open teams"][0])
+                        joined = True
+        if not joined:
+            id = None
+            while id==None or id in ids:
+                id = ''.join(random.choice(string.ascii_lowercase) for _ in range(5))
+            send(s, {"action":"create", "name":game, "id":id, "args":args})
+            send(s, {"action":"list"})
+            ids = await receive(s)
+            if team:
+                if team not in ids[id]["open teams"]+["spectator"]:
+                    print("team {} doesn't exist or is already taken in {}".format(team, id), flush=True)
+                    sys.exit()
+                await attempt_joining(id, team)
+            else:
+                await attempt_joining(id, (ids[id]["open teams"])[0])
 
 
-asyncio.run(initial_script(*sys.argv))
 
-            
-        
+parser = argparse.ArgumentParser(prog='python client.py')
+parser.add_argument('-g','--game', required=True, choices=list(games))
+parser.add_argument('-ip', default='localhost')
+parser.add_argument('-id', '--game_id')
+parser.add_argument('-t', '--team')
+parser.add_argument('-u', '--username', default='anonymous')
+parser.add_argument('-n', '--new', action='store_true', default=False)
+parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
+
+asyncio.run(initial_script(**vars(parser.parse_args())))
 

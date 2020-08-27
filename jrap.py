@@ -5,20 +5,20 @@ import math
 
 hammer_rad = .5
 board_rad = 5
-num_cells = 40
+num_cells = 60
 
 # is point p on the board?
 on_board = lambda p: +p < board_rad**2
 
 class Colors:
+    ice         = {'white': (255,255,255), 'blue':   (0,0,255), 'silver': (100,140,140), 'lightblue': (0,255,255)}
+    hammer      = {'white': (255,255,255), 'blue':   (0,0,255), 'silver': (170,170,170), 'lightblue': (0,150,255)}
+    ghost_hole  = {'white': (150,150,150), 'blue': (25,25,125), 'silver': (100,100,100), 'lightblue': (80,80,150)}
     hole = (0,0,150)
     debug = [(255,0,0),(0,255,0),(0,0,255),(0,0,0),(255,255,255)]
-    hammer = {'white':(200,200,255), 'blue':(0,100,255)}
-    ghost_hole = {'white':(0,125,125), 'blue': (25,25,125)}
     boundary = (120,120,120)
     legal = (0,255,0)
     illegal = (255,0,0)
-    ice = {'white':(0,255,255), 'blue':(0,0,255)}
     text = (190,80,0)
     voronoi_opacity = 80
     background = (140,220,255)
@@ -60,7 +60,7 @@ class JrapHole(Renderable):
         if 0:
             for h in self.hits:
                 drawCircle(self.game, Colors.debug[0], h, hammer_rad, width=2)
-            drawPolygon(self.game, Colors.debug[0], self.poly, width=2)
+            drawPolygon(self.game, Colors.debug[1], self.poly, width=2)
             for a,b in self.intervals:
                 drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
                 drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
@@ -134,14 +134,23 @@ class JrapDebugger(Renderable):
 
 class Jrap(Game):
     make_initial_state = lambda self:('white',
-        [(tuple(random.uniform(-board_rad,board_rad) for _ in range(2)), p) for _ in range(num_cells) for p in self.teams],
+        [(tuple(random.uniform(-board_rad,board_rad) for _ in range(2)), p) for _ in range(num_cells//len(self.teams)) for p in self.teams],
         # [((lambda r, theta: (r*math.cos(theta), r*math.sin(theta)))(random.uniform(0,board_rad), random.uniform(0, 2*math.pi)),p) for _ in range(num_cells) for p in self.teams],
         []
         )
 
-    teams = ['white', 'blue']
+    possible_teams = ['white', 'blue', 'silver', 'lightblue']
 
-    def __init__(self, **kwargs):
+    def __init__(self, teams=2, **kwargs):
+        teams = int(teams)
+        if teams > len(self.possible_teams):
+            print('{} is too many teams (max {}); defaulting to 2'.format(teams, len(self.possible_teams)), flush=True)
+            teams = 2
+
+        self.teams = self.possible_teams[:teams]
+        self.next_turn = lambda: {self.teams[i-1]:self.teams[i] for i in range(teams)}[self.turn]
+        self.prev_turn = lambda: {self.teams[i]:self.teams[i-1] for i in range(teams)}[self.turn]
+
         super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
 
         self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
@@ -158,7 +167,6 @@ class Jrap(Game):
             self.updateMove(self.mousePos())
             ))(*x)
 
-        self.next_turn = lambda: {'white':'blue','blue':'white'}[self.turn]
 
         self.hammer = Disk(self, Layers.hammer, None, None, hammer_rad)
         self.hammer.GETvisible = lambda g: bool(g.mousePos())
@@ -184,7 +192,7 @@ class Jrap(Game):
 
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
         self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", 0,0, hborder='c',vborder='c')
-        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.next_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
+        self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.prev_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
         self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
 
         if 0:
@@ -240,4 +248,4 @@ class Jrap(Game):
 
 
 if __name__=="__main__":
-    run_local(Jrap)
+    run_local(Jrap, sys.argv[1:])

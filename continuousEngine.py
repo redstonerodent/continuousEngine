@@ -3,11 +3,11 @@ from geometry import *
 
 pygame.init()
 
-def run_local(game_class):
-    asyncio.run(run_local_async(game_class))
-def run_local_async(game_class):
+def run_local(game_class, args=[]):
+    asyncio.run(run_local_async(game_class, args))
+def run_local_async(game_class, args):
     #g = await asyncio.get_running_loop().run_in_executor(None, game_class)
-    game_class().run()
+    game_class(*args).run()
     
 class Game:
     # def pygame_event_loop(self, loop):

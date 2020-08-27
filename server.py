@@ -50,11 +50,11 @@ games = {
 port = 9974
 
 class NetworkGameServer:
-    def create_game(self, name, id):
+    def create_game(self, name, id, args):
         if id in self.list_games():
             print('game {} already exists'.format(id), flush=True)
             return
-        game = games[name](headless=True)
+        game = games[name](*args, headless=True)
         self.games[id] = {
             "type":name,
             "players":[],
@@ -141,7 +141,7 @@ class NetworkGameServer:
                     server.games[game_id]["players"].remove(player)
                 return
             if r["action"] == "create":
-                server.create_game(r["name"], r["id"])
+                server.create_game(r["name"], r["id"], r["args"])
             elif r["action"] == "join":
                 if game_id != None:
                     server.games[game_id]["players"].remove(player)
