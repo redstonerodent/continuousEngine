@@ -65,7 +65,6 @@ class Game:
         with open('config') as f:
             for line in f:
                 if line[0] not in "#\n":
-                    print(line)
                     (lambda k,v: setattr(self.keys, k, getattr(pygame, 'K_'+v)))(*line.split())
 
         self.keyPress = {

@@ -72,7 +72,7 @@ class NetworkGame:
         # viewing history exits live mode
         self.game.keyPress[self.game.keys.undo] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.undo])
         self.game.keyPress[self.game.keys.redo] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.redo])
-        self.game.keyPress[self.game.keys.resetGame] = (lambda f: lambda e: (f(e), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.resetGame])
+        self.game.keyPress[self.game.keys.resetGame] = (lambda f: lambda e: (f(e), setattr(self.game, 'future', [self.server_state]+self.server_history[:0:-1]), setattr(self, 'live_mode', False)))(self.game.keyPress[self.game.keys.resetGame])
 
 
         self.f = self.game.attemptMove
