@@ -133,7 +133,7 @@ class JrapDebugger(Renderable):
 
 
 class Jrap(Game):
-    make_initial_state = lambda self:('white',
+    make_initial_state = lambda self:('white', self.teams,
         [(tuple(random.uniform(-board_rad,board_rad) for _ in range(2)), p) for _ in range(num_cells//len(self.teams)) for p in self.teams],
         # [((lambda r, theta: (r*math.cos(theta), r*math.sin(theta)))(random.uniform(0,board_rad), random.uniform(0, 2*math.pi)),p) for _ in range(num_cells) for p in self.teams],
         []
@@ -148,15 +148,16 @@ class Jrap(Game):
             teams = 2
 
         self.teams = self.possible_teams[:teams]
-        self.next_turn = lambda: {self.teams[i-1]:self.teams[i] for i in range(teams)}[self.turn]
-        self.prev_turn = lambda: {self.teams[i]:self.teams[i-1] for i in range(teams)}[self.turn]
+        self.next_turn = lambda: {self.teams[i-1]:self.teams[i] for i in range(len(self.teams))}[self.turn]
+        self.prev_turn = lambda: {self.teams[i]:self.teams[i-1] for i in range(len(self.teams))}[self.turn]
 
         super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
 
-        self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
-        self.load_state = lambda x:(lambda player, cells, holes: (
+        self.save_state = lambda: (self.turn, self.teams, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
+        self.load_state = lambda x:(lambda player, teams, cells, holes: (
             self.clearCache(),
             setattr(self, 'turn', player),
+            setattr(self, 'teams', teams),
             print(self.turn),
             self.voronoi.reset([(Point(*p), c) for p,c in cells]),
             self.clearLayer(Layers.holes),
