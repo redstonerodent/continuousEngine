@@ -141,7 +141,7 @@ async def receive(server):
     return json.loads((await server[0].readline()).strip())
     #return json.loads(server.makefile(mode="r").readline().strip())
 
-async def initial_script(ip, game, game_id, team, username, args):
+async def initial_script(ip, game, game_id, team, username, new, args):
 
     s = await asyncio.open_connection(host=ip, port=port)
 
@@ -153,10 +153,14 @@ async def initial_script(ip, game, game_id, team, username, args):
     print(ids,flush=True)
 
     async def attempt_joining(id, t):
-        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game])).join(s, id, t, username)
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game], *args)).join(s, id, t, username)
 
 
     if game_id:
+        if new and game_id in ids:
+            print('{} already exists'.format(game_id), flush=True)
+            sys.exit()
+
         while game_id not in ids:
             send(s, {"action":"create", "name":game, "id":game_id, "args":args})
             send(s, {"action":"list"})
@@ -177,16 +181,17 @@ async def initial_script(ip, game, game_id, team, username, args):
 
     else:
         joined = False
-        if team:
-            for i in ids:
-                if ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
-                    await attempt_joining(i, team)
-                    joined = True
-        else:
-            for i in ids:
-                if ids[i]["type"] == game and ids[i]["open teams"]:
-                    await attempt_joining(i, ids[i]["open teams"][0])
-                    joined = True
+        if not new:
+            if team:
+                for i in ids:
+                    if ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
+                        await attempt_joining(i, team)
+                        joined = True
+            else:
+                for i in ids:
+                    if ids[i]["type"] == game and ids[i]["open teams"]:
+                        await attempt_joining(i, ids[i]["open teams"][0])
+                        joined = True
         if not joined:
             id = None
             while id==None or id in ids:
@@ -210,8 +215,9 @@ parser.add_argument('-ip', default='localhost')
 parser.add_argument('-id', '--game_id')
 parser.add_argument('-t', '--team')
 parser.add_argument('-u', '--username', default='anonymous')
+parser.add_argument('-n', '--new', action='store_true', default=False)
 parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
 
-asyncio.run(initial_script(**vars(parser.parse_args(sys.argv[1:]))))
+asyncio.run(initial_script(**vars(parser.parse_args())))
 
