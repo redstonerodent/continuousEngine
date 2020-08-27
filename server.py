@@ -58,40 +58,45 @@ class NetworkGameServer:
         self.games[id] = {
             "type":name,
             "players":[],
-            #"lock":threading.RLock(),
             "game":game
         }
         return id
     async def join_game(self, i,team, user, client):
         if i not in self.games:
             raise Exception("game id doesn't exist")
-        #with self.games[i]["lock"]:
         player = {"user":user, "team":team, "client":client}
         self.games[i]["players"].append(player)
         await self.send_gamestate(i, player)
+        await self.broadcast_game_info(i)
         return player
     async def broadcast_move(self, game_id):
-        #with self.games[game_id]["lock"]:
         l = self.games[game_id]["players"].copy()
         for player in l:
             await self.send_gamestate(game_id, player)
+    async def broadcast_game_info(self, game_id):
+        l = self.games[game_id]["players"].copy()
+        for player in l:
+            await send(player["client"],{"action":"game_info", **self.get_game_info(game_id)})
     async def send_gamestate(self, game_id, player):
         try:
             await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})
         except:
             print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
+            server.broadcast_game_info(game_id)
+    def get_game_info(self, i):
+        result = self.games[i].copy()
+        pl = [p.copy() for p in self.games[i]["players"]]
+        result["players"] = pl
+        result["open teams"] = [t for t in result["game"].teams if t not in {p["team"] for p in pl}]
+        for p in pl:
+            del p["client"]
+        del result["game"]
+        return result
     def list_games(self):
         result = {}
         for i in self.games:
-            result[i] = self.games[i].copy()
-            pl = [p.copy() for p in self.games[i]["players"]]
-            result[i]["players"] = pl
-            result[i]["open teams"] = [t for t in result[i]["game"].teams if t not in {p["team"] for p in pl}]
-            for p in pl:
-                del p["client"]
-            #del result[i]["lock"]
-            del result[i]["game"]
+            result[i] = self.get_game_info(i)
         print(result,flush=True)
         return result
         
@@ -102,13 +107,12 @@ class NetworkGameServer:
         server = await asyncio.start_server(self.a, host=ip, port=9974)
         self.next_game_id = 0
         print("server listening",flush=True)
-        async with server:
-            await server.serve_forever()
-        
-        #self.server_lock = threading.RLock()
-        #with ThreadedTCPServer((ip,9999), self.makeHandler()) as server:
-        #    print("server listening",flush=True)
-        #    server.serve_forever()
+        try:
+            async with server:
+                await server.serve_forever()
+        finally:
+            with open("continuous_games.txt") as f:
+                f.write(json.dumps(self.games, lambda o: o.get_state()))
 
     def makeHandler(self):
         s = self
@@ -129,13 +133,13 @@ class NetworkGameServer:
         client = (reader, writer)
         while True:
             try:
-                #print("waiting for move",flush=True)
                 r = await recieve(client)
                 print("recieved {}".format(r),flush=True)
             except:
                 #print(traceback.format_exc(),flush=True)
                 if game_id != None:
                     server.games[game_id]["players"].remove(player)
+                    server.broadcast_game_info(game_id)
                 return
             if r["action"] == "create":
                 server.create_game(r["name"], r["id"], r["args"])
@@ -156,8 +160,6 @@ class NetworkGameServer:
             elif r["action"] == "list":
                 await send(client, server.list_games())
 
-#class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-#    pass
 
 async def send(client, message):
     client[1].write((json.dumps(message)+"\n").encode())
