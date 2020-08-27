@@ -141,7 +141,8 @@ class Jrap(Game):
 
     teams = ['white', 'blue']
 
-    def __init__(self, **kwargs):
+    def __init__(self, players=2, **kwargs):
+        print(players)
         super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
 
         self.save_state = lambda: (self.turn, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
@@ -240,4 +241,4 @@ class Jrap(Game):
 
 
 if __name__=="__main__":
-    run_local(Jrap)
+    run_local(Jrap, sys.argv[1:])
