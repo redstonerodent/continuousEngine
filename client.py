@@ -65,9 +65,11 @@ class NetworkGame:
         continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
 
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
-        class TeamPrinter(continuousEngine.Renderable):
-            render = lambda _: [continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 20, 20*(i+1), (0,0,0), halign='l', valign='t') for i,t in enumerate(game.teams+['spectator'])]
-        TeamPrinter(game, 10**10)
+        class GameInfo(continuousEngine.Renderable):
+            def render(_):
+                for i,t in enumerate(game.teams+['spectator']):
+                    continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 20, 20*(i+1), (0,0,0), halign='l', valign='t')
+        GameInfo(game, 10**10)
 
     async def join(self,server,i,team,user):
         """
@@ -114,6 +116,7 @@ class NetworkGame:
                         self.server_history.append(self.server_state)
                         self.update_to_server_state()
                 elif s["action"]=="game_info":
+                    print("received game info",flush=True)
                     self.players = {t:[] for t in self.game.teams+['spectator']}
                     for pl in s["players"]:
                         self.players[pl["team"]].append(pl["user"])
