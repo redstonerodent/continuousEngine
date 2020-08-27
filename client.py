@@ -39,6 +39,7 @@ class NetworkGame:
         self.live_mode = False
         self.server_state = {}
         self.server_history = []
+        self.players = {}
         self.game.handlers[pygame.USEREVENT] = lambda e: (
             self.game.load_state(e.state),
             setattr(self.game, 'history', self.server_history[:-1]),
@@ -62,6 +63,10 @@ class NetworkGame:
         self.game.attemptMove = self.attemptMove
 
         continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
+
+        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
+        continuousEngine.Renderable(game, 10**10).render = lambda: [write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[i])), 30, 30*(i+1), halign='l', valign='t') for i,t in enumerate(game.teams+['spectator'])]
+
 
     async def join(self,server,i,team,user):
         """
@@ -99,14 +104,26 @@ class NetworkGame:
             try:
                 print("listening for gamestate",flush=True)
                 s = await receive(self.server)
-                if not s or s["action"]!="move":
-                    print(str(s),flush = True)
-                else:
+                if not s:
+                    continue
+                elif s["action"]=="move":
                     print("received gamestate",flush=True)
                     self.server_state = s["state"]
                     if self.live_mode:
                         self.server_history.append(self.server_state)
                         self.update_to_server_state()
+                elif s["action"]=="game_info":
+                    self.players = {}
+                    for pl in s["players"]:
+                        if pl["team"] in self.players:
+                            self.players[pl["team"]].append(pl["user"])
+                        else:
+                            self.players[pl["team"]] = [pl["user"]]
+                    for t in s["open teams"]:
+                        if t not in self.players:
+                            self.players[t] = []
+                else:
+                    print(str(s),flush = True)
             except Exception as e:
                 print(traceback.format_exc(),flush=True)
                 sys.exit()
