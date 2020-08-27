@@ -53,19 +53,24 @@ Just run the file with python, e.g. `python sky.py`.
 
 ### To start a server
 
-Run `python server.py [<ip>]`. The ip defaults to localhost, and in most cases you can leave it blank.
+Run `python server.py [<ip>]`. The ip defaults to localhost.
 
 ### To connect to a server
 
-[this is out of date and will be updated soon]
-Run `python client.py <game> [<game_id> [<team> [<username> [<ip>]]]]` [this may change]. All arguments after `game` are optional, but must be given in order (e.g. if you specify a `username` you have to specify a `game_id` and `team`).
+Run `python client.py [-h] -g {chess,reversi,go,jrap} [-ip IP] [-id GAME_ID]
+                        [-t TEAM] [-u USERNAME] [-n]`.
 
-* `game`: the type of game to play, one of `chess`, `reversi`, `go`, and `jrap`. (`sky` is single-player, and doesn't work for network play.)
-* `game_id`: an identifier for the specific game/room. If the game doesn't exist, a new game is created. If not specified, the client will join some game with an empty slot, or do nothing if there is none.
-* `team`: the team you want to play as, e.g. `white` or `black` for Chess. If not specified, the first available team will be selected.
-* `username`: an identifying string, defaulting to `anonymous`.
-* `ip`: ip address of the server to connect to, defaulting to localhost.
+Arguments:
 
+* `-h`, `--help`: show help message and exit.
+* `-g`, `--game`: type of game to play.
+* `-ip`: ip address of server, default `localhost`.
+* `-id`: identifier of specific game to join or create. if blank, will join some existing game or make a new one with a random id.
+* `-t`, `--team`: team to play as. if blank, will attempt to pick an available team. `spectator` can be used to watch games.
+* `-u`, `--user`: username to use, defaults to `anonymous`.
+* `-n`, `--new`: force creating a new game rather than joining an existing one
+
+Any additional arguments are passed to the constructor for the game that gets created, if any. Currently, the only use of this is that jrap takes the number of players. For instance, `python client.py -g jrap -n -t silver 4` will create a new 4-player jrap game with a random id, and put you on team `silver`.
 
 ## Other things
 
