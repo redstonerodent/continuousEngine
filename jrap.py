@@ -3,8 +3,8 @@ from geometry import *
 import random
 import math
 
-hammer_rad = .5
-board_rad = 5
+hammer_rad = 1
+board_rad = 7
 num_cells = 60
 
 # is point p on the board?
@@ -158,7 +158,6 @@ class Jrap(Game):
             self.clearCache(),
             setattr(self, 'turn', player),
             setattr(self, 'teams', teams),
-            print(self.turn),
             self.voronoi.reset([(Point(*p), c) for p,c in cells]),
             self.clearLayer(Layers.holes),
             [JrapHole(self, Layers.holes, [Point(*x) for x in h]) for h in holes],
