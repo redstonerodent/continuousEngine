@@ -169,7 +169,7 @@ async def receive(server):
 
 async def initial_script(ip, game, game_id, team, username, new, args):
 
-    s = await asyncio.open_connection(host=ip, port=port)
+    s = await asyncio.open_connection(host=ip, port=port, limit=2**20)
 
     print("connected to {}".format(ip))
 
