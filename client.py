@@ -37,7 +37,7 @@ class NetworkGame:
         self.game = game
         self.server = None
         self.live_mode = False
-        self.server_state = {}
+        self.server_state = None
         self.server_history = []
         self.players = {t:[] for t in game.teams+['spectator']}
         self.id = ''
