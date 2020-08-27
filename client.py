@@ -39,7 +39,7 @@ class NetworkGame:
         self.live_mode = False
         self.server_state = {}
         self.server_history = []
-        self.players = {}
+        self.players = {t:[] for t in game.teams+['spectator']}
         self.game.handlers[pygame.USEREVENT] = lambda e: (
             self.game.load_state(e.state),
             setattr(self.game, 'history', self.server_history[:-1]),
@@ -64,9 +64,10 @@ class NetworkGame:
 
         continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
 
-        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-        continuousEngine.Renderable(game, 10**10).render = lambda: [write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[i])), 30, 30*(i+1), halign='l', valign='t') for i,t in enumerate(game.teams+['spectator'])]
-
+        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
+        class TeamPrinter(continuousEngine.Renderable):
+            render = lambda _: [continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 20, 20*(i+1), (0,0,0), halign='l', valign='t') for i,t in enumerate(game.teams+['spectator'])]
+        TeamPrinter(game, 10**10)
 
     async def join(self,server,i,team,user):
         """
@@ -113,15 +114,9 @@ class NetworkGame:
                         self.server_history.append(self.server_state)
                         self.update_to_server_state()
                 elif s["action"]=="game_info":
-                    self.players = {}
+                    self.players = {t:[] for t in self.game.teams+['spectator']}
                     for pl in s["players"]:
-                        if pl["team"] in self.players:
-                            self.players[pl["team"]].append(pl["user"])
-                        else:
-                            self.players[pl["team"]] = [pl["user"]]
-                    for t in s["open teams"]:
-                        if t not in self.players:
-                            self.players[t] = []
+                        self.players[pl["team"]].append(pl["user"])
                 else:
                     print(str(s),flush = True)
             except Exception as e:
