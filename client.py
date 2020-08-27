@@ -130,6 +130,9 @@ class NetworkGame:
                     for pl in s["players"]:
                         self.players[pl["team"]].append(pl["user"])
                     pygame.event.post(pygame.event.Event(pygame.USEREVENT, action='info'))
+                elif s["action"]=="history":
+                    print("received history")
+                    self.server_history = s["history"]
                 else:
                     print(str(s),flush = True)
             except Exception as e:

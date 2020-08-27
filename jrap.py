@@ -151,7 +151,7 @@ class Jrap(Game):
         self.next_turn = lambda: {self.teams[i-1]:self.teams[i] for i in range(len(self.teams))}[self.turn]
         self.prev_turn = lambda: {self.teams[i]:self.teams[i-1] for i in range(len(self.teams))}[self.turn]
 
-        super().__init__(backgroundColor=Colors.background, **kwargs, name='continuous penguin jrap')
+        super().__init__(backgroundColor=Colors.background, spread=board_rad, **kwargs, name='continuous penguin jrap')
 
         self.save_state = lambda: (self.turn, self.teams, [(p.coords, self.voronoi.player[p]) for p in self.voronoi.player], [[x.coords for x in h.hits] for h in self.layers[Layers.holes]])
         self.load_state = lambda x:(lambda player, teams, cells, holes: (
