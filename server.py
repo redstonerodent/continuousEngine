@@ -102,9 +102,12 @@ class NetworkGameServer:
         server = await asyncio.start_server(self.a, host=ip, port=9974)
         self.next_game_id = 0
         print("server listening",flush=True)
-        async with server:
-            await server.serve_forever()
-        
+        try:
+            async with server:
+                await server.serve_forever()
+        finally:
+            with open("continuous_games.txt") as f:
+                f.write(json.dumps(self.games, lambda o: o.get_state()))
         #self.server_lock = threading.RLock()
         #with ThreadedTCPServer((ip,9999), self.makeHandler()) as server:
         #    print("server listening",flush=True)
