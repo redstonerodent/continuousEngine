@@ -61,7 +61,7 @@ class NetworkGame:
         def f(_):
             self.live_mode = not self.live_mode
             self.update_to_server_state()
-        self.game.keyPress[pygame.K_n] = f
+        self.game.keyPress[self.game.keys.toggleLive] = f
         
         if game.allow_skip:
             pass
