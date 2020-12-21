@@ -81,7 +81,7 @@ class JrapHole(Renderable):
 
     def contains_cell(self, cell):
         # is the intersection of the voronoi cell and the board completely inside this hole?
-        return all(p in self for p in self.game.voronoi.board_pts[cell]) and (self.game.voronoi.uncovered_arcs[cell]==[] or tracefn(interval_cover_circle)(self.intervals + self.game.voronoi.uncovered_arcs[cell]))
+        return all(p in self for p in self.game.voronoi.board_pts[cell]) and (self.game.voronoi.uncovered_arcs[cell]==[] or interval_cover_circle(self.intervals + self.game.voronoi.uncovered_arcs[cell]))
 
 
 class JrapVoronoi(CachedImg):
@@ -209,7 +209,6 @@ class Jrap(Game):
 
 
     def attemptMove(self, move):
-        print(move, flush=True)
         if self.turn != move["player"]: return False
         pos = Point(*move["location"])
         self.updateMove(pos)

@@ -140,7 +140,7 @@ class Go(Game):
         FixedText(self, Layers.COUNT, Colors.text['black'], font, None, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
         FixedText(self, Layers.COUNT, Colors.text['white'], font, None, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
         self.debugger = GoDebugger(self, Layers.DEBUG)
-        # self.debugger.visible = False
+        self.debugger.visible = False
 
         # debug
         self.edges = {t:set() for t in self.teams}
