@@ -34,7 +34,7 @@ The server needs an abstract  version of the game. This must implement the follo
 
 import socketserver
 import threading
-import chess, reversi, go, jrap
+from continuousEngine.games import *
 import json
 import traceback
 import sys

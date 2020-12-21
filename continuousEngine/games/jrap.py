@@ -1,5 +1,4 @@
 from continuousEngine import *
-from geometry import *
 import random
 import math
 

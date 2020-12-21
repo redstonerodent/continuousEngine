@@ -6,7 +6,7 @@ import pygame
 import threading
 import socket
 import json
-import chess, reversi, go, jrap
+from continuousEngine.games import *
 import sys
 import traceback
 import asyncio

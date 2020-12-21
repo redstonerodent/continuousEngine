@@ -1,5 +1,4 @@
 from continuousEngine import *
-from geometry import *
 
 # always-present guides
 bg_white_guide_color = (230,230,210)

@@ -1,5 +1,5 @@
 import sys, pygame, asyncio, threading, os, shutil
-from geometry import *
+from continuousEngine.core.geometry import *
 
 pygame.init()
 

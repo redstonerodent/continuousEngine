@@ -3,3 +3,5 @@ test*
 __pycache__
 .lia.cache
 config
+serverstate
+*.egg-info
