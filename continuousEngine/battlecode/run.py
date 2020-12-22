@@ -23,6 +23,9 @@ def run(name, player_files, player_modules, **kwargs):
 
 	print(game.winner())
 
+	if not os.path.exists("saves"):
+		os.mkdir("saves")
+
 	file = os.path.join("saves", "-vs-".join(player_files)+"-"+str(random.randint(0,100)))
 	with open(file,'w') as f:
 	    f.write(json.dumps({'type':name, 'state':game.save_state(), 'history':game.history, 'kwargs':kwargs}))
