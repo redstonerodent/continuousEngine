@@ -115,7 +115,7 @@ class JrapVoronoi(CachedImg):
 class JrapPenguin(CachedImg):
     def __init__(self, game):
         # penguin icon from Freepik
-        super().__init__(game, Layers.penguin, 'penguin', lambda _: pygame.image.load('Sprites/penguin.png').convert_alpha(game.screen), loc=Point(0,0))
+        super().__init__(game, Layers.penguin, 'penguin', lambda _: pygame.image.load(os.path.join(PACKAGEPATH, 'Sprites/penguin.png')).convert_alpha(game.screen), loc=Point(0,0))
 
 class JrapDebugger(Renderable):
     def render(self):

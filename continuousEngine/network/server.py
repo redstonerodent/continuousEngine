@@ -34,18 +34,12 @@ The server needs an abstract  version of the game. This must implement the follo
 
 import socketserver
 import threading
-from continuousEngine.games import *
 import json
 import traceback
 import sys
 import asyncio
-
-games = {
-    'chess'     : chess.Chess,
-    'reversi'   : reversi.Reversi,
-    'go'        : go.Go,
-    'jrap'      : jrap.Jrap,
-    }
+import os
+import importlib
 
 port = 9974
 SERVER_STATE_FILENAME = "serverstate"
@@ -55,7 +49,7 @@ class NetworkGameServer:
         if id in self.list_games():
             print('game {} already exists'.format(id), flush=True)
             return
-        game = games[name](*args, headless=True)
+        game = getattr(importlib.import_module('continuousEngine.games.'+name), name.capitalize())(*args, headless=True)
         self.games[id] = {
             "type":name,
             "players":[],
@@ -189,6 +183,4 @@ async def send(client, message):
 async def recieve(client):
     return json.loads((await client[0].readline()).strip())
 
-
-if __name__ == "__main__":
-    asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))
+asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))

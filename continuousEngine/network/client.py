@@ -6,19 +6,12 @@ import pygame
 import threading
 import socket
 import json
-from continuousEngine.games import *
 import sys
 import traceback
 import asyncio
 import argparse
 import random, string
-
-games = {
-    'chess'     : chess.Chess,
-    'reversi'   : reversi.Reversi,
-    'go'        : go.Go,
-    'jrap'      : jrap.Jrap,
-    }
+import importlib
 
 port = 9974
 
@@ -179,7 +172,7 @@ async def initial_script(ip, game, game_id, team, username, new, args):
     print(ids,flush=True)
 
     async def attempt_joining(id, t):
-        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, games[game], *args)).join(s, id, t, username)
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, getattr(importlib.import_module('continuousEngine.games.'+game), game.capitalize()), *args)).join(s, id, t, username)
 
 
     if game_id:
@@ -235,8 +228,8 @@ async def initial_script(ip, game, game_id, team, username, new, args):
 
 
 
-parser = argparse.ArgumentParser(prog='python client.py')
-parser.add_argument('-g','--game', required=True, choices=list(games))
+parser = argparse.ArgumentParser(prog='continuous-client')
+parser.add_argument('-g','--game', required=True, choices=list(continuousEngine.GAMES))
 parser.add_argument('-ip', default='localhost')
 parser.add_argument('-id', '--game_id')
 parser.add_argument('-t', '--team')

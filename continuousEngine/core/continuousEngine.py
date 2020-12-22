@@ -1,7 +1,18 @@
 import sys, pygame, asyncio, threading, os, shutil
 from continuousEngine.core.geometry import *
 
+# current playable games
+# the subclass of Game must be the file name with the first letter capitalized
+GAMES = [
+    'chess',
+    'reversi',
+    'go',
+    'jrap',
+    ]
+
 pygame.init()
+
+PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 def run_local(game_class, args=[]):
     asyncio.run(run_local_async(game_class, args))
@@ -62,17 +73,17 @@ class Game:
 
         keysdict = {}
 
-        with open('config.default') as f:
+        with open(os.path.join(PACKAGEPATH,'config.default')) as f:
             for line in f:
                 if line[0] not in "#\n":
                     (lambda k,v: keysdict.__setitem__(k, getattr(pygame, 'K_'+v)))(*line.split())
 
 
-        if not os.path.exists('config'):
-            shutil.copy('config.default', 'config')
+        if not os.path.exists(os.path.join(PACKAGEPATH,'config')):
+            shutil.copy(os.path.join(PACKAGEPATH,'config.default'), os.path.join(PACKAGEPATH,'config'))
 
 
-        with open('config') as f:
+        with open(os.path.join(PACKAGEPATH,'config')) as f:
             for line in f:
                 if line[0] not in "#\n":
                     (lambda k,v: keysdict.__setitem__(k, getattr(pygame, 'K_'+v)))(*line.split())
@@ -122,6 +133,9 @@ class Game:
         self.make_initial_state = lambda:None # creates a fresh initial state (perhaps with randomness)
 
         self.reset_state = lambda: self.load_state(self.initialState)
+
+        self.is_over = lambda: False
+        self.winner = lambda: None
 
     # for anything that should be recomputed before each render
     process = lambda self: None

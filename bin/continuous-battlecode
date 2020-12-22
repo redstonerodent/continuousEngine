@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+from continuousEngine.battlecode.run import run
+from continuousEngine.battlecode.watch import watch
+import continuousEngine
+import importlib
+import sys, os
+import argparse
+
+sys.path.append(os.getcwd())
+
+def run_(args):
+    player_modules = list(map(importlib.import_module, args.player_files))
+    run(args.game, args.player_files, player_modules)
+
+def watch_(args):
+    watch(os.path.join('saves', args.file))
+
+
+parser = argparse.ArgumentParser(prog='continuous-battlecode')
+
+subparsers = parser.add_subparsers(dest='cmd',required=True)
+subparsers.required=True
+
+run_parser = subparsers.add_parser("run")
+run_parser.add_argument('-g', '--game', required=True, choices=list(continuousEngine.GAMES))
+run_parser.add_argument('player_files', nargs='+')
+run_parser.set_defaults(func=run_)
+
+watch_parser = subparsers.add_parser("watch")
+watch_parser.add_argument('file')
+watch_parser.set_defaults(func=watch_)
+
+args = parser.parse_args()
+print(args)
+args.func(args)

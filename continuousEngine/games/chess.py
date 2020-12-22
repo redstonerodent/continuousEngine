@@ -314,7 +314,7 @@ class Chess(Game):
     def __init__(self,**kwargs):
         super().__init__(name='continuous chess', **kwargs)
         if not self.headless:
-            Constants.SPRITE = {(c,p):pygame.image.load('Sprites/{}{}.png'.format(c,p)).convert_alpha(self.screen) for c in Constants.COLORS for p in Constants.PIECES}
+            Constants.SPRITE = {(c,p):pygame.image.load(os.path.join(PACKAGEPATH, 'Sprites', '{}{}.png').format(c,p)).convert_alpha(self.screen) for c in Constants.COLORS for p in Constants.PIECES}
         self.save_state = lambda: (self.turn, [(p.name, p.color, p.loc.coords) for p in self.layers[Layers.PIECES]])
         self.load_state = lambda state: (setattr(self, 'turn', state[0]), (lambda pieces: (
             self.clearLayer(Layers.PIECES),
@@ -353,17 +353,21 @@ class Chess(Game):
         self.click[2] = lambda e: toggleShown(self, self.point(*e.pos))
         self.drag[-1] = lambda e: setattr(self, 'rawMousePos', e.pos)
         
-        self.keyPress[self.keys.cancel]         = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
+        self.keyPress[self.keys.cancel] = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
+
+        self.is_over = lambda: not any((p.color,p.name) == (Constants.WHITE,Constants.KING) for p in self.layers[Layers.PIECES]) or not any((p.color,p.name) == (Constants.BLACK,Constants.KING) for p in self.layers[Layers.PIECES])
+        self.winner = lambda: 'white' if any((p.color,p.name) == (Constants.WHITE,Constants.KING) for p in self.layers[Layers.PIECES]) else 'black'
 
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
-        print("attempting move \n"+str(move))
+        # print("attempting move \n"+str(move))
         if not self.turn == move["player"]:
             return False
         selected_loc = Point(*move["selected"])
         self.active_piece = next(p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2)
         #selectPiece(self, move["selected"])
         return attemptMove(self, move["location"])
+
 
 def attemptMove(game, mouse_pos):
     mouse_pos = Point(*mouse_pos)
