@@ -12,7 +12,7 @@ class Point:
     __iter__ = lambda self: iter(self.coords)
     __getitem__ = lambda self, v: self.coords[v]
     __repr__ = lambda self: "Point{}".format(self.coords)
-    __eq__ = lambda self, other: self.coords == other.coords
+    __eq__ = lambda self, other: isinstance(other, Point) and self.coords == other.coords
     __hash__ = lambda self: hash(self.coords)
     # adding, subtracting, and scaling vectors
     __add__ = lambda p1, p2: Point(*(p1[i]+p2[i] for i in range(2)))

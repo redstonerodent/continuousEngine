@@ -331,7 +331,7 @@ class Chess(Game):
         
         self.reset_state()
 
-        self.process = lambda : updateMove(self)
+        self.process = lambda : self.updateMove()
 
         self.future_guide = Guide(self,Layers.FUTURE_MOVES,None, future_guide_color)
         self.future_guide.GETvisible = lambda game: self.active_piece != None
@@ -358,6 +358,21 @@ class Chess(Game):
         self.is_over = lambda: not any((p.color,p.name) == (Constants.WHITE,Constants.KING) for p in self.layers[Layers.PIECES]) or not any((p.color,p.name) == (Constants.BLACK,Constants.KING) for p in self.layers[Layers.PIECES])
         self.winner = lambda: 'white' if any((p.color,p.name) == (Constants.WHITE,Constants.KING) for p in self.layers[Layers.PIECES]) else 'black'
 
+    def updateMove(game, pos=None):
+        pos = game.mousePos() if pos==None else Point(*pos)
+        if game.active_piece:
+            move, game.blocking, game.capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
+            game.future_guide.loc = move
+            game.ghost.loc = move
+            for p in game.shown: 
+                if p.in_range(game.ghost) or any(p.in_range(cap) for cap in game.capture):
+                    p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture] + [game.ghost])
+                else:
+                    p.threatening = p.threatening_cache
+            game.ghost.threatening = game.active_piece.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture], game.ghost.loc)
+        else:
+            game.blocking, game.capture = [], []
+
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         # print("attempting move \n"+str(move))
@@ -369,17 +384,16 @@ class Chess(Game):
         return attemptMove(self, move["location"])
 
 
-def attemptMove(game, mouse_pos):
-    mouse_pos = Point(*mouse_pos)
-    pos, blocking, capture = game.active_piece.find_move(mouse_pos, game.layers[Layers.PIECES])
+def attemptMove(game, pos):
+    game.updateMove(pos)
 
-    if not blocking and len(capture)<2: # move is legal
+    if not game.blocking and len(game.capture)<2: # move is legal
         game.record_state()
         
         game.shown = []
 
-        game.active_piece.loc = pos
-        for piece in capture:
+        game.active_piece.loc = game.ghost.loc
+        for piece in game.capture:
             game.layers[Layers.PIECES].remove(piece)
 
         if isinstance(game.active_piece, Pawn) and abs(game.active_piece.loc.y)>=3.5: # pawn promotes
@@ -387,7 +401,7 @@ def attemptMove(game, mouse_pos):
             game.layers[Layers.PIECES].remove(game.active_piece)
 
         game.active_piece = None
-        updateMove(game)
+        game.updateMove()
         game.turn = game.next_turn()
         return True
     return False
@@ -400,27 +414,13 @@ def selectPiece(game, mouse_pos):
         game.active_piece = clicked_on[0]
         game.move_guide.piece = game.active_piece
         game.future_guide.piece = game.active_piece
-        updateMove(game)
+        game.updateMove()
         game.move_guide.piece = game.active_piece
         game.move_guide.loc = game.active_piece.loc
         game.future_guide.piece = game.active_piece
         for p in game.shown:
             p.update_threatening_cache([p for p in game.layers[Layers.PIECES] if p != game.active_piece])
 
-def updateMove(game):
-    pos = game.mousePos()
-    if game.active_piece:
-        move, game.blocking, game.capture = game.active_piece.find_move(pos, game.layers[Layers.PIECES])
-        game.future_guide.loc = move
-        game.ghost.loc = move
-        for p in game.shown: 
-            if p.in_range(game.ghost) or any(p.in_range(cap) for cap in game.capture):
-                p.threatening = p.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture] + [game.ghost])
-            else:
-                p.threatening = p.threatening_cache
-        game.ghost.threatening = game.active_piece.capturable([p for p in game.layers[Layers.PIECES] if p != game.active_piece and p not in game.capture], game.ghost.loc)
-    else:
-        game.blocking, game.capture = [], []
 
 def toggleShown(game, mouse_pos):
     clicked_on = [p for p in game.layers[Layers.PIECES] if mouse_pos>>p.loc < p.r**2]
