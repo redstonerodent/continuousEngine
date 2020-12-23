@@ -107,15 +107,15 @@ class GoDebugger(Renderable):
         )
 
 class Go(Game):
-    make_initial_state = lambda self: ('black', {t:0 for t in self.teams}, {t:set() for t in self.teams})
+    make_initial_state = lambda self: ('black', {t:0 for t in self.teams}, {t:set() for t in self.teams}, 0)
     teams = ['black', 'white']
 
     def __init__(self, **kwargs):
         super().__init__(backgroundColor=Colors.background, spread=board_rad, name='continuous go', **kwargs)
 
 
-        self.save_state = lambda: (self.turn, self.capturedCount.copy(), {team:[p.loc.coords for p in self.layers[Layers.PIECES[team]]] for team in self.teams})
-        self.load_state = lambda x: (lambda turn, capCount, pieces: (
+        self.save_state = lambda: (self.turn, self.capturedCount.copy(), {team:[p.loc.coords for p in self.layers[Layers.PIECES[team]]] for team in self.teams}, self.passes)
+        self.load_state = lambda x: (lambda turn, capCount, pieces, passes: (
             self.clearLayer(Layers.GUIDES),
             self.add(self.nextPiece.guide, Layers.GUIDES),
             setattr(self.nextPiece.guide, 'visible', False),
@@ -124,6 +124,7 @@ class Go(Game):
             [self.makePiece(team, Point(*p)) for team in self.teams for p in pieces[team]],
             setattr(self, 'turn', turn),
             setattr(self, 'capturedCount', capCount.copy()),
+            setattr(self, 'passes', passes),
             setattr(self, 'guides', set()),
             self.updateLiberties(),
             self.updateGraph(),
@@ -184,9 +185,12 @@ class Go(Game):
                                                             setattr(self.nextPiece.guide, 'visible', False),
                                                             self.clearLayer(Layers.PIECES['GHOST']))
 
+        self.is_over = lambda: self.passes == 2
+        self.winner = lambda: max(self.teams, key=lambda t: self.capturedCount[self.next_turn(t)] + self.territory[t])
+
 
     def attemptMove(self, move):
-        print(move, flush=True)
+        # print(move, flush=True)
         if self.turn != move["player"]: return False
         
         self.record_state()
@@ -205,9 +209,11 @@ class Go(Game):
             self.updateGraph()
             self.updateTerritory()
             self.clearCache()
+            self.passes = 0
             return True
         elif move["action"] == "skip":
             self.turn = self.next_turn()
+            self.passes += 1
             return True
 
 
