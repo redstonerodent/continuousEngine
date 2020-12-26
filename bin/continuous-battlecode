@@ -32,5 +32,5 @@ watch_parser.add_argument('file')
 watch_parser.set_defaults(func=watch_)
 
 args = parser.parse_args()
-print(args)
+# print(args)
 args.func(args)

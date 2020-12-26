@@ -189,10 +189,13 @@ class Jrap(Game):
 
         Circle(self, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if g.mousePos() and on_board(g.mousePos()) else Colors.illegal
 
+        self.is_over = lambda _=None: self.swimming or self.open_cells[self.turn]==[]
+        self.winner = lambda: self.turn if self.swimming else self.prev_turn()
+
         font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
         self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", 0,0, hborder='c',vborder='c')
         self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.prev_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
-        self.gameOverMessage.GETvisible = lambda g: g.swimming or g.open_cells[g.turn]==[]
+        self.gameOverMessage.GETvisible = self.is_over
 
         if 0:
             self.debugger = JrapDebugger(self, Layers.debug)
@@ -203,6 +206,8 @@ class Jrap(Game):
 
         self.process = lambda: self.updateMove(self.mousePos())
         self.viewChange = lambda: self.clearCache()
+
+
 
     get_open_cells = lambda self: {t: [cell for cell in self.voronoi.player if self.voronoi.player[cell]==t and not any(h.contains_cell(cell) for h in self.layers[Layers.holes])] for t in self.teams}
 

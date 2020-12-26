@@ -1,3 +1,8 @@
+# game must implement
+#   attemptMove
+#   is_over()
+#   winner()
+
 import random, json, importlib, os
 
 def run(name, player_files, player_modules, **kwargs):
@@ -7,19 +12,21 @@ def run(name, player_files, player_modules, **kwargs):
 	for m, t in zip(player_modules, game.teams):
 		players[t] = m.Player(game_type, t)
 
-	print(game.teams)
-	print(players)
+	state = game.save_state()
+	for t in players:
+		players[t].game.load_state(state)
 
-	turn = 0
+	# print(game.teams)
+	# print(players)
+
 	while not game.is_over():
-		move = players[game.teams[turn]].make_move()
+		move = players[game.turn].make_move()
 		print(move)
 		if not game.attemptMove(move):
-			raise ValueError
+			raise ValueError("{} attempted illegal move: {}".format(game.turn, move))
 		for t in players:
-			players[t]._receive_move(move)
-		turn += 1
-		turn %= len(game.teams)
+			players[t]._receive_move(move, game.save_state())
+
 
 	print(game.winner())
 
