@@ -16,7 +16,7 @@ def run_(args):
     run(args.game, continuousEngine.game_class(args.game), args.player_files, player_modules, *args.args)
 
 def watch_(args):
-    watch(os.path.join('saves', args.file))
+    watch(args.file)
 
 
 parser = argparse.ArgumentParser(prog='continuous-battlecode')
