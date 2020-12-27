@@ -7,6 +7,8 @@ import importlib
 import sys, os
 import argparse
 
+battlecode_games = ['chess', 'go', 'jrap']
+
 sys.path.append(os.getcwd())
 
 def run_(args):
@@ -23,7 +25,7 @@ subparsers = parser.add_subparsers(dest='cmd',required=True)
 subparsers.required=True
 
 run_parser = subparsers.add_parser("run")
-run_parser.add_argument('-g', '--game', required=True, choices=list(continuousEngine.GAMES))
+run_parser.add_argument('-g', '--game', required=True, choices=battlecode_games)
 run_parser.add_argument('player_files', nargs='+')
 run_parser.add_argument('-a', '--args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 run_parser.set_defaults(func=run_, args=[])

@@ -1,17 +1,16 @@
 import sys, pygame, asyncio, threading, os, shutil, importlib
 from continuousEngine.core.geometry import *
 
-# pygame.init()
-
-# current playable games, as {file: class_name}
-GAMES = {
+# current games, as {file: class_name}
+ALL_GAMES = {
     'chess' : 'Chess',
     'reversi' : 'Reversi',
     'go' : 'Go',
     'jrap' : 'Jrap',
+    'sky' : 'Sky',
     }
 
-game_class = lambda name: getattr(importlib.import_module('continuousEngine.games.'+name), GAMES[name])
+game_class = lambda name: getattr(importlib.import_module('continuousEngine.games.'+name), ALL_GAMES[name])
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 

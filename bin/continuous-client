@@ -5,9 +5,10 @@ import continuousEngine
 import argparse
 import asyncio
 
+network_games = ['chess', 'go', 'jrap', 'reversi']
 
 parser = argparse.ArgumentParser(prog='continuous-client')
-parser.add_argument('-g','--game', required=True, choices=list(continuousEngine.GAMES))
+parser.add_argument('-g','--game', required=True, choices=network_games)
 parser.add_argument('-ip', default='localhost')
 parser.add_argument('-id', '--game_id')
 parser.add_argument('-t', '--team')
