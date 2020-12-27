@@ -192,8 +192,7 @@ class Jrap(Game):
         self.is_over = lambda _=None: self.swimming or self.open_cells[self.turn]==[]
         self.winner = lambda: self.turn if self.swimming else self.prev_turn()
 
-        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-        self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, font, "", 0,0, hborder='c',vborder='c')
+        self.gameOverMessage = FixedText(self, Layers.game_over, Colors.text, self.font, "", 0,0, hborder='c',vborder='c')
         self.gameOverMessage.GETtext = lambda g: "{} sent the penguin swimming. :(".format(self.prev_turn()) if self.swimming else "{} has no moves. :(".format(self.turn)
         self.gameOverMessage.GETvisible = self.is_over
 
@@ -251,4 +250,5 @@ class Jrap(Game):
 
 
 if __name__=="__main__":
+    pygame.init()
     run_local(Jrap, sys.argv[1:])

@@ -1,3 +1,20 @@
 #!/usr/bin/env python
 
-import continuousEngine.network.client
+import continuousEngine.network.client as cl
+import continuousEngine
+import argparse
+import asyncio
+
+
+parser = argparse.ArgumentParser(prog='continuous-client')
+parser.add_argument('-g','--game', required=True, choices=list(continuousEngine.GAMES))
+parser.add_argument('-ip', default='localhost')
+parser.add_argument('-id', '--game_id')
+parser.add_argument('-t', '--team')
+parser.add_argument('-u', '--username', default='anonymous')
+parser.add_argument('-n', '--new', action='store_true', default=False)
+parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+
+
+asyncio.run(cl.initial_script(**vars(parser.parse_args())))
+

@@ -39,7 +39,7 @@ import traceback
 import sys
 import asyncio
 import os
-import importlib
+import continuousEngine
 
 port = 9974
 SERVER_STATE_FILENAME = "serverstate"
@@ -49,7 +49,7 @@ class NetworkGameServer:
         if id in self.list_games():
             print('game {} already exists'.format(id), flush=True)
             return
-        game = getattr(importlib.import_module('continuousEngine.games.'+name), name.capitalize())(*args, headless=True)
+        game = continuousEngine.game_class(name)(*args, headless=True)
         self.games[id] = {
             "type":name,
             "players":[],

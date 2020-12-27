@@ -90,8 +90,6 @@ class Colors:
     boundary    = (0,0,0)
     debug       = (255,0,0)
 
-font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-
 class ReversiPiece(BorderDisk):
     def __init__(self, game, team, loc, layer=Layers.PIECES):
         super().__init__(game, layer, None, None, loc, piece_rad)
@@ -153,10 +151,10 @@ class Reversi(Game):
 
         Circle(self, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or self.over or on_board(self.mousePos()) else Colors.blocker
 
-        FixedText(self, Layers.COUNT, Colors.text['black'], font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])
-        FixedText(self, Layers.COUNT, Colors.text['white'], font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'white'])
+        FixedText(self, Layers.COUNT, Colors.text['black'], self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])
+        FixedText(self, Layers.COUNT, Colors.text['white'], self.font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'white'])
 
-        self.gameOverMessage = FixedText(self, Layers.COUNT, Colors.text['GAMEOVER'], font, "", 0,0, hborder='c', vborder='c')
+        self.gameOverMessage = FixedText(self, Layers.COUNT, Colors.text['GAMEOVER'], self.font, "", 0,0, hborder='c', vborder='c')
         self.gameOverMessage.GETvisible = lambda g: g.over
         self.gameOverMessage.GETtext = lambda g: "Game Over!  "+(
             lambda w,b: "White wins!" if w>b else "Black wins!" if b>w else "It's a tie!")(
@@ -220,4 +218,5 @@ class Reversi(Game):
 
 
 if __name__=="__main__":
+    pygame.init()
     run_local(Reversi)

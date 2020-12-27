@@ -1,6 +1,6 @@
 import random
 from continuousEngine import *
-from continuousEngine.games.go import *
+from continuousEngine.games.jrap import *
 from continuousEngine.battlecode.player import *
 
 class Player(PlayerTemplate):

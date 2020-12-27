@@ -33,8 +33,6 @@ highlight_color = (150, 200, 255)
 win_color = (0, 255, 0)
 debug_color = (255,0,0)
 
-font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-
 # size to draw circles
 dot_rad = 20
 
@@ -75,7 +73,7 @@ class Sky(Game):
         dot = pygame.Surface((2*dot_rad,)*2).convert_alpha(self.screen)
         dot.fill((0,0,0,0))
         pygame.draw.circle(dot, countColor(c), (dot_rad,)*2, dot_rad)
-        write(dot, font, c, dot_rad, dot_rad, text_color)
+        write(dot, self.font, c, dot_rad, dot_rad, text_color)
         return dot
 
     def __init__(self, **kwargs):
@@ -94,7 +92,7 @@ class Sky(Game):
         self.grid.visible = False
         Grid(self, Layers.GRIDS, line_color, Point(0,0) ,n)
 
-        guess = [[Text(self, Layers.GUESS, text_color,font,0, Point(i+.5,j+.5)) for j in range(n)] for i in range(n)]
+        guess = [[Text(self, Layers.GUESS, text_color,self.font,0, Point(i+.5,j+.5)) for j in range(n)] for i in range(n)]
         [(lambda t:(setattr(t,'GETvisible',lambda _:t.text)))(guess[i][j]) for i in range(n) for j in range(n)]
 
         # left click
@@ -143,7 +141,7 @@ class Sky(Game):
 
         # show actual heights
         if 0:
-            [[Text(self, Layers.GUESS, text_color,font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
+            [[Text(self, Layers.GUESS, text_color,self.font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
 
         self.keyPress[self.keys.moveUp]         = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y-1)%n))
         self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%n))
@@ -156,4 +154,5 @@ class Sky(Game):
 
 
 if __name__=="__main__":
+    pygame.init()
     run_local(Sky)

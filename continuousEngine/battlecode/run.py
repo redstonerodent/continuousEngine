@@ -3,21 +3,17 @@
 #   is_over()
 #   winner()
 
-import random, json, importlib, os
+import random, json, os
 
-def run(name, player_files, player_modules, **kwargs):
-	game_type = getattr(importlib.import_module('continuousEngine.games.'+name), name.capitalize())
-	game = game_type(headless=True, **kwargs)
+def run(name, game_class, player_files, player_modules, *args):
+	game = game_class(*args, headless=True)
 	players = {}
 	for m, t in zip(player_modules, game.teams):
-		players[t] = m.Player(game_type, t)
+		players[t] = m.Player(game_class, t)
 
 	state = game.save_state()
 	for t in players:
 		players[t].game.load_state(state)
-
-	# print(game.teams)
-	# print(players)
 
 	while not game.is_over():
 		move = players[game.turn].make_move()
@@ -35,5 +31,5 @@ def run(name, player_files, player_modules, **kwargs):
 
 	file = os.path.join("saves", "-vs-".join(player_files)+"-"+str(random.randint(0,100)))
 	with open(file,'w') as f:
-	    f.write(json.dumps({'type':name, 'state':game.save_state(), 'history':game.history, 'kwargs':kwargs}))
+	    f.write(json.dumps({'type':name, 'state':game.save_state(), 'history':game.history, 'args':args}))
 	print("saved as {}".format(file))

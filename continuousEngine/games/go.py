@@ -69,8 +69,6 @@ class Colors:
     ghost       = (128,128,128)
     territory   = {'white': (222,174,81), 'black': (192,134,41)}
 
-font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
-
 class GoPiece(BorderDisk):
     def __init__(self, game, team, loc):
         super().__init__(game, Layers.PIECES[team], None, None, loc, piece_rad)
@@ -137,8 +135,8 @@ class Go(Game):
 
         Circle(self, Layers.BOUNDARY, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or on_board(self.mousePos()) else Colors.blocker
 
-        FixedText(self, Layers.COUNT, Colors.text['black'], font, None, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
-        FixedText(self, Layers.COUNT, Colors.text['white'], font, None, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
+        FixedText(self, Layers.COUNT, Colors.text['black'], self.font, None, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
+        FixedText(self, Layers.COUNT, Colors.text['white'], self.font, None, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
         self.debugger = GoDebugger(self, Layers.DEBUG)
         self.debugger.visible = False
 
@@ -298,4 +296,5 @@ class Go(Game):
 
 
 if __name__=="__main__":
+    pygame.init()
     run_local(Go)

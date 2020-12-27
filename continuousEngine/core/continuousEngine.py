@@ -1,18 +1,20 @@
-import sys, pygame, asyncio, threading, os, shutil
+import sys, pygame, asyncio, threading, os, shutil, importlib
 from continuousEngine.core.geometry import *
 
-# current playable games
-# the subclass of Game must be the file name with the first letter capitalized
-GAMES = [
-    'chess',
-    'reversi',
-    'go',
-    'jrap',
-    ]
+# pygame.init()
 
-pygame.init()
+# current playable games, as {file: class_name}
+GAMES = {
+    'chess' : 'Chess',
+    'reversi' : 'Reversi',
+    'go' : 'Go',
+    'jrap' : 'Jrap',
+    }
+
+game_class = lambda name: getattr(importlib.import_module('continuousEngine.games.'+name), GAMES[name])
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
 
 def run_local(game_class, args=[]):
     asyncio.run(run_local_async(game_class, args))
@@ -45,7 +47,11 @@ class Game:
 
         if not headless:
             self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
+            self.font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
             self.resetView()
+        else:
+            self.font = None
+
         pygame.display.set_caption(name)
 
         # objects are assigned to 'layers' which give rendering order

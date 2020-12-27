@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+
+import continuousEngine
+import pygame
+import argparse
+
+parser = argparse.ArgumentParser(prog='continuous-game')
+
+parser.add_argument('-g','--game', required=True, choices=list(continuousEngine.GAMES))
+parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+
+args = parser.parse_args()
+
+pygame.init()
+continuousEngine.run_local(continuousEngine.game_class(args.game), args.args)

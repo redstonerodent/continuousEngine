@@ -9,11 +9,11 @@ import json
 import sys
 import traceback
 import asyncio
-import argparse
 import random, string
-import importlib
 
 port = 9974
+
+pygame.init()
 
 class NetworkGame:
     """
@@ -172,7 +172,7 @@ async def initial_script(ip, game, game_id, team, username, new, args):
     print(ids,flush=True)
 
     async def attempt_joining(id, t):
-        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, getattr(importlib.import_module('continuousEngine.games.'+game), game.capitalize()), *args)).join(s, id, t, username)
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, continuousEngine.game_class(game), *args)).join(s, id, t, username)
 
 
     if game_id:
@@ -225,18 +225,4 @@ async def initial_script(ip, game, game_id, team, username, new, args):
                 await attempt_joining(id, team)
             else:
                 await attempt_joining(id, (ids[id]["open teams"])[0])
-
-
-
-parser = argparse.ArgumentParser(prog='continuous-client')
-parser.add_argument('-g','--game', required=True, choices=list(continuousEngine.GAMES))
-parser.add_argument('-ip', default='localhost')
-parser.add_argument('-id', '--game_id')
-parser.add_argument('-t', '--team')
-parser.add_argument('-u', '--username', default='anonymous')
-parser.add_argument('-n', '--new', action='store_true', default=False)
-parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
-
-
-asyncio.run(initial_script(**vars(parser.parse_args())))
 

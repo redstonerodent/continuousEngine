@@ -11,7 +11,7 @@ sys.path.append(os.getcwd())
 
 def run_(args):
     player_modules = list(map(importlib.import_module, args.player_files))
-    run(args.game, args.player_files, player_modules)
+    run(args.game, continuousEngine.game_class(args.game), args.player_files, player_modules, *args.args)
 
 def watch_(args):
     watch(os.path.join('saves', args.file))
@@ -25,7 +25,9 @@ subparsers.required=True
 run_parser = subparsers.add_parser("run")
 run_parser.add_argument('-g', '--game', required=True, choices=list(continuousEngine.GAMES))
 run_parser.add_argument('player_files', nargs='+')
-run_parser.set_defaults(func=run_)
+run_parser.add_argument('-a', '--args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+run_parser.set_defaults(func=run_, args=[])
+
 
 watch_parser = subparsers.add_parser("watch")
 watch_parser.add_argument('file')
