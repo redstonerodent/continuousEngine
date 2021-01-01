@@ -377,11 +377,10 @@ class Chess(Game):
     def attemptMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         # print("attempting move \n"+str(move))
-        if not self.turn == move["player"]:
-            return False
         selected_loc = Point(*move["selected"])
         self.active_piece = next(p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2)
-        #selectPiece(self, move["selected"])
+        if not self.turn == move["player"] == self.active_piece.color:
+            return False
         return attemptMove(self, move["location"])
 
 
