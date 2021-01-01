@@ -2,6 +2,7 @@
 #   attemptMove
 #   is_over()
 #   winner()
+#   next_turn()
 
 import random, json, os
 
@@ -15,21 +16,38 @@ def run(name, game_class, player_files, player_modules, *args):
 	for t in players:
 		players[t].game.load_state(state)
 
-	while not game.is_over():
-		move = players[game.turn].make_move()
-		print(move)
-		if not game.attemptMove(move):
-			raise ValueError("{} attempted illegal move: {}".format(game.turn, move))
-		for t in players:
-			players[t]._receive_move(move, game.save_state())
+	ending = 'error'
+	try:
+		while not game.is_over():
+			try:
+				move = players[game.turn].make_move()
+			except:
+				raise ValueError(game.next_turn())
 
+			print(move)
+			if not game.attemptMove(move):
+				print(f"{game.turn} attempted illegal move: {move}")
+				raise ValueError(game.next_turn())
 
-	print(game.winner())
+			for t in players:
+				try:
+					players[t]._receive_move(move, game.save_state())
+				except:
+					raise ValueError(game.next_turn(t))
+	except ValueError as e:
+		ending = 'error'
+		winner = e.args[0]
+	else:
+		ending = 'standard'
+		winner = game.winner()
 
-	if not os.path.exists("saves"):
-		os.mkdir("saves")
+	finally:
+		print(winner)
 
-	file = os.path.join("saves", "-vs-".join(player_files)+"-"+str(random.randint(0,100)))
-	with open(file,'w') as f:
-	    f.write(json.dumps({'type':name, 'state':game.save_state(), 'history':game.history, 'args':args}))
-	print("saved as {}".format(file))
+		if not os.path.exists("saves"):
+			os.mkdir("saves")
+
+		file = os.path.join("saves", "-vs-".join(player_files)+"-"+str(random.randint(0,100)))
+		with open(file,'w') as f:
+		    f.write(json.dumps({'type':name, 'ending':ending, 'winner':winner, 'state':game.save_state(), 'history':game.history, 'args':args}))
+		print("saved as {}".format(file))

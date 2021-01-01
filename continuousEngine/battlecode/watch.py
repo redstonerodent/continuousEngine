@@ -11,4 +11,7 @@ def watch(file):
 	game.future = [info['state']]+info['history'][:0:-1]
 	game.load_state(info['history'][0])
 
+	print(f'winner: {info["winner"]}')
+	if info['ending'] == 'error': print('game ended in error')
+
 	game.run()

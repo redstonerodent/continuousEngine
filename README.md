@@ -40,7 +40,7 @@ This is a project to implement continuous versions of discrete games in python.
 
 ## Installation
 
-You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.5 and pygame 2.0.0dev10. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
+You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.5 and pygame 2.0.1. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
 
 ### Python
 
@@ -48,7 +48,7 @@ You can get Python 3.8 from [Python's website](https://www.python.org/), or, if 
 
 ### Pygame
 
-Can be installed with pip: `pip install pygame==2.0.0dev10`. If you don't have pip installed, try `python -m pip install pygame==2.0.0dev10`
+Can be installed with pip: `pip install pygame`. If you don't have pip installed, try `python -m pip install pygame`. If you have an older version of `pygame`, use `pip install --upgrade pygame`.
 
 ### ContinuousEngine
 
@@ -93,7 +93,7 @@ Currently `chess`, `go`, `jrap`, and `reversi` have network play.
 
 ### To play AIs against each other
 
-`continuous-battlecode run [-h] -g game player_files [player_files ...] [-a args ...]`
+`continuous-battlecode run -g game player_files [player_files ...] [-a args ...]`
 
 
 Each entry in `player_files` should be a file in the current directory with a subclass of `PlayerTemplate` named `Player`. This class must implement `make_move`, which returns a move as a dictionary, and may implement `on_move`, which is called after each move. Each move also updates `Player.game`. I suggest starting from a copy of `battlecode/example<game>player.py`.

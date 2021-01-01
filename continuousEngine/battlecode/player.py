@@ -2,6 +2,7 @@
 #   attemptMove
 #   is_over()
 #   winner()
+#   next_turn()
 
 class PlayerTemplate:
     def __init__(self, game, team):
