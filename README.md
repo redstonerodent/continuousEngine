@@ -93,14 +93,14 @@ Currently `chess`, `go`, `jrap`, and `reversi` have network play.
 
 ### To play AIs against each other
 
-`continuous-battlecode run -g game player_files [player_files ...] [-a args ...]`
+`continuous-battlecode run -g game player_files [player_files ...] [-f file] [-a args ...]`
 
 
 Each entry in `player_files` should be a file in the current directory with a subclass of `PlayerTemplate` named `Player`. This class must implement `make_move`, which returns a move as a dictionary, and may implement `on_move`, which is called after each move. Each move also updates `Player.game`. I suggest starting from a copy of `battlecode/example<game>player.py`.
 
 `player_files` are assigned teams in the order they're listed. This typically means the turn order is the order they're listed.
 
-This will save the game in a `saves` subdirectory of the current directory, and will print the name of the saved file.
+This will save the game in a `saves` subdirectory of the current directory, and will print the name of the saved file. You can specify the file with `-f`; otherwise it is automatically generated.
 
 ### To watch a saved game
 

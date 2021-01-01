@@ -24,7 +24,6 @@ def run(name, game_class, player_files, player_modules, file, *args):
             except:
                 raise ValueError(game.next_turn())
 
-            print(move)
             if not game.attemptMove(move):
                 print(f"{game.turn} attempted illegal move: {move}")
                 raise ValueError(game.next_turn())

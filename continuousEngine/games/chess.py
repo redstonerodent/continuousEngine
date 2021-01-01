@@ -184,7 +184,7 @@ class King(Piece):
         ans = []
         for d1, d2 in king_deltas:
             possible = [p for p in pieces if blocks_segment(loc+d1, self.r, loc+d2, p)]
-            ans += [p for p in ((lambda overlapping: p if not trace(overlapping, tangency) else overlapping[0] if len(overlapping)==1 else None)([p for p in possible if p.loc>>tangency < (self.r+p.r)**2]) for p in possible for tangency in intersect_segment_circle(loc+d1, loc+d2, p.loc, self.r+p.r)) if p and p.color != self.color]
+            ans += [p for p in ((lambda overlapping: p if not (overlapping, tangency) else overlapping[0] if len(overlapping)==1 else None)([p for p in possible if p.loc>>tangency < (self.r+p.r)**2]) for p in possible for tangency in intersect_segment_circle(loc+d1, loc+d2, p.loc, self.r+p.r)) if p and p.color != self.color]
 
         return ans
 
