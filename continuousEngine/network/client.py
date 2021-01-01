@@ -73,17 +73,16 @@ class NetworkGame:
 
         continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
 
-        font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
-        class GameInfo(continuousEngine.Renderable):
-            def render(_):
-                vals = {'id':self.id, 'turn':self.game.turn, 'you':self.user, 'live':self.live_mode}
-                for i,k in enumerate(vals):
-                    continuousEngine.write(game.screen, font, '{}: {}'.format(k, vals[k]), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
-
-                d = len(vals)+2
-                for i,t in enumerate(game.teams+['spectator']):
-                    continuousEngine.write(game.screen, font, '{}: {}'.format(t, ', '.join(self.players[t])), 24, 24*(i+d), (0,0,0), halign='l', valign='t')
-        GameInfo(game, 10**10)
+        continuousEngine.GameInfo(game, 10**10,
+            lambda _: [
+                ('id', self.id),
+                ('turn', self.game.turn),
+                ('you', self.user),
+                ('live', self.live_mode),
+                (None, None),
+                *((t, ', '.join(self.players[t])) for t in game.teams+['spectator'])
+            ]
+        )
 
     async def join(self,server,i,team,user):
         """
@@ -185,8 +184,8 @@ async def initial_script(ip, game, game_id, team, username, new, args):
             send(s, {"action":"list"})
             ids = await receive(s)
 
-        if ids[game_id]["type"] != game:
-            print('{} is a game of {}, not {}'.format(game_id, ids[game_id]["type"], game), flush=True)
+        if ids[game_id]["game_type"] != game:
+            print('{} is a game of {}, not {}'.format(game_id, ids[game_id]["game_type"], game), flush=True)
             sys.exit()
 
         if team:
@@ -203,12 +202,12 @@ async def initial_script(ip, game, game_id, team, username, new, args):
         if not new:
             if team:
                 for i in ids:
-                    if ids[i]["players"] and ids[i]["type"] == game and team in ids[i]["open teams"]+["spectator"]:
+                    if ids[i]["players"] and ids[i]["game_type"] == game and team in ids[i]["open teams"]+["spectator"]:
                         await attempt_joining(i, team)
                         joined = True
             else:
                 for i in ids:
-                    if ids[i]["players"] and ids[i]["type"] == game and ids[i]["open teams"]:
+                    if ids[i]["players"] and ids[i]["game_type"] == game and ids[i]["open teams"]:
                         await attempt_joining(i, ids[i]["open teams"][0])
                         joined = True
         if not joined:

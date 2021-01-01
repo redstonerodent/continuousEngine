@@ -51,7 +51,7 @@ class NetworkGameServer:
             return
         game = continuousEngine.game_class(name)(*args, headless=True)
         self.games[id] = {
-            "type":name,
+            "game_type":name,
             "players":[],
             "game":game
         }
@@ -117,7 +117,7 @@ class NetworkGameServer:
         with open(filename) as f:
             self.games = json.loads(f.read())
             for i in self.games:
-                g = games[self.games[i]["type"]](headless=True)
+                g = games[self.games[i]["game_type"]](headless=True)
                 g.load_state(self.games[i]["game"]["state"])
                 g.history = self.games[i]["game"]["history"]
                 self.games[i]["game"] = g                             

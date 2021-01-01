@@ -48,5 +48,13 @@ def run(name, game_class, player_files, player_modules, file, *args):
             os.mkdir("saves")
 
         with open(file,'w') as f:
-            f.write(json.dumps({'type':name, 'ending':ending, 'winner':winner, 'state':game.save_state(), 'history':game.history, 'args':args}))
+            f.write(json.dumps({
+                'type':name,
+                'players':dict(zip(game.teams, player_files)),
+                'ending':ending,
+                'winner':winner,
+                'state':game.save_state(),
+                'history':game.history,
+                'args':args,
+            }))
         print("saved as {}".format(file))

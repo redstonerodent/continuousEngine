@@ -455,3 +455,16 @@ def write(screen, font, text, x, y, color, halign='c', valign='c', hborder='l', 
     shiftx = int(hdic[halign]*twidth - hdic[hborder]*swidth)
     shifty = int(vdic[valign]*theight - vdic[vborder]*sheight)
     screen.blit(written, (int(x - hdic[halign]*twidth + hdic[hborder]*swidth), int(y - vdic[valign]*theight + vdic[vborder]*sheight)))
+
+class GameInfo(Renderable):
+    # vals should be a function with one argument that returns a list of pairs
+    def __init__(self, game, layer, vals):
+        super().__init__(game, layer)
+        self.GETvals = vals
+        self.font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
+
+
+    def render(self):
+        for i, (k, v) in enumerate(self.vals):
+            if k:
+                write(self.game.screen, self.font, '{}: {}'.format(k, v), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
