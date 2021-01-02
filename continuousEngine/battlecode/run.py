@@ -4,7 +4,7 @@
 #   winner()
 #   next_turn()
 
-import json, os
+import json, os, traceback
 
 def run(name, game_class, player_files, player_modules, file, *args):
     game = game_class(*args, headless=True)
@@ -21,7 +21,8 @@ def run(name, game_class, player_files, player_modules, file, *args):
         while not game.is_over():
             try:
                 move = players[game.turn].make_move()
-            except:
+            except Exception as e:
+                traceback.print_exc(e)
                 raise ValueError(game.next_turn())
 
             if not game.attemptMove(move):
@@ -31,7 +32,8 @@ def run(name, game_class, player_files, player_modules, file, *args):
             for t in players:
                 try:
                     players[t]._receive_move(move, game.save_state())
-                except:
+                except Exception as e:
+                    traceback.print_exc(e)
                     raise ValueError(game.next_turn(t))
     except ValueError as e:
         ending = 'error'
