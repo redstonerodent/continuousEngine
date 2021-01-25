@@ -43,8 +43,6 @@ def run(name, game_class, player_files, player_modules, file, *args):
         winner = game.winner()
 
     finally:
-        print(winner)
-
         if not os.path.exists("saves"):
             os.mkdir("saves")
 
