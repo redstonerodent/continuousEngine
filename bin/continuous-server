@@ -1,3 +1,5 @@
 #!/usr/bin/env python
 
-import continuousEngine.network.server
+from continuousEngine.network.server import *
+
+asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))

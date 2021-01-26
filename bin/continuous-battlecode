@@ -15,7 +15,7 @@ sys.path.append(os.getcwd())
 def run_(args):
     player_modules = list(map(importlib.import_module, args.player_files))
     file = os.path.join("saves", args.file or "-vs-".join(args.player_files)+"-"+str(random.randint(0,100)))
-    run(args.game, continuousEngine.game_class(args.game), args.player_files, player_modules, file, *args.args)
+    run(args.game, continuousEngine.game_class(args.game), args.game, args.player_files, player_modules, file, *args.args)
 
 def watch_(args):
     watch(args.file)

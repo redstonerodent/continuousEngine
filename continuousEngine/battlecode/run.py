@@ -6,15 +6,14 @@
 
 import json, os, traceback
 
-def run(name, game_class, player_files, player_modules, file, *args):
+def run(name, game_class, game_name, player_files, player_modules, file, *args):
     game = game_class(*args, headless=True)
     players = {}
     for m, t in zip(player_modules, game.teams):
-        players[t] = m.Player(game_class, t)
+        players[t] = m.Player(game_class, game_name, t, *args)
 
-    state = game.save_state()
     for t in players:
-        players[t].game.load_state(state)
+        players[t]._receive_state(game.get_state(t))
 
     ending = 'error'
     try:
@@ -31,7 +30,7 @@ def run(name, game_class, player_files, player_modules, file, *args):
 
             for t in players:
                 try:
-                    players[t]._receive_move(move, game.save_state())
+                    players[t]._receive_move(move, game.get_state(t))
                 except:
                     traceback.print_exc()
                     raise ValueError(game.next_turn(t))

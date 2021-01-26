@@ -4,6 +4,7 @@ import continuousEngine.network.client as cl
 import continuousEngine
 import argparse
 import asyncio
+import pygame
 
 network_games = ['chess', 'go', 'jrap', 'reversi']
 
@@ -16,6 +17,6 @@ parser.add_argument('-u', '--username', default='anonymous')
 parser.add_argument('-n', '--new', action='store_true', default=False)
 parser.add_argument('args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
-
+pygame.init()
 asyncio.run(cl.initial_script(**vars(parser.parse_args())))
 

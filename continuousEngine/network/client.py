@@ -13,8 +13,6 @@ import random, string
 
 port = 9974
 
-pygame.init()
-
 class NetworkGame:
     """
     represents the client side of a game connected to a server.

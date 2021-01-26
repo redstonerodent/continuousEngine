@@ -14,11 +14,7 @@ game_class = lambda name: getattr(importlib.import_module('continuousEngine.game
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
-
-def run_local(game_class, args=[]):
-    asyncio.run(run_local_async(game_class, args))
-def run_local_async(game_class, args):
-    #g = await asyncio.get_running_loop().run_in_executor(None, game_class)
+def run_local(game_class, args):
     game_class(*args).run()
     
 class Game:

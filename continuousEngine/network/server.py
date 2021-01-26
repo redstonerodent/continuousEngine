@@ -62,20 +62,20 @@ class NetworkGameServer:
         player = {"user":user, "team":team, "client":client}
         self.games[i]["players"].append(player)
         await self.broadcast_game_info(i)
-        await self.send_gamestate(i, player)
+        await self.send_gamestate(i, player, None)
         await send(client, {"action":"history", "history":self.games[i]["game"].history})
         return player
-    async def broadcast_move(self, game_id):
+    async def broadcast_move(self, game_id, move):
         l = self.games[game_id]["players"].copy()
         for player in l:
-            await self.send_gamestate(game_id, player)
+            await self.send_gamestate(game_id, player, move)
     async def broadcast_game_info(self, game_id):
         l = self.games[game_id]["players"].copy()
         for player in l:
             await send(player["client"],{"action":"game_info", **self.get_game_info(game_id)})
-    async def send_gamestate(self, game_id, player):
+    async def send_gamestate(self, game_id, player, move):
         try:
-            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"])})
+            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move})
         except:
             #print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
@@ -97,19 +97,25 @@ class NetworkGameServer:
         print(result,flush=True)
         return result
         
-    def __init__(self):
+    def __init__(self, clean=False, unsafe=False):
+        # clean: if True, don't save state
+        # unsafe: if True, don't enforce players only making moves for their own team
         self.games = {}
+        self.clean, self.unsafe = clean, unsafe
 
     async def serve(self, ip="localhost"):
-        try:
-            self.load_server_state(SERVER_STATE_FILENAME)
-        except:
+        if self.clean:
             self.games = {}
+        else:
+            try:
+                self.load_server_state(SERVER_STATE_FILENAME)
+            except:
+                self.games = {}
         server = await asyncio.start_server(self.a, host=ip, port=9974)
         print("server listening",flush=True)
         try:
             async with server:
-                await asyncio.gather(server.serve_forever(),self.server_console(), self.server_save_loop())
+                await asyncio.gather(server.serve_forever(),self.server_console(), *([self.server_save_loop()]*(not self.clean)))
         finally:
             #doesn't run if you keyboard interrupt
             print("awoenoasioshvoihoianef",flush=True)
@@ -165,22 +171,26 @@ class NetworkGameServer:
                 game_id = r["id"]
                 player = await server.join_game(game_id,r["team"],r["user"],client)
             elif r["action"] == "move":
-                if r["move"]["player"] != player["team"]:
+                if not self.unsafe and r["move"]["player"] != player["team"]:
                     print("trying to move for the wrong team",flush=True)
                     continue
                 if server.games[game_id]["game"].attemptMove(r["move"]):
                     print("successfully applied move to gamestate",flush=True)
-                    await server.broadcast_move(game_id)
+                    await server.broadcast_move(game_id, r["move"])
                 else:
                     print("move was illegal",flush=True)
             elif r["action"] == "list":
                 await send(client, server.list_games())
-
+            elif r["action"] == "override_state":
+                if not self.unsafe:
+                    print("trying to override state")
+                    continue
+                server.games[game_id]["game"].load_state(r["state"])
+                server.games[game_id]["game"].history = []
+                server.games[game_id]["game"].future = []
 
 async def send(client, message):
     client[1].write((json.dumps(message)+"\n").encode())
     await client[1].drain()
 async def recieve(client):
     return json.loads((await client[0].readline()).strip())
-
-asyncio.run(NetworkGameServer().serve(ip="localhost" if len(sys.argv)==1 else sys.argv[1]))
