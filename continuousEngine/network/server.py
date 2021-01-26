@@ -171,7 +171,7 @@ class NetworkGameServer:
                 game_id = r["id"]
                 player = await server.join_game(game_id,r["team"],r["user"],client)
             elif r["action"] == "move":
-                if not self.unsafe and r["move"]["player"] != player["team"]:
+                if not ((self.unsafe and player["team"] == "spectator") or r["move"]["player"] == player["team"]):
                     print("trying to move for the wrong team",flush=True)
                     continue
                 if server.games[game_id]["game"].attemptMove(r["move"]):

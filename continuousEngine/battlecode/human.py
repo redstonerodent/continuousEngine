@@ -1,7 +1,5 @@
-import pygame, asyncio, multiprocessing, threading, time
-from continuousEngine import *
-from continuousEngine.network.client import *
-from continuousEngine.network.server import NetworkGameServer
+import asyncio, multiprocessing, threading, time, subprocess, random, string
+from continuousEngine.network.server import *
 
 # this "bot" is controlled manually by a human
 # it's intended to make it easier to test and debug another bot, by running it against this one
@@ -18,20 +16,10 @@ class Player:
         id = ''.join(random.choice(string.ascii_lowercase) for _ in range(5))
 
         send(self.server, {"action":"create", "name":game_name, "id":id, "args":args})
+        send(self.server, {"action":"join", "user":"everyone-else", "id":id, "team":"spectator"})
 
-        d = {
-            "action":"join",
-            "user":"everyone-else",
-            "id":id,
-            "team":"spectator"
-            }
-        send(self.server,d)
+        multiprocessing.Process(target=lambda:subprocess.run(['continuous-client', '-g', game_name, '-id', id, '-u', 'human', '-t', self.team])).start()
 
-        async def run_human():
-            pygame.init()
-            await (NetworkGame(await asyncio.get_running_loop().run_in_executor(None, game, *args)).join(await (asyncio.open_connection(host="localhost", port=port, limit=2**20)), id, self.team, "human"))
-
-        multiprocessing.Process(target=lambda:asyncio.run(run_human())).start()
     def _receive_state(self, state):
         send(self.server, {"action":"override_state", "state":state})
     def _receive_move(self, move, state):
