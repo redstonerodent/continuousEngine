@@ -115,7 +115,7 @@ class NetworkGameServer:
         print("server listening",flush=True)
         try:
             async with server:
-                await asyncio.gather(server.serve_forever(),self.server_console(), *([self.server_save_loop()]*(not self.clean)))
+                await asyncio.gather(server.serve_forever(),self.server_console(), *([] if self.clean else [self.server_save_loop()]))
         finally:
             #doesn't run if you keyboard interrupt
             print("awoenoasioshvoihoianef",flush=True)

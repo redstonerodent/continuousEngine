@@ -32,9 +32,6 @@ class Player:
             await (NetworkGame(await asyncio.get_running_loop().run_in_executor(None, game, *args)).join(await (asyncio.open_connection(host="localhost", port=port, limit=2**20)), id, self.team, "human"))
 
         multiprocessing.Process(target=lambda:asyncio.run(run_human())).start()
-        # multiprocessing.Process(target=lambda:(pygame.init(), game(*args).run())).start()
-
-        print('yay')
     def _receive_state(self, state):
         send(self.server, {"action":"override_state", "state":state})
     def _receive_move(self, move, state):
