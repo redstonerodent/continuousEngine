@@ -1,8 +1,6 @@
-import json, importlib, pygame, continuousEngine
-
-pygame.init()
-
 def watch(file):
+    import json, importlib, pygame, continuousEngine
+    pygame.init()
     with open(file) as f:
         info = json.loads(f.read())
 
