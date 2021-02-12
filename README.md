@@ -27,6 +27,7 @@ This is a project to implement continuous versions of discrete games in python.
 * `run.py` runs AIs against each other.
 * `watch.py` watches saved games output by `run.py`.
 * `example<game>player.py` is an AI for `<game>` which plays randomly, as a template.
+* Currently `chess`, `go`, and `jrap` can be used for Battlecode.
 
 ### Other
 
@@ -40,7 +41,7 @@ This is a project to implement continuous versions of discrete games in python.
 
 ## Installation
 
-You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.5 and pygame 2.0.1. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
+You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.7 and pygame 2.0.1. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
 
 ### Python
 
@@ -53,7 +54,7 @@ Can be installed with pip: `pip install pygame`. If you don't have pip installed
 ### ContinuousEngine
 
 * Clone this repo: `git clone https://github.com/redstonerodent/continuousEngine.git` or click the download button above.
-* In the root directory, run `sudo python setup.py develop`
+* In the root directory, run `python setup.py develop`. Depending on your configuration, you may need to use `sudo` or add `--user`.
 
 To update, run `git pull`. If the update adds a command, you need to run `setup.py` again. If the update adds new key bindings you want to change, you should copy the relevant portion of `config.default` to `config`. (If you don't want to change key bindings, continuousEngine will use the default.)
 
@@ -102,6 +103,10 @@ Each entry in `player_files` should be a file in the current directory with a su
 
 This will save the game in a `saves` subdirectory of the current directory, and will print the name of the saved file. You can specify the file with `-f`; otherwise it is automatically generated.
 
+### To play against an AI
+
+Use (a copy of) `battlecode/human.py` as one of the `player_files` in the above command. This "AI" is actually controlled by a human through the usual game interface.
+
 ### To watch a saved game
 
 `continuous-battlecode watch file`
@@ -109,6 +114,12 @@ This will save the game in a `saves` subdirectory of the current directory, and 
 This opens the game saved by `continuous-battlecode run`. To step through it, repeatedly press `redo` (default `x`).
 
 Note that `file` should include `saves/`, if run from the same directory as `continuous-battlecode run`.
+
+### To see or modify key bindings
+
+After running some game at least once, open `config` (which is by default a copy of `config.default`). Edit the lines of keys you want to change. The value should be `pygame`'s name for a key without `K_`; see [https://www.pygame.org/docs/ref/key.html](https://www.pygame.org/docs/ref/key.html) for a list.
+
+Lines starting with `#` (mostly mouse inputs) are ignored; those settings can't be changed.
 
 
 ## Other things

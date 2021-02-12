@@ -9,14 +9,16 @@ import json, os, traceback
 def run(name, game_class, game_name, player_files, player_modules, file, *args):
     game = game_class(*args, headless=True)
     players = {}
-    for m, t in zip(player_modules, game.teams):
-        players[t] = m.Player(game_class, game_name, t, *args)
 
-    for t in players:
-        players[t]._receive_state(game.get_state(t))
-
-    ending = 'error'
     try:
+        for m, t in zip(player_modules, game.teams):
+            try:
+                players[t] = m.Player(game_class, game_name, t, *args)
+                players[t]._receive_state(game.get_state(t))
+            except:
+                traceback.print_exc()
+                raise ValueError(game.next_turn(t))
+
         while not game.is_over():
             try:
                 move = players[game.turn].make_move()
