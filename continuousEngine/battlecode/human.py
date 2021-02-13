@@ -1,5 +1,6 @@
 import asyncio, multiprocessing, threading, time, subprocess, random, string
-from continuousEngine.network.server import *
+from continuousEngine.network.client import *
+from continuousEngine.network.server import NetworkGameServer
 
 # this "bot" is controlled manually by a human
 # it's intended to make it easier to test and debug another bot, by running it against this one
