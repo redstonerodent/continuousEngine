@@ -15,7 +15,7 @@ sys.path.append(os.getcwd())
 def run_(args):
     player_modules = list(map(importlib.import_module, args.player_files))
     file = os.path.join("saves", args.file or "-vs-".join(args.player_files)+"-"+str(random.randint(0,100)))
-    run(args.game, continuousEngine.game_class(args.game), args.game, args.player_files, player_modules, file, *args.args)
+    run(args.game, continuousEngine.game_class(args.game), args.game, args.player_files, player_modules, file, args.max_turns, *args.args)
 
 def watch_(args):
     watch(args.file)
@@ -30,6 +30,7 @@ run_parser = subparsers.add_parser("run")
 run_parser.add_argument('-g', '--game', required=True, choices=battlecode_games)
 run_parser.add_argument('player_files', nargs='+')
 run_parser.add_argument('-f', '--file', default=None)
+run_parser.add_argument('-m', '--max_turns', default=None, type=int)
 run_parser.add_argument('-a', '--args', nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 run_parser.set_defaults(func=run_, args=[])
 

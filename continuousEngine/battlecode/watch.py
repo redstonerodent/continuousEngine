@@ -26,6 +26,7 @@ def watch(file):
         ]
     )
 
+    print(f'turns: {len(game.future)}')
     print(f'winner: {info["winner"]}')
     if info['ending'] == 'error': print('game ended in error')
 
