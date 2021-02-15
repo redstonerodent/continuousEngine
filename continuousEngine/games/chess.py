@@ -26,6 +26,8 @@ turn_indicator_color = {'white':(255,255,255), 'black':(0,0,0)}
 
 threatened_color = (255,0,0)
 
+timer_color = (0,0,0)
+
 alpha = 100
 line_width = 3
 
@@ -66,6 +68,7 @@ class Layers:
     ACTIVE          = 4 # active_piece
     GUIDE           = 7 # move_guide for this move
     GHOST           = 8 # ghost
+    TIMER           = 9
 
 class Piece(Renderable):
     def __init__(self, game, layer, name, color, loc):
@@ -339,6 +342,9 @@ class Chess(Game):
 
         ActivePiece(self)
 
+        FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('white')
+        FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('black')
+
         self.move_guide = Guide(self, Layers.GUIDE, None, thick=False)
         self.move_guide.GETvisible = lambda g: g.active_piece != None
 
@@ -402,7 +408,7 @@ def attemptMove(game, pos):
 
         game.active_piece = None
         game.updateMove()
-        game.turn = game.next_turn()
+        game.advance_turn()
         return True
     return False
 

@@ -1,4 +1,4 @@
-import sys, pygame, asyncio, threading, os, shutil, importlib
+import sys, pygame, asyncio, threading, os, shutil, importlib, time
 from continuousEngine.core.geometry import *
 
 # current games, as {file: class_name}
@@ -139,6 +139,12 @@ class Game:
         self.is_over = lambda: False
         self.winner = lambda: None
 
+        self.time_left = {}
+        self.turn_started = None
+        # time controls
+        self.tc_initial = 3*60
+        self.tc_increment = 1
+
     # for anything that should be recomputed before each render
     process = lambda self: None
     # for anything that should be recomputed whenever the camera moves
@@ -209,7 +215,7 @@ class Game:
     def update(self):
         #print("in thread {}".format(threading.currentThread().getName()),flush=True)
         #event = await self.event_queue.get()
-        event = pygame.event.wait()
+        event = pygame.event.wait(timeout=50)
         self.needViewChange = False
         self.needResize = False
         while event:
@@ -221,6 +227,19 @@ class Game:
             self.viewChange()
         self.process()
         self.render()
+
+    def advance_turn(self):
+        now = time.time()
+        print(now, self.turn_started)
+        if self.turn_started:
+            self.time_left[self.turn] = self.time_left.get(self.turn, self.tc_initial) - (now - self.turn_started) + self.tc_increment
+            print(self.time_left)
+        self.turn_started = now
+        self.turn = self.next_turn()
+
+    def format_time(self, team):
+        t = self.time_left.get(team, self.tc_initial) - (time.time() - self.turn_started if self.turn_started and self.turn == team else 0)
+        return f'{team}: {int(t)//60}:{t%60:05.2f}'
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
