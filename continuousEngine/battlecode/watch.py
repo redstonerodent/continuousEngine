@@ -6,8 +6,12 @@ def watch(file):
 
     name = info['type']
     game = continuousEngine.game_class(name)(*info['args'])
-    game.future = [info['state']]+info['history'][:0:-1]
-    game.load_state(info['history'][0])
+    def _f(_=None):
+        game.future = [info['state']]+info['history'][:0:-1]
+        game.load_state(info['history'][0])
+    game.keyPress[game.keys.resetGame] = _f
+    _f()
+
 
     game.attemptMove = lambda _: False
 
