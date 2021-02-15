@@ -9,6 +9,7 @@ resetView               HOME
 undo                    z
 redo                    x
 resetGame               r
+fastForward				END
 skipTurn                f
 toggleLive              l
 printState              BACKQUOTE
