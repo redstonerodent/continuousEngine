@@ -462,8 +462,8 @@ def write(screen, font, text, x, y, color, halign='c', valign='c', hborder='l', 
 
 class GameInfo(Renderable):
     # vals should be a function with one argument that returns a list of pairs
-    def __init__(self, game, layer, vals):
-        super().__init__(game, layer)
+    def __init__(self, game, vals):
+        super().__init__(game, 10**10)
         self.GETvals = vals
         self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),24)
 

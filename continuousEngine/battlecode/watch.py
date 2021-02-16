@@ -15,7 +15,7 @@ def watch(file):
 
     game.attemptMove = lambda _: False
 
-    continuousEngine.GameInfo(game, 10**10,
+    continuousEngine.GameInfo(game,
         lambda _: [
             ('file', file),
             ('game', name),

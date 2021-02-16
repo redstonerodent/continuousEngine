@@ -30,7 +30,7 @@ The server needs an abstract  version of the game. This must implement the follo
     get_state
     teams
 """
-   
+
 
 import socketserver
 import threading

@@ -71,7 +71,7 @@ class NetworkGame:
 
         continuousEngine.ScreenBorder(game, 10**10, (100,100,100), 7).GETvisible = lambda _: not self.live_mode
 
-        continuousEngine.GameInfo(game, 10**10,
+        continuousEngine.GameInfo(game,
             lambda _: [
                 ('id', self.id),
                 ('turn', self.game.turn),
