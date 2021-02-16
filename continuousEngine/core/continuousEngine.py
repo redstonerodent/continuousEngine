@@ -143,6 +143,7 @@ class Game:
         self.turn_started = None
         # time controls
         self.tc_initial, self.tc_increment = timectrl
+        self.calculate_time = lambda team, now=None: self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
 
         if self.tc_initial: TimerInfo(self)
 
@@ -158,8 +159,6 @@ class Game:
     next_turn = lambda self: None
     # is skipping your turn a legal move?
     allow_skip = False
-
-
 
     # screen borders
     x_min = lambda self:-self.x_offset
@@ -238,18 +237,11 @@ class Game:
         if self.tc_initial:
             now = time.time()
             if self.turn_started:
-                self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
+                self.time_left[self.turn] = self.calculate_time(self.turn, now) + self.tc_increment
             self.turn_started = now
 
         self.turn = self.next_turn()
         return True
-
-    def format_time(self, team):
-        t = self.calculate_time(team)
-        return f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX'
-
-    def calculate_time(self, team, now=None):
-        return self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
@@ -501,7 +493,12 @@ class TimerInfo(Renderable):
 
     def render(self):
         for i, team in enumerate(self.game.teams):
-            write(self.game.screen, self.game.font, self.game.format_time(team), -30, -30*(len(self.game.teams)-i), (0,0,0), halign='r', valign='b', hborder='r', vborder='b')
+            t = self.game.calculate_time(team)
+            write(self.game.screen, self.game.font,
+                  f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX',
+                  -30, -30*(len(self.game.teams)-i),
+                  (0,0,0),
+                  halign='r', valign='b', hborder='r', vborder='b')
 
 # utility method for command line tools
 # throwing a ValueError causes argparse to reject the argument,
