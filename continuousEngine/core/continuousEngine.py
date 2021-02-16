@@ -16,6 +16,13 @@ PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 def run_local(game_class, args=[], kwargs={}):
     game_class(*args, **kwargs).run()
+
+MONO_FONTS = [
+    'ubuntu-mono',
+    'dejavu-sans-mono',
+    'monospace',
+    'mono'
+]
     
 class Game:
     # def pygame_event_loop(self, loop):
@@ -42,7 +49,7 @@ class Game:
 
         if not headless:
             self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
-            self.font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),36)
+            self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),36)
             self.resetView()
         else:
             self.font = None
@@ -479,7 +486,7 @@ class GameInfo(Renderable):
     def __init__(self, game, layer, vals):
         super().__init__(game, layer)
         self.GETvals = vals
-        self.font = pygame.font.Font(pygame.font.match_font('ubuntu-mono'),24)
+        self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),24)
 
 
     def render(self):
