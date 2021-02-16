@@ -14,8 +14,8 @@ game_class = lambda name: getattr(importlib.import_module('continuousEngine.game
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
-def run_local(game_class, args=[]):
-    game_class(*args).run()
+def run_local(game_class, args=[], kwargs={}):
+    game_class(*args, **kwargs).run()
     
 class Game:
     # def pygame_event_loop(self, loop):
@@ -32,7 +32,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine'):
+    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine', timectrl=(None,None)):
         self.headless = headless
         self.size = lambda: pygame.display.get_window_size()
         self.width = lambda: self.size()[0]
@@ -142,8 +142,8 @@ class Game:
         self.time_left = {}
         self.turn_started = None
         # time controls
-        self.tc_initial = 15
-        self.tc_increment = 1
+        self.tc_initial = timectrl[0]
+        self.tc_increment = timectrl[1]
 
     # for anything that should be recomputed before each render
     process = lambda self: None
@@ -229,11 +229,12 @@ class Game:
         self.render()
 
     def advance_turn(self):
-        now = time.time()
-        if self.turn_started:
-            self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
-            print(self.time_left)
-        self.turn_started = now
+        if self.tc_initial:
+            now = time.time()
+            if self.turn_started:
+                self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
+                print(self.time_left)
+            self.turn_started = now
         self.turn = self.next_turn()
 
     def format_time(self, team):
@@ -241,7 +242,7 @@ class Game:
         return f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX'
 
     def calculate_time(self, team, now=None):
-        return self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0)
+        return self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
@@ -486,3 +487,12 @@ class GameInfo(Renderable):
         for i, (k, v) in enumerate(self.vals):
             if k:
                 write(self.game.screen, self.font, '{}: {}'.format(k, v), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
+
+# utility method for command line tools
+# throwing a ValueError causes argparse to reject the argument,
+# so the implicit ValueError on float()ing a non-float is actually what we want
+def tcparse(tc):
+    parts = [float(x) for x in tc.split('+')]
+    if 1 <= len(parts) <= 2:
+        return (60*parts[0], parts[1] if len(parts) == 2 else 0)
+    raise ValueError

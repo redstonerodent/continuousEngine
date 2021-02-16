@@ -342,8 +342,9 @@ class Chess(Game):
 
         ActivePiece(self)
 
-        FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('white')
-        FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('black')
+        if self.tc_initial:
+            FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('white')
+            FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('black')
 
         self.move_guide = Guide(self, Layers.GUIDE, None, thick=False)
         self.move_guide.GETvisible = lambda g: g.active_piece != None
