@@ -63,7 +63,7 @@ class NetworkGameServer:
         self.games[i]["players"].append(player)
         await self.broadcast_game_info(i)
         await self.send_gamestate(i, player, None)
-        await send(client, {"action":"history", "history":self.games[i]["game"].history})
+        await send(client, {"action":"history", "history":self.games[i]["game"].history, "timeinfo":(self.games[i]["game"].time_left, self.games[i]["game"].turn_started)})
         return player
     async def broadcast_move(self, game_id, move):
         l = self.games[game_id]["players"].copy()
@@ -75,7 +75,7 @@ class NetworkGameServer:
             await send(player["client"],{"action":"game_info", **self.get_game_info(game_id)})
     async def send_gamestate(self, game_id, player, move):
         try:
-            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move})
+            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move, "timeinfo":(self.games[game_id]["game"].time_left, self.games[game_id]["game"].turn_started)})
         except:
             #print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)

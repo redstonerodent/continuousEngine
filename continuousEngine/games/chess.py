@@ -393,6 +393,9 @@ class Chess(Game):
 def attemptMove(game, pos):
     game.updateMove(pos)
 
+    if game.calculate_time(game.turn) <= 0:
+        return False
+
     if not game.blocking and len(game.capture)<2: # move is legal
         game.record_state()
         

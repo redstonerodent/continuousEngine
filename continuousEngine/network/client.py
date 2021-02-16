@@ -38,6 +38,7 @@ class NetworkGame:
             if e.action=="move":
                 self.server_history.append(self.server_state)
                 self.server_state = e.state
+                self.server_timeinfo = e.timeinfo
                 self.update_to_server_state()
             elif e.action=="game_info":
                 self.players = {t:[] for t in self.game.teams+['spectator']}
@@ -45,6 +46,7 @@ class NetworkGame:
                     self.players[pl["team"]].append(pl["user"])
             elif e.action=="history":
                 self.server_history = e.history
+                self.server_timeinfo = e.timeinfo
                 self.update_to_server_state()
                 self.game.initialState = (self.server_history+[self.server_state])[0]
         self.game.handlers[pygame.USEREVENT] = f
@@ -115,6 +117,7 @@ class NetworkGame:
             self.game.load_state(self.server_state)
             self.game.history = self.server_history.copy()
             self.game.future = []
+            self.game.time_left, self.game.turn_started = self.server_timeinfo
             
     async def server_listener(self):
         while True:

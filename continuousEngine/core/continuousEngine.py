@@ -142,7 +142,7 @@ class Game:
         self.time_left = {}
         self.turn_started = None
         # time controls
-        self.tc_initial = 3*60
+        self.tc_initial = 15
         self.tc_increment = 1
 
     # for anything that should be recomputed before each render
@@ -230,16 +230,18 @@ class Game:
 
     def advance_turn(self):
         now = time.time()
-        print(now, self.turn_started)
         if self.turn_started:
-            self.time_left[self.turn] = self.time_left.get(self.turn, self.tc_initial) - (now - self.turn_started) + self.tc_increment
+            self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
             print(self.time_left)
         self.turn_started = now
         self.turn = self.next_turn()
 
     def format_time(self, team):
-        t = self.time_left.get(team, self.tc_initial) - (time.time() - self.turn_started if self.turn_started and self.turn == team else 0)
-        return f'{team}: {int(t)//60}:{t%60:05.2f}'
+        t = self.calculate_time(team)
+        return f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX'
+
+    def calculate_time(self, team, now=None):
+        return self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0)
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
