@@ -233,7 +233,6 @@ class Game:
             now = time.time()
             if self.turn_started:
                 self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
-                print(self.time_left)
             self.turn_started = now
         self.turn = self.next_turn()
 
