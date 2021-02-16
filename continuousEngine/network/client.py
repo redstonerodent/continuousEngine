@@ -10,6 +10,7 @@ import sys
 import traceback
 import asyncio
 import random, string
+import functools
 
 port = 9974
 
@@ -160,7 +161,8 @@ async def receive(server):
     return json.loads((await server[0].readline()).strip())
     #return json.loads(server.makefile(mode="r").readline().strip())
 
-async def initial_script(ip, game, game_id, team, username, new, args):
+async def initial_script(ip, game, game_id, team, time_control, username, new, args):
+    kwargs = {'timectrl': time_control}
 
     s = await asyncio.open_connection(host=ip, port=port, limit=2**20)
 
@@ -172,8 +174,9 @@ async def initial_script(ip, game, game_id, team, username, new, args):
     print(ids,flush=True)
 
     async def attempt_joining(id, t):
-        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, continuousEngine.game_class(game), *args)).join(s, id, t, username)
-
+        send(s, {"action":"gameargs", "id":id})
+        gargs, gkwargs = await receive(s)
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, functools.partial(continuousEngine.game_class(game), *gargs, **gkwargs))).join(s, id, t, username)
 
     if game_id:
         if new and game_id in ids:
@@ -181,7 +184,7 @@ async def initial_script(ip, game, game_id, team, username, new, args):
             sys.exit()
 
         while game_id not in ids:
-            send(s, {"action":"create", "name":game, "id":game_id, "args":args})
+            send(s, {"action":"create", "name":game, "id":game_id, "args":args, "kwargs":kwargs})
             send(s, {"action":"list"})
             ids = await receive(s)
 
@@ -215,7 +218,7 @@ async def initial_script(ip, game, game_id, team, username, new, args):
             id = None
             while id==None or id in ids:
                 id = ''.join(random.choice(string.ascii_lowercase) for _ in range(5))
-            send(s, {"action":"create", "name":game, "id":id, "args":args})
+            send(s, {"action":"create", "name":game, "id":id, "args":args, "kwargs":kwargs})
             send(s, {"action":"list"})
             ids = await receive(s)
             if team:
