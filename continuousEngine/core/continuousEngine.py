@@ -215,7 +215,7 @@ class Game:
     def update(self):
         #print("in thread {}".format(threading.currentThread().getName()),flush=True)
         #event = await self.event_queue.get()
-        event = pygame.event.wait(timeout=50)
+        event = pygame.event.wait(timeout=50) if self.tc_initial else pygame.event.wait()
         self.needViewChange = False
         self.needResize = False
         while event:
