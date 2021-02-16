@@ -142,8 +142,9 @@ class Game:
         self.time_left = {}
         self.turn_started = None
         # time controls
-        self.tc_initial = timectrl[0]
-        self.tc_increment = timectrl[1]
+        self.tc_initial, self.tc_increment = timectrl
+
+        if self.tc_initial: TimerInfo(self)
 
     # for anything that should be recomputed before each render
     process = lambda self: None
@@ -228,13 +229,20 @@ class Game:
         self.process()
         self.render()
 
-    def advance_turn(self):
+    def attemptMove(self, move):
+        if self.calculate_time(self.turn) <= 0: return False
+
+        gameMove = self.attemptGameMove(move)
+        if not gameMove: return False
+
         if self.tc_initial:
             now = time.time()
             if self.turn_started:
                 self.time_left[self.turn] = self.calculate_time(self.turn) + self.tc_increment
             self.turn_started = now
+
         self.turn = self.next_turn()
+        return True
 
     def format_time(self, team):
         t = self.calculate_time(team)
@@ -486,6 +494,14 @@ class GameInfo(Renderable):
         for i, (k, v) in enumerate(self.vals):
             if k:
                 write(self.game.screen, self.font, '{}: {}'.format(k, v), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
+
+class TimerInfo(Renderable):
+    def __init__(self, game):
+        super().__init__(game, 10**10)
+
+    def render(self):
+        for i, team in enumerate(self.game.teams):
+            write(self.game.screen, self.game.font, self.game.format_time(team), -30, -30*(len(self.game.teams)-i), (0,0,0), halign='r', valign='b', hborder='r', vborder='b')
 
 # utility method for command line tools
 # throwing a ValueError causes argparse to reject the argument,

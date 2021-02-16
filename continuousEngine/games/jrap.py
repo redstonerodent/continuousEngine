@@ -211,7 +211,7 @@ class Jrap(Game):
     get_open_cells = lambda self: {t: [cell for cell in self.voronoi.player if self.voronoi.player[cell]==t and not any(h.contains_cell(cell) for h in self.layers[Layers.holes])] for t in self.teams}
 
 
-    def attemptMove(self, move):
+    def attemptGameMove(self, move):
         if self.turn != move["player"]: return False
         pos = Point(*move["location"])
         self.updateMove(pos)
@@ -223,7 +223,6 @@ class Jrap(Game):
         self.open_cells = self.get_open_cells()
         if Point(0,0) in new:
             self.swimming = True
-        self.turn = self.next_turn()
         return True
 
 

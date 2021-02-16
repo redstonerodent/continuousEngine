@@ -65,7 +65,7 @@ class NetworkGameServer:
         self.games[i]["players"].append(player)
         await self.broadcast_game_info(i)
         await self.send_gamestate(i, player, None)
-        await send(client, {"action":"history", "history":self.games[i]["game"].history, "timeinfo":(self.games[i]["game"].time_left, self.games[i]["game"].turn_started)})
+        await send(client, {"action":"history", "history":self.games[i]["game"].history})
         return player
     async def broadcast_move(self, game_id, move):
         l = self.games[game_id]["players"].copy()

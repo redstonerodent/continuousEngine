@@ -26,8 +26,6 @@ turn_indicator_color = {'white':(255,255,255), 'black':(0,0,0)}
 
 threatened_color = (255,0,0)
 
-timer_color = (0,0,0)
-
 alpha = 100
 line_width = 3
 
@@ -68,7 +66,6 @@ class Layers:
     ACTIVE          = 4 # active_piece
     GUIDE           = 7 # move_guide for this move
     GHOST           = 8 # ghost
-    TIMER           = 9
 
 class Piece(Renderable):
     def __init__(self, game, layer, name, color, loc):
@@ -342,10 +339,6 @@ class Chess(Game):
 
         ActivePiece(self)
 
-        if self.tc_initial:
-            FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('white')
-            FixedText(self, Layers.TIMER, timer_color, self.font, 0, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: g.format_time('black')
-
         self.move_guide = Guide(self, Layers.GUIDE, None, thick=False)
         self.move_guide.GETvisible = lambda g: g.active_piece != None
 
@@ -381,21 +374,18 @@ class Chess(Game):
         else:
             game.blocking, game.capture = [], []
 
-    def attemptMove(self, move):
+    def attemptGameMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         # print("attempting move \n"+str(move))
         selected_loc = Point(*move["selected"])
         self.active_piece = next((p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2), None)
         if self.active_piece == None or not self.turn == move["player"] == self.active_piece.color:
             return False
-        return attemptMove(self, move["location"])
+        return attemptGameMove(self, move["location"])
 
 
-def attemptMove(game, pos):
+def attemptGameMove(game, pos):
     game.updateMove(pos)
-
-    if game.calculate_time(game.turn) <= 0:
-        return False
 
     if not game.blocking and len(game.capture)<2: # move is legal
         game.record_state()
@@ -412,7 +402,6 @@ def attemptMove(game, pos):
 
         game.active_piece = None
         game.updateMove()
-        game.advance_turn()
         return True
     return False
 

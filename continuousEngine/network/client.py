@@ -47,7 +47,6 @@ class NetworkGame:
                     self.players[pl["team"]].append(pl["user"])
             elif e.action=="history":
                 self.server_history = e.history
-                self.server_timeinfo = e.timeinfo
                 self.update_to_server_state()
                 self.game.initialState = (self.server_history+[self.server_state])[0]
         self.game.handlers[pygame.USEREVENT] = f
