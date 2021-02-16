@@ -192,7 +192,7 @@ class Reversi(Game):
         self.click[1] = lambda _: self.attemptMove({"player":self.turn, "location":self.mousePos().coords})
 
 
-    def attemptMove(self, move):
+    def attemptGameMove(self, move):
         print(move, flush=True)
         if self.turn != move["player"]: return False
         pos = Point(*move["location"])
@@ -201,7 +201,6 @@ class Reversi(Game):
         self.record_state()
         self.makePiece(self.turn, pos)
         for p in self.flippers: p.team = self.turn
-        self.turn = self.next_turn()
         # game is over if there's nowhere to fit another piece
         # note: this does NOT detect when none of the places a piece fits flips anything, so you can get "stuck"
         if not any(p.valid_tangents for p in self.layers[Layers.PIECES]):

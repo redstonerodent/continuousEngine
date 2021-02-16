@@ -374,17 +374,17 @@ class Chess(Game):
         else:
             game.blocking, game.capture = [], []
 
-    def attemptMove(self, move):
+    def attemptGameMove(self, move):
         """a move contains whose turn, a location that is being picked up, and a location that is being placed."""
         # print("attempting move \n"+str(move))
         selected_loc = Point(*move["selected"])
         self.active_piece = next((p for p in self.layers[Layers.PIECES] if selected_loc>>p.loc < p.r**2), None)
         if self.active_piece == None or not self.turn == move["player"] == self.active_piece.color:
             return False
-        return attemptMove(self, move["location"])
+        return attemptGameMove(self, move["location"])
 
 
-def attemptMove(game, pos):
+def attemptGameMove(game, pos):
     game.updateMove(pos)
 
     if not game.blocking and len(game.capture)<2: # move is legal
@@ -402,7 +402,6 @@ def attemptMove(game, pos):
 
         game.active_piece = None
         game.updateMove()
-        game.turn = game.next_turn()
         return True
     return False
 

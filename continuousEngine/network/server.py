@@ -45,15 +45,17 @@ port = 9974
 SERVER_STATE_FILENAME = "serverstate"
 
 class NetworkGameServer:
-    def create_game(self, name, id, args):
+    def create_game(self, name, id, args, kwargs):
         if id in self.list_games():
             print('game {} already exists'.format(id), flush=True)
             return
-        game = continuousEngine.game_class(name)(*args, headless=True)
+        game = continuousEngine.game_class(name)(*args, **kwargs, headless=True)
         self.games[id] = {
             "game_type":name,
             "players":[],
-            "game":game
+            "game":game,
+            "args":args,
+            "kwargs":kwargs
         }
         return id
     async def join_game(self, i,team, user, client):
@@ -75,7 +77,7 @@ class NetworkGameServer:
             await send(player["client"],{"action":"game_info", **self.get_game_info(game_id)})
     async def send_gamestate(self, game_id, player, move):
         try:
-            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move})
+            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move, "timeinfo":(self.games[game_id]["game"].time_left, self.games[game_id]["game"].turn_started)})
         except:
             #print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
@@ -164,7 +166,7 @@ class NetworkGameServer:
                     await server.broadcast_game_info(game_id)
                 return
             if r["action"] == "create":
-                server.create_game(r["name"], r["id"], r["args"])
+                server.create_game(r["name"], r["id"], r["args"], r["kwargs"])
             elif r["action"] == "join":
                 if game_id != None:
                     server.games[game_id]["players"].remove(player)
@@ -188,6 +190,9 @@ class NetworkGameServer:
                 server.games[game_id]["game"].load_state(r["state"])
                 server.games[game_id]["game"].history = []
                 server.games[game_id]["game"].future = []
+            elif r["action"] == "gameargs":
+                game = server.games[r["id"]]
+                await send(client, [game["args"], game["kwargs"]])
 
 async def send(client, message):
     client[1].write((json.dumps(message)+"\n").encode())

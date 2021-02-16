@@ -187,7 +187,7 @@ class Go(Game):
         self.winner = lambda: max(self.teams, key=lambda t: self.capturedCount[self.next_turn(t)] + self.territory[t])
 
 
-    def attemptMove(self, move):
+    def attemptGameMove(self, move):
         # print(move, flush=True)
         if self.turn != move["player"]: return False
         
@@ -200,7 +200,6 @@ class Go(Game):
             if self.blockers or not on_board(pos): return
             self.makePiece(self.turn, pos)
             self.removePieces(self.captures)
-            self.turn = self.next_turn()
             [setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]]
             self.nextPiece.guide.visible = False
             self.updateLiberties()
@@ -210,7 +209,6 @@ class Go(Game):
             self.passes = 0
             return True
         elif move["action"] == "skip":
-            self.turn = self.next_turn()
             self.passes += 1
             return True
 

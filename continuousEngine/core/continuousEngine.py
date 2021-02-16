@@ -1,4 +1,4 @@
-import sys, pygame, asyncio, threading, os, shutil, importlib
+import sys, pygame, asyncio, threading, os, shutil, importlib, time
 from continuousEngine.core.geometry import *
 
 # current games, as {file: class_name}
@@ -14,15 +14,15 @@ game_class = lambda name: getattr(importlib.import_module('continuousEngine.game
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
+def run_local(game_class, args=[], kwargs={}):
+    game_class(*args, **kwargs).run()
+
 MONO_FONTS = [
     'ubuntu-mono',
     'dejavu-sans-mono',
     'monospace',
     'mono'
 ]
-
-def run_local(game_class, args=[]):
-    game_class(*args).run()
     
 class Game:
     # def pygame_event_loop(self, loop):
@@ -39,7 +39,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine'):
+    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine', timectrl=(None,None)):
         self.headless = headless
         self.size = lambda: pygame.display.get_window_size()
         self.width = lambda: self.size()[0]
@@ -146,6 +146,14 @@ class Game:
         self.is_over = lambda: False
         self.winner = lambda: None
 
+        self.time_left = {}
+        self.turn_started = None
+        # time controls
+        self.tc_initial, self.tc_increment = timectrl
+        self.calculate_time = lambda team, now=None: self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
+
+        if self.tc_initial: TimerInfo(self)
+
     # for anything that should be recomputed before each render
     process = lambda self: None
     # for anything that should be recomputed whenever the camera moves
@@ -158,8 +166,6 @@ class Game:
     next_turn = lambda self: None
     # is skipping your turn a legal move?
     allow_skip = False
-
-
 
     # screen borders
     x_min = lambda self:-self.x_offset
@@ -216,7 +222,7 @@ class Game:
     def update(self):
         #print("in thread {}".format(threading.currentThread().getName()),flush=True)
         #event = await self.event_queue.get()
-        event = pygame.event.wait()
+        event = pygame.event.wait(timeout=50) if self.tc_initial else pygame.event.wait()
         self.needViewChange = False
         self.needResize = False
         while event:
@@ -228,6 +234,21 @@ class Game:
             self.viewChange()
         self.process()
         self.render()
+
+    def attemptMove(self, move):
+        if self.calculate_time(self.turn) <= 0: return False
+
+        gameMove = self.attemptGameMove(move)
+        if not gameMove: return False
+
+        if self.tc_initial:
+            now = time.time()
+            if self.turn_started:
+                self.time_left[self.turn] = self.calculate_time(self.turn, now) + self.tc_increment
+            self.turn_started = now
+
+        self.turn = self.next_turn()
+        return True
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
     # draws a circle with given center and radius
@@ -472,3 +493,25 @@ class GameInfo(Renderable):
         for i, (k, v) in enumerate(self.vals):
             if k:
                 write(self.game.screen, self.font, '{}: {}'.format(k, v), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
+
+class TimerInfo(Renderable):
+    def __init__(self, game):
+        super().__init__(game, 10**10)
+
+    def render(self):
+        for i, team in enumerate(self.game.teams):
+            t = self.game.calculate_time(team)
+            write(self.game.screen, self.game.font,
+                  f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX',
+                  -30, -30*(len(self.game.teams)-i),
+                  (0,0,0),
+                  halign='r', valign='b', hborder='r', vborder='b')
+
+# utility method for command line tools
+# throwing a ValueError causes argparse to reject the argument,
+# so the implicit ValueError on float()ing a non-float is actually what we want
+def tcparse(tc):
+    parts = [float(x) for x in tc.split('+')]
+    if 1 <= len(parts) <= 2:
+        return (60*parts[0], parts[1] if len(parts) == 2 else 0)
+    raise ValueError
