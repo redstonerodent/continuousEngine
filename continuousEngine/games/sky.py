@@ -136,8 +136,8 @@ class Sky(Game):
         # draw line to top right corner of selected square
         if 0:
             L = Line(self, Layers.TRIALS+1, debug_color, None, None)
-            L.GETp1 = lambda g:trace(g.selector.loc)
-            L.GETp2 = lambda g:trace(g.layers[Layers.TRIALS][-1].loc)
+            L.GETp1 = lambda g:g.selector.loc
+            L.GETp2 = lambda g:g.layers[Layers.TRIALS][-1].loc
             L.GETvisible = lambda g:Layers.TRIALS in g.layers and g.layers[Layers.TRIALS]
 
         # show actual heights
