@@ -20,6 +20,13 @@ puzzle6 = [
     [2,3,5,4,1,6]
 ]
 
+maybe_broken = [
+    [1,1,1,1],
+    [4,1,3,1],
+    [1,1,1,1],
+    [1,1,1,3],
+]
+
 solution = puzzle4
 
 # size of instance
@@ -128,25 +135,21 @@ class Sky(Game):
 
         # draw line to top right corner of selected square
         if 0:
-            [(lambda coords: 
-                (lambda L:(
-                    setattr(L,'GETvisible',
-                        lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and coords == self.selector.loc.coords),
-                    setattr(L,'GETp2',
-                        lambda g: g.layers[Layers.TRIALS][-1].loc.coords)
-                ))
-                (Line(self, Layers.TRIALS+1, debug_color, Point(*coords), None)))
-                ((i,j))
-            for j in range(n+1) for i in range(n+1)]
+            L = Line(self, Layers.TRIALS+1, debug_color, None, None)
+            L.GETp1 = lambda g:trace(g.selector.loc)
+            L.GETp2 = lambda g:trace(g.layers[Layers.TRIALS][-1].loc)
+            L.GETvisible = lambda g:Layers.TRIALS in g.layers and g.layers[Layers.TRIALS]
 
         # show actual heights
         if 0:
             [[Text(self, Layers.GUESS, text_color,self.font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
 
-        self.keyPress[self.keys.moveUp]         = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y-1)%n))
-        self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%n))
-        self.keyPress[self.keys.moveLeft]       = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x-1)%n, self.selector.loc.y))
-        self.keyPress[self.keys.moveRight]      = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x+1)%n, self.selector.loc.y))
+        allow_out_of_range = 0
+
+        self.keyPress[self.keys.moveUp]         = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y-1)%(n+allow_out_of_range)))
+        self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%(n+allow_out_of_range)))
+        self.keyPress[self.keys.moveLeft]       = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x-1)%(n+allow_out_of_range), self.selector.loc.y))
+        self.keyPress[self.keys.moveRight]      = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x+1)%(n+allow_out_of_range), self.selector.loc.y))
         self.keyPress[self.keys.delete]         = lambda _: (self.record_state(), setattr(guess[self.selector.loc.x][self.selector.loc.y],'text',0))
         self.keyPress[self.keys.resetColors]    = lambda _: self.clearCache()
         self.keyPress[self.keys.clearTrials]    = lambda _: self.clearLayer(Layers.TRIALS)

@@ -342,7 +342,7 @@ class Line(Renderable):
         x2,y2 = self.p2
         dx, dy = x2-x1, y2-y1
         intersections = ({(u,y2-dy*(x2-u)/dx) for u in (self.game.x_min(),self.game.x_max())} if dx else set()) | ({(x2-dx*(y2-v)/dy,v) for v in (self.game.y_min(),self.game.y_max())} if dy else set())
-        pygame.draw.line(self.game.screen, self.color, self.game.pixel(max(intersections)), self.game.pixel(min(intersections)), int(self.width))
+        pygame.draw.line(self.game.screen, self.color, self.game.pixel(Point(*max(intersections))), self.game.pixel(Point(*min(intersections))), int(self.width))
 
 class Grid(Renderable):
     # nx by ny grid of sizex by sizey rectangles starting at x,y
