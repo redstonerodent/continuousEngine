@@ -20,13 +20,6 @@ puzzle6 = [
     [2,3,5,4,1,6]
 ]
 
-maybe_broken = [
-    [1,1,1,1],
-    [4,1,3,1],
-    [1,1,1,1],
-    [1,1,1,3],
-]
-
 solution = puzzle4
 
 # size of instance
