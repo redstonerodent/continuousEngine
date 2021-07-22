@@ -1,10 +1,9 @@
 from continuousEngine import *
 import random
 
-# tree class (geometry)
-# tree renderable (core)
+# turns & separate trees
+# merging trees
 # distribution abstract class & instances (core)
-# tree-building interface
 
 class Layers:
     DISTRIBUTION    = 1
