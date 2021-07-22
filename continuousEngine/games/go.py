@@ -130,7 +130,6 @@ class Go(Game):
             self.clearCache()
             ))(*x)
 
-        self.next_turn = lambda t=None: {'white':'black', 'black':'white'}[t or self.turn]
         self.allow_skip = True
 
         Circle(self, Layers.BOUNDARY, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or on_board(self.mousePos()) else Colors.blocker

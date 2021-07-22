@@ -147,8 +147,6 @@ class Reversi(Game):
             setattr(self, 'over', not any(p.valid_tangents for p in self.layers[Layers.PIECES]))
             ))(*x)
 
-        self.next_turn = lambda: {'white':'black', 'black':'white'}[self.turn]
-
         Circle(self, Layers.BOUNDARY, Colors.boundary, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if self.rawMousePos == None or self.over or on_board(self.mousePos()) else Colors.blocker
 
         FixedText(self, Layers.COUNT, Colors.text['black'], self.font, 0, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: len([0 for p in g.layers[Layers.PIECES] if p.team == 'black'])

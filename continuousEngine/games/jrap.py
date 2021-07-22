@@ -147,7 +147,6 @@ class Jrap(Game):
             teams = 2
 
         self.teams = self.possible_teams[:teams]
-        self.next_turn = lambda: {self.teams[i-1]:self.teams[i] for i in range(len(self.teams))}[self.turn]
         self.prev_turn = lambda: {self.teams[i]:self.teams[i-1] for i in range(len(self.teams))}[self.turn]
 
         super().__init__(backgroundColor=Colors.background, spread=board_rad, **kwargs, name='continuous penguin jrap')

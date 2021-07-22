@@ -326,9 +326,7 @@ class Chess(Game):
             setattr(self, 'capture', []),
             setattr(self, 'blocking', []),
         ))(state[1]))
-
-        self.next_turn = lambda t=None: {'white':'black', 'black':'white'}[t or self.turn]
-        
+                
         self.reset_state()
 
         self.process = lambda : self.updateMove()

@@ -163,7 +163,9 @@ class Game:
         
 
     turn = None
-    next_turn = lambda self: None
+    # can be overwritten for games with weird turn orders
+    next_turn = lambda self, turn=None: self.teams[(self.teams.index(turn or self.turn)+1) % len(self.teams)]
+    
     # is skipping your turn a legal move?
     allow_skip = False
 
