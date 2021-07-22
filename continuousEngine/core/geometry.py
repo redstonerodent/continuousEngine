@@ -4,7 +4,7 @@ from math import atan2, pi
 trace = lambda x, *y: (print(x), print(*y),x)[2]
 tracefn = lambda f: lambda *args: trace(f(*args), *args)
 
-class Point(list):
+class Point:
     def __init__(self, x, y):
         self.x = x
         self.y = y
