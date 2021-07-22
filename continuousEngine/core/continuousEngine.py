@@ -251,15 +251,15 @@ class Game:
         self.turn = self.next_turn()
         return True
 
-def drawCircle(game, color, center, radius, width=0, realWidth=False, fixedRadius=False, surface=None):
+def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=False, surface=None):
     # draws a circle with given center and radius
     # if width is given, draws the boundary; if width is 0, fills the circle
-    # realWidth=False  -> width given in pixels (on screen) 
-    # realWidth=True -> width given in points (in-game distance)
+    # realWidth/Radius=False  -> given in pixels (on screen) 
+    # realWidth/Radius=True -> given in points (in-game distance)
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
-    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(1 if fixedRadius else game.scale)+width), int(width))
+    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(1 if realRadius else game.scale)+width), int(width))
 
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
@@ -423,13 +423,13 @@ class FilledPolygon(Renderable):
         drawPolygon(self.game, self.color, self.points)    
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, loc, r, width=3, fixedRadius=False):
+    def __init__(self, game, layer, color, loc, r, width=3, realRadius=False):
         super().__init__(game, layer)
-        self.color, self.loc, self.r, self.width, self.fixedRadius = color, loc, r, width, fixedRadius
+        self.color, self.loc, self.r, self.width, self.realRadius = color, loc, r, width, realRadius
     def render(self, color=None, width=None):
         if color == None: color = self.color
         if width == None: width = self.width
-        drawCircle(self.game, color, self.loc, self.r, width, fixedRadius=self.fixedRadius)
+        drawCircle(self.game, color, self.loc, self.r, width, realRadius=self.realRadius)
 
 class Disk(Circle):
     def __init__(self, *args, **kwargs):
