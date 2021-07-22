@@ -113,7 +113,6 @@ class Game:
             self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
             self.keys.skipTurn      : lambda e: setattr(self, 'turn', self.next_turn()),
-            self.keys.cancel        : lambda e: self.reset_state(),
         }
 
         self.drag = {
