@@ -187,9 +187,7 @@ class Go(Game):
 
 
     def attemptGameMove(self, move):
-        # print(move, flush=True)
-        if self.turn != move["player"]: return False
-        
+        # print(move, flush=True)        
         self.record_state()
         self.clearLayer(Layers.PIECES['GHOST'])
         

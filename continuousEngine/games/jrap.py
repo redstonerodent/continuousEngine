@@ -211,7 +211,6 @@ class Jrap(Game):
 
 
     def attemptGameMove(self, move):
-        if self.turn != move["player"]: return False
         pos = Point(*move["location"])
         self.updateMove(pos)
         if not self.valid_move: return

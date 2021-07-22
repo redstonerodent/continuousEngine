@@ -240,8 +240,8 @@ class Game:
     def attemptMove(self, move):
         if self.calculate_time(self.turn) <= 0: return False
 
-        gameMove = self.attemptGameMove(move)
-        if not gameMove: return False
+        if self.turn != move["player"]: return False
+        if not self.attemptGameMove(move): return False
 
         if self.tc_initial:
             now = time.time()

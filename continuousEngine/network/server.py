@@ -26,7 +26,7 @@ returns to lobby state
 
 The server needs an abstract  version of the game. This must implement the following:
     __init__ to create a new game
-    attemptMove
+    attemptGameMove
     get_state
     teams
 """
