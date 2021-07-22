@@ -13,7 +13,9 @@ class Point(list):
     __getitem__ = lambda self, v: self.coords[v]
     __repr__ = lambda self: "Point{}".format(self.coords)
     __eq__ = lambda self, other: isinstance(other, Point) and self.coords == other.coords
+    __ne__ = lambda self, other: not self == other
     __hash__ = lambda self: hash(self.coords)
+    __bool__ = lambda self: True
     # adding, subtracting, and scaling vectors
     __add__ = lambda p1, p2: Point(*(p1[i]+p2[i] for i in range(2)))
     __sub__ = lambda p1, p2: Point(*(p1[i]-p2[i] for i in range(2)))
@@ -64,6 +66,8 @@ nearest_on_line = lambda x, p1, p2: x - (~(p2-p1) @ dist_above_line(x,p1,p2))
 nearest_on_segment = lambda x, p1, p2: nearest_on_line(x, p1, p2) if 0 < dist_along_line(x, p1, p2) < (p1>>p2)**.5 else min(p1, p2, key = lambda p: x>>p)
 # point on circle with radius r centered at p closest to x
 nearest_on_circle = lambda x, p, r: p + ((x-p) @ r) if x != p else p + Point(r,0)
+# point on disk with radius r centered at p closest to x; if x is in the circle it's x (up to floating point)
+nearest_on_disk = lambda x, p, r: p + ((x-p) @ min(r, (x >> p)**.5))
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
 slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5))(nearest_on_line(p,p1,p2))
