@@ -251,7 +251,7 @@ class Game:
         self.turn = self.next_turn()
         return True
 
-def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=False, surface=None):
+def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=True, surface=None):
     # draws a circle with given center and radius
     # if width is given, draws the boundary; if width is 0, fills the circle
     # realWidth/Radius=False  -> given in pixels (on screen) 
@@ -259,7 +259,7 @@ def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
 
-    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(1 if realRadius else game.scale)+width), int(width))
+    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(game.scale if realRadius else 1)+width), int(width))
 
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
@@ -423,7 +423,7 @@ class FilledPolygon(Renderable):
         drawPolygon(self.game, self.color, self.points)    
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, loc, r, width=3, realRadius=False):
+    def __init__(self, game, layer, color, loc, r, width=3, realRadius=True):
         super().__init__(game, layer)
         self.color, self.loc, self.r, self.width, self.realRadius = color, loc, r, width, realRadius
     def render(self, color=None, width=None):

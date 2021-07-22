@@ -61,8 +61,8 @@ class JrapHole(Renderable):
                 drawCircle(self.game, Colors.debug[0], h, hammer_rad, width=2)
             drawPolygon(self.game, Colors.debug[1], self.poly, width=2)
             for a,b in self.intervals:
-                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
-                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
+                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, realRadius=False)
+                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, realRadius=False)
 
 
     def intersecting(self, other):
@@ -120,15 +120,15 @@ class JrapPenguin(CachedImg):
 class JrapDebugger(Renderable):
     def render(self):
         for p in self.game.voronoi.player:
-            drawCircle(self.game, Colors.debug[p in self.game.open_cells[self.game.voronoi.player[p]]], p, 3, fixedRadius=True)
+            drawCircle(self.game, Colors.debug[p in self.game.open_cells[self.game.voronoi.player[p]]], p, 3, realRadius=False)
         if self.game.mousePos():
             n = self.game.voronoi.diagram.nearest(self.game.mousePos())
             for p in self.game.voronoi.board_pts[n]:
-                drawCircle(self.game, Colors.debug[(p in self.game.new_hole)+1], p, 3, fixedRadius=True)
+                drawCircle(self.game, Colors.debug[(p in self.game.new_hole)+1], p, 3, realRadius=False)
 
             for a,b in self.game.voronoi.uncovered_arcs[n]:
-                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, fixedRadius=True)
-                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, fixedRadius=True)
+                drawCircle(self.game, Colors.debug[3], Point(math.sin(a), math.cos(a))*board_rad, 7, realRadius=False)
+                drawCircle(self.game, Colors.debug[4], Point(math.sin(b), math.cos(b))*board_rad, 7, realRadius=False)
 
 
 class Jrap(Game):
@@ -183,7 +183,7 @@ class Jrap(Game):
 
         self.penguin = JrapPenguin(self)
 
-        self.warning = Disk(self, Layers.warning, Colors.illegal, Point(0,0), 34, fixedRadius=True)
+        self.warning = Disk(self, Layers.warning, Colors.illegal, Point(0,0), 34, realRadius=False)
         self.warning.GETvisible = lambda g: Point(0,0) in self.new_hole
 
         Circle(self, Layers.boundary, None, Point(0,0), board_rad).GETcolor = lambda g: Colors.boundary if g.mousePos() and on_board(g.mousePos()) else Colors.illegal
