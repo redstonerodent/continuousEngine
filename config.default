@@ -13,11 +13,11 @@ fastForward				END
 skipTurn                f
 toggleLive              l
 printState              BACKQUOTE
+cancel                  ESCAPE
 # pan                   right click and drag
 # zoom                  scroll wheel
 
 ###    chess
-cancel                  ESCAPE
 # select piece          left click
 # move piece            left click
 # toggle show range     middle click

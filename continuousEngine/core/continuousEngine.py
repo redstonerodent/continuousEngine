@@ -8,6 +8,7 @@ ALL_GAMES = {
     'go' : 'Go',
     'jrap' : 'Jrap',
     'sky' : 'Sky',
+    'trans' : 'Trans'
     }
 
 game_class = lambda name: getattr(importlib.import_module('continuousEngine.games.'+name), ALL_GAMES[name])
@@ -111,7 +112,8 @@ class Game:
             self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
             self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
-            self.keys.skipTurn      : lambda e: setattr(self, 'turn', self.next_turn())
+            self.keys.skipTurn      : lambda e: setattr(self, 'turn', self.next_turn()),
+            self.keys.cancel        : lambda e: self.reset_state(),
         }
 
         self.drag = {
