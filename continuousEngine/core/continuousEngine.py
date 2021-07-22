@@ -135,12 +135,6 @@ class Game:
         self.future = []
         self.record_state = lambda:(self.history.append(self.save_state()),setattr(self,'future',[]))
 
-        # should be overwritten by user
-        self.save_state = lambda :None # returns description of state
-        self.load_state = lambda _:None # implements description of state
-        self.get_state = lambda team:self.save_state() #returns state from point of view of team
-        self.make_initial_state = lambda:None # creates a fresh initial state (perhaps with randomness)
-
         self.reset_state = lambda: self.load_state(self.initialState)
 
         self.is_over = lambda: False
@@ -161,6 +155,11 @@ class Game:
     # for anything that should be recomputed whenever the window size changes
     resize = lambda self: None
         
+    # should be overwritten by user
+    save_state = lambda self: None # returns description of state
+    load_state = lambda self, _: None # implements description of state
+    get_state = lambda self, team: self.save_state() #returns state from point of view of team
+    make_initial_state = lambda self: None # creates a fresh initial state (perhaps with randomness)
 
     turn = None
     # can be overwritten for games with weird turn orders
@@ -508,6 +507,7 @@ class TimerInfo(Renderable):
                   -30, -30*(len(self.game.teams)-i),
                   (0,0,0),
                   halign='r', valign='b', hborder='r', vborder='b')
+
 
 # utility method for command line tools
 # throwing a ValueError causes argparse to reject the argument,
