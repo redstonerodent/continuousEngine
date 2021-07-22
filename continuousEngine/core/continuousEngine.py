@@ -108,11 +108,11 @@ class Game:
             self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
             self.keys.resetView     : lambda e: self.resetView(),
             self.keys.resetGame     : lambda e: (self.record_state(), self.reset_state()),
-            self.keys.fastForward   : lambda e: (self.history.append(self.save_state()), self.history.extend(reversed(self.future)), self.future.clear(), self.load_state(self.history.pop())),
-            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
-            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.fastForward   : lambda e: (self.history.append(self.save_state()), self.history.extend(reversed(self.future)), self.future.clear(), self.load_state(self.history.pop()), self.prep_turn()),
+            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop()), self.prep_turn()) if self.history else None,
+            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop()), self.prep_turn()) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
-            self.keys.skipTurn      : lambda e: setattr(self, 'turn', self.next_turn()),
+            self.keys.skipTurn      : lambda e: (setattr(self, 'turn', self.next_turn()), self.prep_turn()),
         }
 
         self.drag = {
@@ -136,7 +136,7 @@ class Game:
         self.future = []
         self.record_state = lambda:(self.history.append(self.save_state()),setattr(self,'future',[]))
 
-        self.reset_state = lambda: self.load_state(self.initialState)
+        self.reset_state = lambda: (self.load_state(self.initialState), self.prep_turn())
 
         self.is_over = lambda: False
         self.winner = lambda: None
@@ -155,6 +155,8 @@ class Game:
     viewChange = lambda self: None
     # for anything that should be recomputed whenever the window size changes
     resize = lambda self: None
+    # for anything that should be recomputed before each turn
+    prep_turn = lambda self: None
         
     # should be overwritten by user
     save_state = lambda self: None # returns description of state
@@ -250,6 +252,7 @@ class Game:
             self.turn_started = now
 
         self.turn = self.next_turn()
+        self.prep_turn()
         return True
 
 def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=True, surface=None):
