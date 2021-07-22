@@ -351,7 +351,7 @@ class Chess(Game):
         self.click[2] = lambda e: toggleShown(self, self.point(*e.pos))
         self.drag[-1] = lambda e: setattr(self, 'rawMousePos', e.pos)
         
-        self.keyPress[self.keys.cancel] = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
+        self.keyPress[self.keys.cancelPiece] = lambda e: (setattr(self,'active_piece',None), [p.update_threatening_cache(self.layers[Layers.PIECES]) for p in self.shown])
         self.keyPress[self.keys.skipTurn] = lambda e: (setattr(self, 'active_piece', None), self.updateMove(), setattr(self, 'turn', self.next_turn()))
 
         self.is_over = lambda: not any((p.color,p.name) == (Constants.WHITE,Constants.KING) for p in self.layers[Layers.PIECES]) or not any((p.color,p.name) == (Constants.BLACK,Constants.KING) for p in self.layers[Layers.PIECES])
