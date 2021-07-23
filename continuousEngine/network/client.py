@@ -118,6 +118,7 @@ class NetworkGame:
             self.game.history = self.server_history.copy()
             self.game.future = []
             self.game.time_left, self.game.turn_started = self.server_timeinfo
+            self.game.prep_turn()
             
     async def server_listener(self):
         while True:

@@ -1,7 +1,13 @@
 from continuousEngine import *
 import random
 
-# distribution abstract class & instances
+# todo
+# better scoring: either compute steiner tree or interface for players to build it
+# make score look better
+# choose distributions (number, size, position, randomness)
+# battlecode compatibility
+# update readme
+# tweak colors / sizes / etc.
 
 class Layers:
     DISTRIBUTION    = 1
@@ -23,11 +29,18 @@ class Colors:
     NEW_TREE        = (100, 100, 100)
     NEW_EDGE        = (150, 150, 150)
     BACKGROUND      = (192, 230, 168)
+    DISTRIBUTION    = {'pink':(247,168,184), 'cyan':(85,205,252)}
+    GOAL_FILL       = {'pink':(227,148,164), 'cyan':(65,185,232)}
+    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(255,255,255)}
 
-class Sizes:
+class Constants:
+    INITIAL_SCORE   = 10
+
     # pixels
     SNAP_TARGET     = 5
-    START_PEG       = 10
+    START_PEG       = 8
+    GOAL            = 9
+    SNAP_DIST       = 10
 
     # in-game units
     TURN_DISTANCE   = 1
@@ -65,8 +78,40 @@ class TransTree(Renderable):
 
 class StartPeg(Disk):
     def __init__(self, game, team, loc, layer=Layers.START_PEG):
-        super().__init__(game, layer, Colors.START_PEG[team], loc, Sizes.START_PEG, realRadius=False)
+        super().__init__(game, layer, Colors.START_PEG[team], loc, Constants.START_PEG, realRadius=False)
         self.team = team
+
+class TransGoal(BorderDisk):
+    def __init__(self, game, team, color_name, loc):
+        super().__init__(game, Layers.GOAL, Colors.GOAL_FILL[color_name], Colors.GOAL_BORDER[team], loc, Constants.GOAL, realRadius=False)
+        self.color_name = color_name
+        self.team = team
+
+# distributions for sampling goals
+# should be a Renderable with a sample() function
+
+class UniformDiskDist(Disk):
+    def __init__(self, game, color_name, coords, r):
+        super().__init__(game, Layers.DISTRIBUTION, Colors.DISTRIBUTION[color_name], Point(*coords), r)
+        self.color_name, _, _ = self.args = (color_name, coords, r)
+        self.type = 'UniformDiskDist'
+    def sample(self):
+        while (p := Point(random.uniform(-1,1), random.uniform(-1,1))) >> Point(0,0) > 1: pass
+        return self.loc + p*self.r
+
+class UniformRectangleDist(Rectangle):
+    def __init__(self, game, color_name, coords, dx, dy):
+        super().__init__(game, Layers.DISTRIBUTION, Colors.DISTRIBUTION[color_name], Point(*coords), dx, dy)
+        self.args = (color_name, coords, dx, dy)
+        self.type = 'UniformRectangleDist'
+    def sample(self):
+        return self.loc + Point(random.uniform(0,self.dx), random.uniform(0,self.dy))
+
+DISTRIBUTION_TYPE = {
+    'UniformDiskDist' : UniformDiskDist,
+    'UniformRectangleDist' : UniformRectangleDist,
+}
+
 
 # steps:
 #     start_tree: you don't have a tree yet and are placing your start peg
@@ -77,12 +122,12 @@ class StartPeg(Disk):
 class Trans(Game):
 
     def __init__(self, teams=2, **kwargs):
-        super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous trans', **kwargs)
         teams = int(teams)
         if teams > len(self.possible_teams):
             print('{} is too many teams (max {}); defaulting to 2'.format(teams, len(self.possible_teams)), flush=True)
             teams = 2
         self.teams = self.possible_teams[:teams]
+        super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous trans', **kwargs)
         
         # edges drawn this turn
         self.new_tree = TransTree(self, layer=Layers.AUX_TREE, color=Colors.NEW_TREE)
@@ -91,7 +136,7 @@ class Trans(Game):
         self.current_tree = TransTree(self, layer=Layers.AUX_TREE)
         self.current_tree.visible = False
 
-        self.snap_target = Disk(self, Layers.SNAP_TARGET, Colors.TREE, None, Sizes.SNAP_TARGET, realRadius=False)
+        self.snap_target = Disk(self, Layers.SNAP_TARGET, Colors.TREE, None, Constants.SNAP_TARGET, realRadius=False)
         self.snap_target.GETloc = lambda _: self.tree.snap(self.mousePos())
         self.snap_target.GETvisible = lambda _: self.mousePos() and self.step == 'start_edge'
 
@@ -103,30 +148,50 @@ class Trans(Game):
         self.range_guide.GETcolor = lambda _: Colors.RANGE_GUIDE[self.turn]
         self.range_guide.GETvisible = lambda _: self.mousePos() or self.step == 'finish_edge'
 
-        self.click[1] = lambda _: self.on_click(self.mousePos())
+        # temporary
+        self.score_shower = GameInfo(self, lambda _: [(None,None)]*15+list(self.score.items()))
+
+        self.click[1] = lambda _: self.on_click()
 
         self.keyPress[self.keys.cancelTree] = lambda e: self.prep_turn()
 
         self.reset_state()
 
-    def make_initial_state(self):
+    def make_initial_state(self, score=None):
+        score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
+        dists = [
+            UniformDiskDist(self, 'pink', ( 5,0), 3),
+            UniformDiskDist(self, 'cyan', (-5,0), 3),
+        ]
         return (
             'red',
+            score,
             [],
             {},
+            [(dist.type, dist.args) for dist in dists],
+            [(t, d.color_name, d.sample()) for t in self.teams for d in dists],
         )
 
     possible_teams = ['red', 'blue', 'green', 'yellow', 'brown', 'white']
 
-    def save_state(self):
+    def get_state(self, team):
         return (
             self.turn,
-            [(t.edges.copy(), t.teams.copy()) for t in self.layers[Layers.TREE]],
-            [(p.team, p.loc) for p in self.layers[Layers.START_PEG]],
+            self.score.copy(),
+            [([(p.coords, q.coords) for p,q in t.edges], t.teams.copy()) for t in self.layers[Layers.TREE]],
+            [(p.team, p.loc.coords) for p in self.layers[Layers.START_PEG]],
+            [(dist.type, dist.args) for dist in self.layers[Layers.DISTRIBUTION]],
+            [(g.team, g.color_name, g.loc.coords) for g in self.layers[Layers.GOAL] if team in [g.team, 'spectator']],
         )
+
+    def save_state(self):
+        return self.get_state('spectator')
+
     def load_state(self, state):
-        self.turn, trees, pegs = state
-        for layer in [Layers.START_PEG, Layers.TREE]:
+        self.turn, score, trees, pegs, dists, goals = state
+        self.score = score.copy()
+
+        for layer in [Layers.START_PEG, Layers.TREE, Layers.DISTRIBUTION, Layers.GOAL]:
             self.clearLayer(layer)
         self.team_trees = {}
 
@@ -136,6 +201,12 @@ class Trans(Game):
         for t,l in pegs:
             StartPeg(self, t, Point(*l))
 
+        for d, args in dists:
+            DISTRIBUTION_TYPE[d](self, *args)
+        for t,c,l in goals:
+            TransGoal(self, t, c, Point(*l))
+
+
     def prep_turn(self, team=None):
         team = team or self.turn
         self.clearLayer(Layers.NEW_START_PEG)
@@ -144,31 +215,34 @@ class Trans(Game):
         self.current_tree.edges = self.team_trees[team].edges.copy() if team in self.team_trees else []
         self.other_trees = self.layers[Layers.TREE].copy()
         if team in self.team_trees: self.other_trees.remove(self.team_trees[team])
-        self.distance_left = Sizes.TURN_DISTANCE
+        self.distance_left = Constants.TURN_DISTANCE
+        if self.step == 'start_tree':
+            self.new_start_peg = StartPeg(self, self.turn, None, Layers.NEW_START_PEG)
 
 
-
+    # for battlecode
     def is_over(self):
         pass
     def winner(self):
         pass
 
-    def attemptGameMove(self, move):
-        pass
-
     def process(self):
         pos = self.mousePos()
+        nearest_goal = min(self.layers[Layers.GOAL], key=lambda g:pos >> g.loc)
+        if pos >> nearest_goal.loc < (Constants.SNAP_DIST/self.scale)**2:
+            pos = nearest_goal.loc
         if self.step == 'start_tree':
-            self.range_guide.loc = pos
+            self.new_start_peg.loc = self.range_guide.loc = pos
         elif self.step == 'start_edge':
             self.snap_target.loc = self.range_guide.loc = self.current_tree.snap(pos)
         elif self.step == 'finish_edge':
             self.new_edge.p2 = nearest_on_disk(pos, self.new_edge.p1, self.distance_left)
+        return pos
 
-    def on_click(self, pos):
-        self.process()
+    def on_click(self):
+        pos = self.process()
         if self.step == 'start_tree':
-            StartPeg(self, self.turn, pos, Layers.NEW_START_PEG)
+            self.new_start_peg.loc = pos
             self.new_edge.p1 = pos
             self.step = 'finish_edge'
         elif self.step == 'start_edge':
@@ -190,7 +264,6 @@ class Trans(Game):
                 print('out of distance')
                 self.attemptMove({'player':self.turn, 'edges': [(p.coords, q.coords) for p,q in self.new_tree.edges]})
         print(self.turn, self.step)
-        for x in self.history: print(x)
 
     def attemptGameMove(self, move):
         self.record_state()
@@ -211,9 +284,17 @@ class Trans(Game):
                     self.team_trees[self.turn].merge(t)
                     for team in t.teams: self.team_trees[team] = self.team_trees[self.turn]
                     self.layers[Layers.TREE].remove(t)
-        if dist > Sizes.TURN_DISTANCE+epsilon:
+        if dist > Constants.TURN_DISTANCE+epsilon:
             print(dist)
             fail
+        # does the round end
+        if all(goal.team != self.turn or self.team_trees[self.turn].distsq(goal.loc) < epsilon for goal in self.layers[Layers.GOAL]): # issue: only checks current player's goals
+            # simple version: the score you lose is the sum of distances from your tree to your goals
+            for goal in self.layers[Layers.GOAL]:
+                self.score[goal.team] -= trace(self.team_trees[goal.team].distsq(goal.loc)**.5)
+            # just go straight to the next round
+            self.load_state(self.make_initial_state(self.score))
+
         return True
 
 

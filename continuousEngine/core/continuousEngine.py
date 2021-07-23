@@ -491,7 +491,8 @@ class GameInfo(Renderable):
     def __init__(self, game, vals):
         super().__init__(game, 10**10)
         self.GETvals = vals
-        self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),24)
+        if not game.headless:
+            self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),24)
 
 
     def render(self):
