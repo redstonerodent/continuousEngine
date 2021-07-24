@@ -24,14 +24,16 @@ class Layers:
 
 class Colors:
     TREE            = (0, 0, 0)
-    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(255,255,255)}
-    RANGE_GUIDE     = {'red':(255,150,150), 'blue':(150,150,255), 'green':(150,255,150), 'yellow':(255,255,150), 'brown':(180, 150, 100), 'white':(255,255,255)}
+    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    RANGE_GUIDE     = {'red':(255,150,150), 'blue':(150,150,255), 'green':(150,255,150), 'yellow':(255,255,150), 'brown':(180, 150, 100), 'white':(225,225,225)}
     NEW_TREE        = (100, 100, 100)
     NEW_EDGE        = (150, 150, 150)
     BACKGROUND      = (192, 230, 168)
-    DISTRIBUTION    = {'pink':(247,168,184), 'cyan':(85,205,252)}
-    GOAL_FILL       = {'pink':(227,148,164), 'cyan':(65,185,232)}
-    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(255,255,255)}
+    DISTRIBUTION    = {'pink':(247,168,184), 'cyan':(85,205,252), 'white':(255,255,255)}
+    GOAL_FILL       = {'pink':(227,148,164), 'cyan':(55,175,222), 'white':(225,225,225)}
+    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    SCORE_TICK      = {0: (255,0,0), 1:(0,0,0)}
+    SCORE_MARKER    = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
 
 class Constants:
     INITIAL_SCORE   = 10
@@ -41,6 +43,8 @@ class Constants:
     START_PEG       = 8
     GOAL            = 9
     SNAP_DIST       = 10
+    SCORE_MARGIN    = 20
+    SCORE_VSEP      = 10
 
     # in-game units
     TURN_DISTANCE   = 1
@@ -87,6 +91,23 @@ class TransGoal(BorderDisk):
         self.color_name = color_name
         self.team = team
 
+class TransScore(Renderable):
+    def __init__(self, game):
+        super().__init__(game, Layers.SCORE)
+    def render(self):
+        left = Constants.SCORE_MARGIN
+        bot = self.game.height() - Constants.SCORE_MARGIN
+        top = bot - (3 + len(self.game.teams))*Constants.SCORE_VSEP # todo
+        sep = (self.game.width() - 2*Constants.SCORE_MARGIN)/Constants.INITIAL_SCORE
+        scoretopixel = lambda s: left + s * sep
+        
+        for i in range(Constants.INITIAL_SCORE+1):
+            # draw line
+            pygame.draw.line(self.game.screen, Colors.SCORE_TICK[bool(i)], (scoretopixel(i), bot), (scoretopixel(i), top), 3)
+        for i, t in enumerate(self.game.teams):
+            # score marker
+            pygame.draw.circle(self.game.screen, Colors.SCORE_MARKER[t], (scoretopixel(self.game.score[t]), top + (i+2)*Constants.SCORE_VSEP), 10)
+
 # distributions for sampling goals
 # should be a Renderable with a sample() function
 
@@ -106,6 +127,7 @@ class UniformRectangleDist(Rectangle):
         self.type = 'UniformRectangleDist'
     def sample(self):
         return self.loc + Point(random.uniform(0,self.dx), random.uniform(0,self.dy))
+
 
 DISTRIBUTION_TYPE = {
     'UniformDiskDist' : UniformDiskDist,
@@ -149,7 +171,7 @@ class Trans(Game):
         self.range_guide.GETvisible = lambda _: self.mousePos() or self.step == 'finish_edge'
 
         # temporary
-        self.score_shower = GameInfo(self, lambda _: [(None,None)]*15+list(self.score.items()))
+        self.score_shower = TransScore(self)
 
         self.click[1] = lambda _: self.on_click()
 
@@ -160,8 +182,11 @@ class Trans(Game):
     def make_initial_state(self, score=None):
         score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
         dists = [
-            UniformDiskDist(self, 'pink', ( 5,0), 3),
-            UniformDiskDist(self, 'cyan', (-5,0), 3),
+            UniformDiskDist(self, 'cyan', ( 5, 5), 2),
+            # UniformDiskDist(self, 'pink', (-5, 5), 2),
+            # UniformDiskDist(self,'white', ( 0, 0), 3),
+            # UniformDiskDist(self, 'pink', ( 5,-5), 2),
+            # UniformDiskDist(self, 'cyan', (-5,-5), 2),
         ]
         return (
             'red',
