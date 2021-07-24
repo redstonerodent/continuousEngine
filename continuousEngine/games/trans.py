@@ -247,9 +247,9 @@ class Trans(Game):
 
     # for battlecode
     def is_over(self):
-        pass
+        return any(self.score[t]<0 for t in self.teams)
     def winner(self):
-        pass
+        return max(self.teams, key=self.score.__getitem__)
 
     def process(self):
         pos = self.mousePos()
