@@ -3,9 +3,8 @@ import random
 
 # todo
 # better scoring: either compute steiner tree or interface for players to build it
-# make score look better
+# make score look better (train-shaped markers?)
 # choose distributions (number, size, position, randomness)
-# battlecode compatibility
 # update readme
 # tweak colors / sizes / etc.
 
@@ -24,16 +23,16 @@ class Layers:
 
 class Colors:
     TREE            = (0, 0, 0)
-    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,255,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
     RANGE_GUIDE     = {'red':(255,150,150), 'blue':(150,150,255), 'green':(150,255,150), 'yellow':(255,255,150), 'brown':(180, 150, 100), 'white':(225,225,225)}
     NEW_TREE        = (100, 100, 100)
     NEW_EDGE        = (150, 150, 150)
     BACKGROUND      = (192, 230, 168)
     DISTRIBUTION    = {'pink':(247,168,184), 'cyan':(85,205,252), 'white':(255,255,255)}
     GOAL_FILL       = {'pink':(227,148,164), 'cyan':(55,175,222), 'white':(225,225,225)}
-    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,255,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
     SCORE_TICK      = {0: (255,0,0), 1:(0,0,0)}
-    SCORE_MARKER    = {'red':(255,50,50), 'blue':(50,50,255), 'green':(50,255,50), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    SCORE_MARKER    = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,225,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(255,255,255)}
 
 class Constants:
     INITIAL_SCORE   = 10
@@ -94,11 +93,18 @@ class TransGoal(BorderDisk):
 class TransScore(Renderable):
     def __init__(self, game):
         super().__init__(game, Layers.SCORE)
+        self.markers = {}
+        mask = pygame.image.load(os.path.join(PACKAGEPATH, 'Sprites/train.png')).convert_alpha(game.screen)
+        self.marker_width, self.marker_height = size = mask.get_size()
+        for t in game.teams:
+            self.markers[t] = pygame.Surface(size).convert_alpha(game.screen)
+            self.markers[t].fill(Colors.SCORE_MARKER[t])
+            self.markers[t].blit(mask, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
     def render(self):
         left = Constants.SCORE_MARGIN
         bot = self.game.height() - Constants.SCORE_MARGIN
-        top = bot - (3 + len(self.game.teams))*Constants.SCORE_VSEP # todo
-        sep = (self.game.width() - 2*Constants.SCORE_MARGIN)/Constants.INITIAL_SCORE
+        top = bot - (1+len(self.game.teams))*Constants.SCORE_VSEP - self.marker_height
+        sep = (self.game.width() - 2*Constants.SCORE_MARGIN - self.marker_width)/Constants.INITIAL_SCORE
         scoretopixel = lambda s: left + s * sep
         
         for i in range(Constants.INITIAL_SCORE+1):
@@ -106,15 +112,16 @@ class TransScore(Renderable):
             pygame.draw.line(self.game.screen, Colors.SCORE_TICK[bool(i)], (scoretopixel(i), bot), (scoretopixel(i), top), 3)
         for i, t in enumerate(self.game.teams):
             # score marker
-            pygame.draw.circle(self.game.screen, Colors.SCORE_MARKER[t], (scoretopixel(self.game.score[t]), top + (i+2)*Constants.SCORE_VSEP), 10)
+            # pygame.draw.circle(self.game.screen, Colors.SCORE_MARKER[t], (scoretopixel(self.game.score[t]), top + (i+1.5)*Constants.SCORE_VSEP), 10)
+            self.game.screen.blit(self.markers[t], (scoretopixel(self.game.score[t]), top + i*Constants.SCORE_VSEP + self.marker_height/2))
 
 # distributions for sampling goals
-# should be a Renderable with a sample() function
+# should be a Renderable with a sample() function that returns a Point
 
 class UniformDiskDist(Disk):
     def __init__(self, game, color_name, coords, r):
         super().__init__(game, Layers.DISTRIBUTION, Colors.DISTRIBUTION[color_name], Point(*coords), r)
-        self.color_name, _, _ = self.args = (color_name, coords, r)
+        self.color_name, *_ = self.args = (color_name, coords, r)
         self.type = 'UniformDiskDist'
     def sample(self):
         while (p := Point(random.uniform(-1,1), random.uniform(-1,1))) >> Point(0,0) > 1: pass
@@ -123,7 +130,7 @@ class UniformDiskDist(Disk):
 class UniformRectangleDist(Rectangle):
     def __init__(self, game, color_name, coords, dx, dy):
         super().__init__(game, Layers.DISTRIBUTION, Colors.DISTRIBUTION[color_name], Point(*coords), dx, dy)
-        self.args = (color_name, coords, dx, dy)
+        self.color_name, *_ = self.args = (color_name, coords, dx, dy)
         self.type = 'UniformRectangleDist'
     def sample(self):
         return self.loc + Point(random.uniform(0,self.dx), random.uniform(0,self.dy))
@@ -170,7 +177,6 @@ class Trans(Game):
         self.range_guide.GETcolor = lambda _: Colors.RANGE_GUIDE[self.turn]
         self.range_guide.GETvisible = lambda _: self.mousePos() or self.step == 'finish_edge'
 
-        # temporary
         self.score_shower = TransScore(self)
 
         self.click[1] = lambda _: self.on_click()
@@ -178,15 +184,21 @@ class Trans(Game):
         self.keyPress[self.keys.cancelTree] = lambda e: self.prep_turn()
 
         self.reset_state()
+        self.reset_view(    )
 
     def make_initial_state(self, score=None):
         score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
         dists = [
+            # UniformRectangleDist(self, 'cyan', (-6,-3.6), 12, 1.44),
+            # UniformRectangleDist(self, 'pink', (-6,-2.16), 12, 1.44),
+            # UniformRectangleDist(self,'white', (-6,-.72), 12, 1.44),
+            # UniformRectangleDist(self, 'pink', (-6, .72), 12, 1.44),
+            # UniformRectangleDist(self, 'cyan', (-6,2.16), 12, 1.44),
             UniformDiskDist(self, 'cyan', ( 5, 5), 2),
-            # UniformDiskDist(self, 'pink', (-5, 5), 2),
-            # UniformDiskDist(self,'white', ( 0, 0), 3),
-            # UniformDiskDist(self, 'pink', ( 5,-5), 2),
-            # UniformDiskDist(self, 'cyan', (-5,-5), 2),
+            UniformDiskDist(self, 'pink', (-5, 5), 2),
+            UniformDiskDist(self,'white', ( 0, 0), 3),
+            UniformDiskDist(self, 'pink', ( 5,-5), 2),
+            UniformDiskDist(self, 'cyan', (-5,-5), 2),
         ]
         return (
             'red',
@@ -195,6 +207,7 @@ class Trans(Game):
             {},
             [(dist.type, dist.args) for dist in dists],
             [(t, d.color_name, d.sample()) for t in self.teams for d in dists],
+            10,
         )
 
     possible_teams = ['red', 'blue', 'green', 'yellow', 'brown', 'white']
@@ -207,13 +220,14 @@ class Trans(Game):
             [(p.team, p.loc.coords) for p in self.layers[Layers.START_PEG]],
             [(dist.type, dist.args) for dist in self.layers[Layers.DISTRIBUTION]],
             [(g.team, g.color_name, g.loc.coords) for g in self.layers[Layers.GOAL] if team in [g.team, 'spectator']],
+            self.spread,
         )
 
     def save_state(self):
         return self.get_state('spectator')
 
     def load_state(self, state):
-        self.turn, score, trees, pegs, dists, goals = state
+        self.turn, score, trees, pegs, dists, goals, self.spread = state
         self.score = score.copy()
 
         for layer in [Layers.START_PEG, Layers.TREE, Layers.DISTRIBUTION, Layers.GOAL]:

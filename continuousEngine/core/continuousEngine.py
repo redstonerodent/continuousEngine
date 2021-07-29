@@ -51,7 +51,7 @@ class Game:
         if not headless:
             self.screen = pygame.display.set_mode(flags=pygame.RESIZABLE)
             self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),36)
-            self.resetView()
+            self.reset_view()
         else:
             self.font = None
 
@@ -106,7 +106,7 @@ class Game:
             self.keys.panDown       : lambda e: self.pan(0,-self.panDist),
             self.keys.panLeft       : lambda e: self.pan(self.panDist,0),
             self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
-            self.keys.resetView     : lambda e: self.resetView(),
+            self.keys.resetView     : lambda e: self.reset_view(),
             self.keys.resetGame     : lambda e: (self.record_state(), self.reset_state()),
             self.keys.fastForward   : lambda e: (self.history.append(self.save_state()), self.history.extend(reversed(self.future)), self.future.clear(), self.load_state(self.history.pop()), self.prep_turn()),
             self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop()), self.prep_turn()) if self.history else None,
@@ -191,7 +191,7 @@ class Game:
             self.scale, self.x_offset, self.y_offset = self.scale/factor, (self.x_offset+x)*factor-x, self.y_offset*factor + y*(factor-1)
             self.needViewChange = True
 
-    def resetView(self):
+    def reset_view(self):
         self.size()
         self.scale = min(self.size()) / 2 / self.spread
         self.x_offset, self.y_offset = Point(*self.size())/2/self.scale - self.center
