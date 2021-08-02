@@ -177,14 +177,14 @@ class Trans(Game):
         self.range_guide.GETcolor = lambda _: Colors.RANGE_GUIDE[self.turn]
         self.range_guide.GETvisible = lambda _: self.mousePos() or self.step == 'finish_edge'
 
-        self.score_shower = TransScore(self)
+        if not self.headless: self.score_shower = TransScore(self)
 
         self.click[1] = lambda _: self.on_click()
 
         self.keyPress[self.keys.cancelTree] = lambda e: self.prep_turn()
 
         self.reset_state()
-        self.reset_view(    )
+        if not self.headless: self.reset_view()
 
     def make_initial_state(self, score=None):
         score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
