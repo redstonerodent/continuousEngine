@@ -3,10 +3,10 @@ import random
 
 # todo
 # better scoring: either compute steiner tree or interface for players to build it
-# make score look better (train-shaped markers?)
 # choose distributions (number, size, position, randomness)
 # update readme
 # tweak colors / sizes / etc.
+# example battlecode player
 
 class Layers:
     DISTRIBUTION    = 1

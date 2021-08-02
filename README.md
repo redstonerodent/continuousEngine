@@ -10,24 +10,29 @@ This is a project to implement continuous versions of discrete games in python.
 
 ### Games
 
-* Chess: `chess.py`
-* `sky.py` (Determining what it is is a fun puzzle so I won't spoil it here. The answer is a 4x4 Latin square; the contents of `sky.py` obviously have spoilers.)
-* Reversi: `reversi.py`
-* Go: `go.py`
-* Penguin Jrap: `jrap.py` (inspired by [Penguin Trap](https://boardgamegeek.com/boardgame/225981/penguin-trap))
+These are the specific continuous versions of games that have been implemented so far.
+
+* `chess.py`: Chess
+* `sky.py`: Determining what it is is a fun puzzle so I won't spoil it here. The answer is a 4x4 Latin square; the contents of `sky.py` obviously have spoilers.
+* `reversi.py`: Reversi (aka Othello)
+* `go.py`: Go
+* `jrap.py`:  based on [Penguin Trap](https://boardgamegeek.com/boardgame/225981/penguin-trap))
+* `trans.py`: based on Trans America / Trans Europa / etc.
 
 ### Network
 
-* `client.py` and `server.py` implement playing multiplayer games remotely.
+`client.py` and `server.py` implement playing multiplayer games remotely.
 
 ### Battlecode
 
-* Inspired by (and name borrowed from) [Battlecode](https://battlecode.org/), an annual programming competition at MIT.
+Inspired by (and name borrowed from) [Battlecode](https://battlecode.org/), an annual programming competition at MIT.
+
 * The `Player` class in `player.py` is the skeleton of an AI for continuous games.
 * `run.py` runs AIs against each other.
 * `watch.py` watches saved games output by `run.py`.
 * `example<game>player.py` is an AI for `<game>` which plays randomly, as a template.
-* Currently `chess`, `go`, and `jrap` can be used for Battlecode.
+
+Currently `chess`, `go`, and `jrap` can be used for Battlecode.
 
 ### Other
 
@@ -41,11 +46,11 @@ This is a project to implement continuous versions of discrete games in python.
 
 ## Installation
 
-You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested in Python 3.8.7 and pygame 2.0.1. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
+You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everything has been tested most recently in Python 3.9.5 and pygame 2.0.1. The instructions below may not work if your system is different enough from mine (Ubuntu 18.04).
 
 ### Python
 
-You can get Python 3.8 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.8`). I suggest making 3.8 the default Python version, which (at least on Ubuntu) you can do with `update-alternatives`; otherwise, replace `python` with `python3.8` in all the following commands.
+You can get Python 3.9 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.9`). I suggest making 3.9 the default Python version, which (at least on Ubuntu) you can do with `update-alternatives`; otherwise, replace `python` with `python3.9` in all the following commands.
 
 ### Pygame
 
@@ -65,7 +70,7 @@ To update, run `git pull`. If the update adds a command, you need to run `setup.
 
 `continuous game [-g game] [args ...]`
 
-In all commands, `args` is passed to the game class. Currently the only use is to specify the number of players in `jrap`.
+In all commands, `args` is passed to the game class. Currently the only use is to specify the number of players in `jrap` or `trans`.
 
 ### To start a server
 
@@ -90,7 +95,7 @@ Arguments:
 
 Any additional arguments are passed to the constructor for the game that gets created. For instance, `python client.py -g jrap -n -t silver 4` will create a new 4-player jrap game with a random id, and put you on team `silver`.
 
-Currently `chess`, `go`, `jrap`, and `reversi` have network play.
+Currently `chess`, `go`, `jrap`, `reversi`, and `trans` have network play.
 
 ### To play AIs against each other
 
