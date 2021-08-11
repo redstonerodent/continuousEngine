@@ -34,6 +34,7 @@ class NetworkGame:
         self.players = {t:[] for t in game.teams+['spectator']}
         self.id = ''
         self.user = ''
+        self.team = ''
 
         def f(e):
             if e.action=="move":
@@ -77,7 +78,7 @@ class NetworkGame:
             lambda _: [
                 ('id', self.id),
                 ('turn', self.game.turn),
-                ('you', self.user),
+                ('you', f'{self.user} ({self.team})'),
                 ('live', self.live_mode),
                 (None, None),
                 *((t, ', '.join(self.players[t])) for t in game.teams+['spectator'])
@@ -99,6 +100,7 @@ class NetworkGame:
         self.server=server
         self.id = i
         self.user = user
+        self.team = team
         send(server,d)
         print("joined game {} as user {} on team {}".format(i, user, team))
         print("started server listening thread",flush=True)
