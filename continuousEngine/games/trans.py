@@ -4,6 +4,8 @@ import random
 # todo
 # better scoring: either compute steiner tree or interface for players to build it
 # choose distributions (number, size, position, randomness)
+#   3x3 grid of squares
+#   no regions; constrain minimum spanning tree to an interval
 # tweak colors / sizes / etc.
 # example battlecode player
 
@@ -88,6 +90,7 @@ class TransGoal(BorderDisk):
         super().__init__(game, Layers.GOAL, Colors.GOAL_FILL[color_name], Colors.GOAL_BORDER[team], loc, Constants.GOAL, realRadius=False)
         self.color_name = color_name
         self.team = team
+        self.GETfill_color = lambda g: Colors.GOAL_BORDER[team] if (g.turn == self.team and g.current_tree and g.current_tree.distsq(self.loc) < epsilon) or (self.team in g.team_trees and g.team_trees[self.team].distsq(self.loc) < epsilon) else Colors.GOAL_FILL[trace(color_name)]
 
 class TransScore(Renderable):
     def __init__(self, game):
@@ -193,11 +196,20 @@ class Trans(Game):
             # UniformRectangleDist(self,'white', (-6,-.72), 12, 1.44),
             # UniformRectangleDist(self, 'pink', (-6, .72), 12, 1.44),
             # UniformRectangleDist(self, 'cyan', (-6,2.16), 12, 1.44),
-            UniformDiskDist(self, 'cyan', ( 5, 5), 2),
-            UniformDiskDist(self, 'pink', (-5, 5), 2),
-            UniformDiskDist(self,'white', ( 0, 0), 3),
-            UniformDiskDist(self, 'pink', ( 5,-5), 2),
-            UniformDiskDist(self, 'cyan', (-5,-5), 2),
+            # UniformDiskDist(self, 'cyan', ( 5, 5), 2),
+            # UniformDiskDist(self, 'pink', (-5, 5), 2),
+            # UniformDiskDist(self,'white', ( 0, 0), 3),
+            # UniformDiskDist(self, 'pink', ( 5,-5), 2),
+            # UniformDiskDist(self, 'cyan', (-5,-5), 2),
+            UniformRectangleDist(self, 'cyan', (0,0), 4, 4),
+            UniformRectangleDist(self, 'pink', (0,4), 4, 4),
+            UniformRectangleDist(self, 'cyan', (0,8), 4, 4),
+            UniformRectangleDist(self, 'pink', (4,0), 4, 4),
+            UniformRectangleDist(self, 'cyan', (4,4), 4, 4),
+            UniformRectangleDist(self, 'pink', (4,8), 4, 4),
+            UniformRectangleDist(self, 'cyan', (8,0), 4, 4),
+            UniformRectangleDist(self, 'pink', (8,4), 4, 4),
+            UniformRectangleDist(self, 'cyan', (8,8), 4, 4),
         ]
         return (
             'red',
@@ -291,12 +303,12 @@ class Trans(Game):
             self.new_tree.add_edge(self.new_edge.p1, self.new_edge.p2)
             self.current_tree.add_edge(self.new_edge.p1, self.new_edge.p2)
             self.distance_left -= (self.new_edge.p1 >> self.new_edge.p2)**.5
+            # see if other trees have been connected
+            for t in self.other_trees.copy():
+                if t.intersect_segment(self.new_edge.p1, self.new_edge.p2):
+                    self.current_tree.merge(t)
+                    self.other_trees.remove(t)
             if self.distance_left > epsilon:
-                # see if other trees have been connected
-                for t in self.other_trees.copy():
-                    if t.intersect_segment(self.new_edge.p1, self.new_edge.p2):
-                        self.current_tree.merge(t)
-                        self.other_trees.remove(t)
                 self.step = 'start_edge'
             else:
                 print('out of distance')
