@@ -76,8 +76,11 @@ class NetworkGameServer:
         for player in l:
             await send(player["client"],{"action":"game_info", **self.get_game_info(game_id)})
     async def send_gamestate(self, game_id, player, move):
+        d = {"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move}
+        if self.games[game_id]["game"].enforce_time:
+            d["timeinfo"] = (self.games[game_id]["game"].timer.time_left, self.games[game_id]["game"].timer.turn_started)
         try:
-            await send(player["client"],{"action":"move","state":self.games[game_id]["game"].get_state(player["team"]), "move":move, "timeinfo":(self.games[game_id]["game"].time_left, self.games[game_id]["game"].turn_started)})
+            await send(player["client"],d)
         except:
             #print(traceback.format_exc(),flush=True)
             self.games[game_id]["players"].remove(player)
@@ -157,8 +160,8 @@ class NetworkGameServer:
         client = (reader, writer)
         while True:
             try:
-                r = await recieve(client)
-                print("recieved {}".format(r),flush=True)
+                r = await receive(client)
+                print("received {}".format(r),flush=True)
             except:
                 #print(traceback.format_exc(),flush=True)
                 if game_id != None:
@@ -197,5 +200,5 @@ class NetworkGameServer:
 async def send(client, message):
     client[1].write((json.dumps(message)+"\n").encode())
     await client[1].drain()
-async def recieve(client):
+async def receive(client):
     return json.loads((await client[0].readline()).strip())

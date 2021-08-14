@@ -25,7 +25,7 @@ class NetworkGame:
     Attempting to make a move results in it being sent to the server; no change is made to your local gamestate.
     
     """
-    def __init__(self,game):
+    def __init__(self,game, timectrl):
         self.game = game
         self.server = None
         self.live_mode = False
@@ -40,7 +40,9 @@ class NetworkGame:
             if e.action=="move":
                 self.server_history.append(self.server_state)
                 self.server_state = e.state
-                self.server_timeinfo = e.timeinfo
+                if timectrl:
+                    self.timer.turn = e.state[0] # state[0] must be the current player
+                    self.timer.time_left, self.timer.turn_started = e.timeinfo
                 self.update_to_server_state()
             elif e.action=="game_info":
                 self.players = {t:[] for t in self.game.teams+['spectator']}
@@ -85,6 +87,10 @@ class NetworkGame:
             ]
         )
 
+        if timectrl:
+            self.timer = continuousEngine.TimerInfo(game, timectrl)
+
+
     async def join(self,server,i,team,user):
         """
         server is a tcp socket that you've already connected to that is a continuous games server.
@@ -119,7 +125,6 @@ class NetworkGame:
             self.game.load_state(self.server_state)
             self.game.history = self.server_history.copy()
             self.game.future = []
-            self.game.time_left, self.game.turn_started = self.server_timeinfo
             self.game.prep_turn()
             
     async def server_listener(self):
@@ -178,7 +183,9 @@ async def initial_script(ip, game, game_id, team, time_control, username, new, a
     async def attempt_joining(id, t):
         send(s, {"action":"gameargs", "id":id})
         gargs, gkwargs = await receive(s)
-        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, functools.partial(continuousEngine.game_class(game), *gargs, **gkwargs))).join(s, id, t, username)
+        timectrl = gkwargs['timectrl']
+        gkwargs['timectrl']=None
+        await NetworkGame(await asyncio.get_running_loop().run_in_executor(None, functools.partial(continuousEngine.game_class(game), *gargs, **gkwargs)), timectrl).join(s, id, t, username)
 
     if game_id:
         if new and game_id in ids:

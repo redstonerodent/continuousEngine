@@ -15,6 +15,8 @@ game_class = lambda name: getattr(importlib.import_module('continuousEngine.game
 
 PACKAGEPATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
+identity = lambda x:x
+
 def run_local(game_class, args=[], kwargs={}):
     game_class(*args, **kwargs).run()
 
@@ -40,7 +42,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine', timectrl=(None,None)):
+    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine', timectrl=None):
         self.headless = headless
         self.size = lambda: pygame.display.get_window_size()
         self.width = lambda: self.size()[0]
@@ -141,13 +143,10 @@ class Game:
         self.is_over = lambda: False
         self.winner = lambda: None
 
-        self.time_left = {}
-        self.turn_started = None
         # time controls
-        self.tc_initial, self.tc_increment = timectrl
-        self.calculate_time = lambda team, now=None: self.time_left.get(team, self.tc_initial) - ((now or time.time()) - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
-
-        if self.tc_initial: TimerInfo(self)
+        self.enforce_time = bool(timectrl)
+        if timectrl:
+            self.timer = TimerInfo(self, timectrl)
 
     # for anything that should be recomputed before each render
     process = lambda self: None
@@ -226,7 +225,7 @@ class Game:
     def update(self):
         #print("in thread {}".format(threading.currentThread().getName()),flush=True)
         #event = await self.event_queue.get()
-        event = pygame.event.wait(timeout=50) if self.tc_initial else pygame.event.wait()
+        event = pygame.event.wait(timeout=50)
         self.needViewChange = False
         self.needResize = False
         while event:
@@ -240,16 +239,12 @@ class Game:
         self.render()
 
     def attemptMove(self, move):
-        if self.calculate_time(self.turn) <= 0: return False
+        if self.enforce_time:
+            if self.timer.calculate_time(self.turn) <= 0: return False
+            self.timer.move()
 
         if self.turn != move["player"]: return False
         if not self.attemptGameMove(move): return False
-
-        if self.tc_initial:
-            now = time.time()
-            if self.turn_started:
-                self.time_left[self.turn] = self.calculate_time(self.turn, now) + self.tc_increment
-            self.turn_started = now
 
         self.turn = self.next_turn()
         self.prep_turn()
@@ -488,31 +483,40 @@ def write(screen, font, text, x, y, color, halign='c', valign='c', hborder='l', 
 
 class GameInfo(Renderable):
     # vals should be a function with one argument that returns a list of pairs
-    def __init__(self, game, vals):
+    def __init__(self, game, vals, font_size=24, **kwargs):
         super().__init__(game, 10**10)
         self.GETvals = vals
+        self.font_size = font_size
+        self.kwargs = {'halign':'l', 'valign':'t', 'hborder':'l', 'vborder':'t'}
+        self.kwargs.update(kwargs)
         if not game.headless:
-            self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS),24)
+            self.font = pygame.font.Font(pygame.font.match_font(MONO_FONTS), font_size)
 
 
     def render(self):
-        for i, (k, v) in enumerate(self.vals):
+        vanchor = delta = self.font_size * {'t':1, 'b':-1}[self.kwargs['vborder']]
+        hanchor = self.font_size * {'l':1, 'r':-1}[self.kwargs['hborder']]
+        for i, (k, v) in {'t':identity, 'b':reversed}[self.kwargs['vborder']](list(enumerate(self.vals))):
             if k:
-                write(self.game.screen, self.font, '{}: {}'.format(k, v), 24, 24*(i+1), (0,0,0), halign='l', valign='t')
+                write(self.game.screen, self.font, f'{k}: {v}', hanchor, vanchor + delta*i, (0,0,0), **self.kwargs)
 
-class TimerInfo(Renderable):
-    def __init__(self, game):
-        super().__init__(game, 10**10)
+class TimerInfo(GameInfo):
+    def __init__(self, game, timectrl):
+        val = lambda g: ((team, f'{int(t)//60: >2}:{t%60:05.2f}' if (t:=self.calculate_time(team)) > 0 else f'XX:XX.XX') for team in g.teams)
+        super().__init__(game, val, 36, halign='r', valign='b', hborder='r', vborder='b')
+        
+        self.GETturn = lambda g: g.turn
+        self.tc_initial, self.tc_increment = timectrl
+        self.time_left = {}
+        self.turn_started = None
+    
+    def calculate_time(self, team):
+        return self.time_left.get(team, self.tc_initial) - (time.time() - self.turn_started if self.turn_started and self.turn == team else 0) if self.tc_initial else 1
 
-    def render(self):
-        for i, team in enumerate(self.game.teams):
-            t = self.game.calculate_time(team)
-            write(self.game.screen, self.game.font,
-                  f'{team}: {int(t)//60: >2}:{t%60:05.2f}' if t > 0 else f'{team}: XX:XX.XX',
-                  -30, -30*(len(self.game.teams)-i),
-                  (0,0,0),
-                  halign='r', valign='b', hborder='r', vborder='b')
-
+    def move(self):
+        if self.turn_started:
+            self.time_left[self.turn] = self.calculate_time(self.game.turn) + self.tc_increment
+        self.turn_started = time.time()
 
 # utility method for command line tools
 # throwing a ValueError causes argparse to reject the argument,
