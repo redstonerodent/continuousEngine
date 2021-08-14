@@ -24,16 +24,16 @@ class Layers:
 
 class Colors:
     TREE            = (0, 0, 0)
-    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,255,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
-    RANGE_GUIDE     = {'red':(255,150,150), 'blue':(150,150,255), 'green':(150,255,150), 'yellow':(255,255,150), 'brown':(180, 150, 100), 'white':(225,225,225)}
     NEW_TREE        = (100, 100, 100)
     NEW_EDGE        = (150, 150, 150)
     BACKGROUND      = (192, 230, 168)
-    DISTRIBUTION    = {'pink':(247,168,184), 'cyan':(85,205,252), 'white':(255,255,255)}
-    GOAL_FILL       = {'pink':(227,148,164), 'cyan':(55,175,222), 'white':(225,225,225)}
-    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,255,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    DISTRIBUTION    = (200,200,200)
     SCORE_TICK      = {0: (255,0,0), 1:(0,0,0)}
+    START_PEG       = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,200,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    GOAL_BORDER     = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,200,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(235,235,235)}
+    RANGE_GUIDE     = {'red':(255,150,150), 'blue':(150,150,255), 'green':(150,255,150), 'yellow':(255,255,150), 'brown':(180, 150, 100), 'white':(225,225,225)}
     SCORE_MARKER    = {'red':(255,50,50), 'blue':(50,50,255), 'green':(0,225,0), 'yellow':(255,255,0), 'brown':(138,85,15), 'white':(255,255,255)}
+    GOAL_FILL       = {'pink':(227,148,164), 'cyan':(55,175,222), 'white':(225,225,225)}
 
 class Constants:
     INITIAL_SCORE   = 10
@@ -86,11 +86,10 @@ class StartPeg(Disk):
         self.team = team
 
 class TransGoal(BorderDisk):
-    def __init__(self, game, team, color_name, loc):
-        super().__init__(game, Layers.GOAL, Colors.GOAL_FILL[color_name], Colors.GOAL_BORDER[team], loc, Constants.GOAL, realRadius=False)
-        self.color_name = color_name
+    def __init__(self, game, team, loc):
+        super().__init__(game, Layers.GOAL, None, Colors.GOAL_BORDER[team], loc, Constants.GOAL, realRadius=False)
         self.team = team
-        self.GETfill_color = lambda g: Colors.GOAL_BORDER[team] if (g.turn == self.team and g.current_tree and g.current_tree.distsq(self.loc) < epsilon) or (self.team in g.team_trees and g.team_trees[self.team].distsq(self.loc) < epsilon) else Colors.GOAL_FILL[trace(color_name)]
+        self.GETfill_color = lambda g: Colors.GOAL_BORDER[team] if (g.turn == self.team and g.current_tree and g.current_tree.distsq(self.loc) < epsilon) or (self.team in g.team_trees and g.team_trees[self.team].distsq(self.loc) < epsilon) else None
 
 class TransScore(Renderable):
     def __init__(self, game):
@@ -159,6 +158,9 @@ class Trans(Game):
             teams = 2
         self.teams = self.possible_teams[:teams]
         super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous trans', **kwargs)
+
+        Segment(self, Layers.DISTRIBUTION, Colors.DISTRIBUTION, Point(-.5,-.5), Point(.5,.5))
+        Segment(self, Layers.DISTRIBUTION, Colors.DISTRIBUTION, Point(.5,-.5), Point(-.5,.5))
         
         # edges drawn this turn
         self.new_tree = TransTree(self, layer=Layers.AUX_TREE, color=Colors.NEW_TREE)
@@ -190,35 +192,20 @@ class Trans(Game):
 
     def make_initial_state(self, score=None):
         score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
-        dists = [
-            # UniformRectangleDist(self, 'cyan', (-6,-3.6), 12, 1.44),
-            # UniformRectangleDist(self, 'pink', (-6,-2.16), 12, 1.44),
-            # UniformRectangleDist(self,'white', (-6,-.72), 12, 1.44),
-            # UniformRectangleDist(self, 'pink', (-6, .72), 12, 1.44),
-            # UniformRectangleDist(self, 'cyan', (-6,2.16), 12, 1.44),
-            # UniformDiskDist(self, 'cyan', ( 5, 5), 2),
-            # UniformDiskDist(self, 'pink', (-5, 5), 2),
-            # UniformDiskDist(self,'white', ( 0, 0), 3),
-            # UniformDiskDist(self, 'pink', ( 5,-5), 2),
-            # UniformDiskDist(self, 'cyan', (-5,-5), 2),
-            UniformRectangleDist(self, 'cyan', (0,0), 4, 4),
-            UniformRectangleDist(self, 'pink', (0,4), 4, 4),
-            UniformRectangleDist(self, 'cyan', (0,8), 4, 4),
-            UniformRectangleDist(self, 'pink', (4,0), 4, 4),
-            UniformRectangleDist(self, 'cyan', (4,4), 4, 4),
-            UniformRectangleDist(self, 'pink', (4,8), 4, 4),
-            UniformRectangleDist(self, 'cyan', (8,0), 4, 4),
-            UniformRectangleDist(self, 'pink', (8,4), 4, 4),
-            UniformRectangleDist(self, 'cyan', (8,8), 4, 4),
-        ]
+        goals = []
+        for t in self.teams:
+            points = [Point(random.gauss(0,1), random.gauss(0,1)) for _ in range(5)]
+            scale = 15 / minimum_spanning_tree_size(points)
+            center = sum(points, Point(0,0))/len(points)
+            goals.extend((t, center + (p-center)*scale) for p in points)
         return (
             'red',
             score,
             [],
             {},
-            [(dist.type, dist.args) for dist in dists],
-            [(t, d.color_name, d.sample()) for t in self.teams for d in dists],
-            10,
+            #[(dist.type, dist.args) for dist in dists],
+            goals,
+            7,
         )
 
     possible_teams = ['red', 'blue', 'green', 'yellow', 'brown', 'white']
@@ -229,8 +216,7 @@ class Trans(Game):
             self.score.copy(),
             [([(p.coords, q.coords) for p,q in t.edges], t.teams.copy()) for t in self.layers[Layers.TREE]],
             [(p.team, p.loc.coords) for p in self.layers[Layers.START_PEG]],
-            [(dist.type, dist.args) for dist in self.layers[Layers.DISTRIBUTION]],
-            [(g.team, g.color_name, g.loc.coords) for g in self.layers[Layers.GOAL] if team in [g.team, 'spectator']],
+            [(g.team, g.loc.coords) for g in self.layers[Layers.GOAL] if team in [g.team, 'spectator']],
             self.spread,
         )
 
@@ -238,10 +224,10 @@ class Trans(Game):
         return self.get_state('spectator')
 
     def load_state(self, state):
-        self.turn, score, trees, pegs, dists, goals, self.spread = state
+        self.turn, score, trees, pegs, goals, self.spread = state
         self.score = score.copy()
 
-        for layer in [Layers.START_PEG, Layers.TREE, Layers.DISTRIBUTION, Layers.GOAL]:
+        for layer in [Layers.START_PEG, Layers.TREE, Layers.GOAL]:
             self.clearLayer(layer)
         self.team_trees = {}
 
@@ -251,10 +237,8 @@ class Trans(Game):
         for t,l in pegs:
             StartPeg(self, t, Point(*l))
 
-        for d, args in dists:
-            DISTRIBUTION_TYPE[d](self, *args)
-        for t,c,l in goals:
-            TransGoal(self, t, c, Point(*l))
+        for t,l in goals:
+            TransGoal(self, t, Point(*l))
 
 
     def prep_turn(self, team=None):

@@ -320,7 +320,7 @@ class Renderable:
 
 class Background(Renderable):
     def __init__(self, game, color):
-        super().__init__(game, 0)
+        super().__init__(game, -10**10)
         self.color = color
     def render(self):
         self.game.screen.fill(self.color)
@@ -440,8 +440,8 @@ class BorderDisk(Circle):
         super().__init__(game, layer, None, *args, **kwargs)
         self.fill_color, self.border_color = fill_color, border_color
     def render(self):
-        super().render(color=self.fill_color, width=0)
-        super().render(color=self.border_color)
+        if self.fill_color: super().render(color=self.fill_color, width=0)
+        if self.border_color: super().render(color=self.border_color)
 
 class ScreenBorder(Renderable):
     def __init__(self, game, layer, color, width):
