@@ -273,3 +273,15 @@ class Voronoi:
         del self.voronoi_vertices[p]
         i_p = self.points.index(p)
         self.points = self.points[:i_p]+self.points[i_p+1:]
+
+# returns list of edges in MST
+def minimum_spanning_tree(points):
+    components = {p:{p} for p in points}
+    ans = []
+    for p,q in sorted([(p,q) for i,p in enumerate(points) for q in points[:i]], key = lambda e: Point.__rshift__(*e)):
+        if components[p] != components[q]:
+            ans.append((p,q))
+        new = components[p] | components[q]
+        for x in new: components[x] = new
+    return ans
+minimum_spanning_tree_size = lambda points: sum((p>>q)**.5 for p,q in minimum_spanning_tree(points))

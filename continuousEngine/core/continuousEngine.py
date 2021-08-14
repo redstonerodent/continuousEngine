@@ -42,7 +42,7 @@ class Game:
         while 1:
             #print("hi",flush=True)
             self.update()
-    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False,name='continuous engine', timectrl=None):
+    def __init__(self,backgroundColor=(245,245,235),center=Point(0,0), spread=5, headless=False, name='continuous engine', timectrl=None):
         self.headless = headless
         self.size = lambda: pygame.display.get_window_size()
         self.width = lambda: self.size()[0]
