@@ -9,7 +9,7 @@ resetView               HOME
 undo                    z
 redo                    x
 resetGame               r
-fastForward				END
+fastForward             END
 skipTurn                f
 toggleLive              l
 printState              BACKQUOTE
@@ -17,7 +17,7 @@ printState              BACKQUOTE
 # zoom                  scroll wheel
 
 ###    chess
-cancelPiece				ESCAPE
+cancelPiece                ESCAPE
 # select piece          left click
 # move piece            left click
 # toggle show range     middle click
@@ -45,3 +45,7 @@ toggleGrid              g
 # select square         left click
 # run trial             click outside grid
 # run many trials       middle click and drag
+
+###		trans
+cancelTree              ESCAPE
+# build tree            left click

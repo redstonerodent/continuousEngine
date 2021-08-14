@@ -4,7 +4,6 @@ import random
 # todo
 # better scoring: either compute steiner tree or interface for players to build it
 # choose distributions (number, size, position, randomness)
-# update readme
 # tweak colors / sizes / etc.
 # example battlecode player
 
