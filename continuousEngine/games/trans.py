@@ -285,7 +285,9 @@ class Trans(Game):
                 self.team_trees[self.turn] = TransTree(self, teams=[self.turn])
             if self.team_trees[self.turn] and self.team_trees[self.turn].distsq(p) > epsilon:
                 print(self.team_trees[self.turn].distsq(p))
-                fail
+                print(p)
+                print('NOT CONNECTED')
+                return False
             self.team_trees[self.turn].add_edge(p, q)
             for t in self.layers[Layers.TREE].copy():
                 if t != self.team_trees[self.turn] and t.intersect_segment(p,q):
@@ -295,12 +297,13 @@ class Trans(Game):
                     self.layers[Layers.TREE].remove(t)
         if dist > Constants.TURN_DISTANCE+epsilon:
             print(dist)
-            fail
+            print('TOO MUCH TRACK')
+            return False
         # does the round end
-        if all(goal.team != self.turn or self.team_trees[self.turn].distsq(goal.loc) < epsilon for goal in self.layers[Layers.GOAL]): # issue: only checks current player's goals
+        if any(goal.team == self.turn for goal in self.layers[Layers.GOAL]) and all(goal.team != self.turn or self.team_trees[self.turn].distsq(goal.loc) < epsilon for goal in self.layers[Layers.GOAL]): # issue: only checks current player's goals
             # simple version: the score you lose is the sum of distances from your tree to your goals
             for goal in self.layers[Layers.GOAL]:
-                self.score[goal.team] -= trace(self.team_trees[goal.team].distsq(goal.loc)**.5)
+                self.score[goal.team] -= self.team_trees[goal.team].distsq(goal.loc)**.5
             # just go straight to the next round
             self.load_state(self.make_initial_state(self.score))
 

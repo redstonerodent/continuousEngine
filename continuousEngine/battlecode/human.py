@@ -16,7 +16,7 @@ class Player:
         self.server = self.loop.run_until_complete(asyncio.open_connection(host="localhost", port=port, limit=2**20))
         id = ''.join(random.choice(string.ascii_lowercase) for _ in range(5))
 
-        send(self.server, {"action":"create", "name":game_name, "id":id, "args":args})
+        send(self.server, {"action":"create", "name":game_name, "id":id, "args":args, "kwargs":{"timectrl":None}})
         send(self.server, {"action":"join", "user":"everyone-else", "id":id, "team":"spectator"})
 
         multiprocessing.Process(target=lambda:subprocess.run(['continuous-client', '-g', game_name, '-id', id, '-u', 'human', '-t', self.team])).start()
@@ -32,3 +32,5 @@ class Player:
             if msg["action"]!="move" or msg["move"]==None or msg["move"]["player"]!=self.team:
                 continue
             return msg["move"]
+    def on_move(self, move, state):
+        self.game.load_state(state)

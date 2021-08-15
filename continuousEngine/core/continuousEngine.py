@@ -140,13 +140,14 @@ class Game:
 
         self.reset_state = lambda: (self.load_state(self.initialState), self.prep_turn())
 
-        self.is_over = lambda: False
-        self.winner = lambda: None
 
         # time controls
         self.enforce_time = bool(timectrl)
         if timectrl:
             self.timer = TimerInfo(self, timectrl)
+    
+    is_over = lambda: False
+    winner = lambda: None
 
     # for anything that should be recomputed before each render
     process = lambda self: None
@@ -242,7 +243,6 @@ class Game:
         if self.enforce_time:
             if self.timer.calculate_time(self.turn) <= 0: return False
             self.timer.move()
-
         if self.turn != move["player"]: return False
         if not self.attemptGameMove(move): return False
 
