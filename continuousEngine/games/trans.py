@@ -4,7 +4,6 @@ import random
 # todo
 # better scoring: either compute steiner tree or interface for players to build it
 # tweak colors / sizes / etc.
-# example battlecode player
 
 class Layers:
     CENTER_MARK    = 1

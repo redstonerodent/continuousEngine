@@ -32,7 +32,7 @@ Inspired by (and name borrowed from) [Battlecode](https://battlecode.org/), an a
 * `watch.py` watches saved games output by `run.py`.
 * `example<game>player.py` is an AI for `<game>` which plays randomly, as a template.
 
-Currently `chess`, `go`, and `jrap` can be used for Battlecode.
+Currently `chess`, `go`, `jrap`, and `trans` can be used for Battlecode.
 
 ### Other
 

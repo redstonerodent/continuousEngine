@@ -5,6 +5,8 @@ from continuousEngine.network.server import NetworkGameServer
 # this "bot" is controlled manually by a human
 # it's intended to make it easier to test and debug another bot, by running it against this one
 
+# note: currently doesn't work for trans because of private information
+
 class Player:
     def __init__(self, game, game_name, team, *args):
         self.team = team
