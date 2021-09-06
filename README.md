@@ -68,7 +68,7 @@ To update, run `git pull`. If the update adds a command, you need to run `setup.
 
 ### To run a game locally
 
-`continuous game [-g game] [args ...]`
+`continuous-game [-g game] [args ...]`
 
 In all commands, `args` is passed to the game class. Currently the only use is to specify the number of players in `jrap` or `trans`.
 
