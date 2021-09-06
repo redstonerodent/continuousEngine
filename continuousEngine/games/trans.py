@@ -32,7 +32,6 @@ class Colors:
 
 class Constants:
     GOAL_NUM        = 3
-    TARGET_MST      = 15
     POISSON_STEP    = 100
     EXPECTED_GOALS  = 4.5
 
@@ -47,6 +46,7 @@ class Constants:
     # in-game units
     TURN_DISTANCE   = 1
     INITIAL_SCORE   = 10
+    TARGET_MST      = 15
     X_VARIANCE      = 4 # before scaling to TARGET_MST
     Y_VARIANCE      = 3
 
@@ -164,7 +164,7 @@ class Trans(Game):
         self.reset_state()
         if not self.headless: self.reset_view()
 
-    def make_initial_state(self, score=None):
+    def make_initial_state(self, score=None, turn='red'):
         score = score or {t:Constants.INITIAL_SCORE for t in self.teams}
         goals = []
         for t in self.teams:
@@ -174,7 +174,7 @@ class Trans(Game):
             center = sum(points, Point(0,0))/len(points)
             goals.extend((t, center + (p-center)*scale) for p in points)
         return (
-            'red',
+            turn,
             score,
             [],
             {},
@@ -304,7 +304,7 @@ class Trans(Game):
             for goal in self.layers[Layers.GOAL]:
                 self.score[goal.team] -= self.team_trees[goal.team].distsq(goal.loc)**.5
             # just go straight to the next round
-            self.load_state(self.make_initial_state(self.score))
+            self.load_state(self.make_initial_state(self.score, self.turn))
 
         return True
 
