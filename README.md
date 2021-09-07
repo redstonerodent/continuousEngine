@@ -126,6 +126,9 @@ After running some game at least once, open `config` (which is by default a copy
 
 Lines starting with `#` (mostly mouse inputs) are ignored; those settings can't be changed.
 
+### If installation fails
+
+Some people are unable to run the commands that are supposed to be installed by running `setup.py` (e.g. because the path to their python scripts folder contains spaces). As a workaround, replace each command with running the relevant file in `bin` with python, e.g. `python bin/continuous-game -g chess` run from the root directory of ContinuousEngine.
 
 ## Other things
 
