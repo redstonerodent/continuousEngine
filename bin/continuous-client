@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import pygame
 
-network_games = ['chess', 'go', 'jrap', 'reversi', 'trans']
+network_games = ['chess', 'go', 'jrap', 'reversi', 'trans', 'sample']
 
 parser = argparse.ArgumentParser(prog='continuous-client')
 parser.add_argument('-g','--game', required=True, choices=network_games)

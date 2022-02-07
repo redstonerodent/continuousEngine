@@ -8,7 +8,8 @@ ALL_GAMES = {
     'go' : 'Go',
     'jrap' : 'Jrap',
     'sky' : 'Sky',
-    'trans' : 'Trans'
+    'trans' : 'Trans',
+    'sample' : 'Sample',
     }
 
 game_class = lambda name: getattr(importlib.import_module('continuousEngine.games.'+name), ALL_GAMES[name])
@@ -164,7 +165,6 @@ class Game:
     get_state = lambda self, team: self.save_state() #returns state from point of view of team
     make_initial_state = lambda self: None # creates a fresh initial state (perhaps with randomness)
 
-    turn = None
     # can be overwritten for games with weird turn orders
     next_turn = lambda self, turn=None: self.teams[(self.teams.index(turn or self.turn)+1) % len(self.teams)]
     
@@ -192,7 +192,6 @@ class Game:
             self.needViewChange = True
 
     def reset_view(self):
-        self.size()
         self.scale = min(self.size()) / 2 / self.spread
         self.x_offset, self.y_offset = Point(*self.size())/2/self.scale - self.center
         self.needViewChange = True
@@ -419,7 +418,7 @@ class FilledPolygon(Renderable):
         super().__init__(game, layer)
         self.color, self.points = color, points
     def render(self):
-        drawPolygon(self.game, self.color, self.points)    
+        drawPolygon(self.game, self.color, self.points)
 
 class Circle(Renderable):
     def __init__(self, game, layer, color, loc, r, width=3, realRadius=True):

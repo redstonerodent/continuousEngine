@@ -8,7 +8,7 @@ import sys, os
 import argparse
 import random
 
-battlecode_games = ['chess', 'go', 'jrap', 'trans']
+battlecode_games = ['chess', 'go', 'jrap', 'trans', 'sample']
 
 sys.path.append(os.getcwd())
 

@@ -1,14 +1,14 @@
-from math import atan2, pi
+from math import atan2, pi, cos, sin
 
 # for debugging
 trace = lambda x, *y: (print(x), print(*y),x)[2]
 tracefn = lambda f: lambda *args: trace(f(*args), *args)
 
 class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.coords = (x,y)
+    def __init__(self, x, y, r=0, theta=0):
+        self.x = x + r * cos(theta)
+        self.y = y + r * sin(theta)
+        self.coords = (self.x,self.y)
     __iter__ = lambda self: iter(self.coords)
     __getitem__ = lambda self, v: self.coords[v]
     __repr__ = lambda self: "Point{}".format(self.coords)
