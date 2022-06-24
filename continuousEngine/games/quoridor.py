@@ -42,7 +42,6 @@ class Quoridor(Game):
 		self.team_count = int(teams)
 		super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous quoridor', spread=Constants.BOARD_RAD, **kwargs)
 
-		# board outline
 		Circle(self, Layers.BOARD, Colors.BOARD, Point(0,0), Constants.BOARD_RAD)
 
 		wall_ghost = Wall(self, None, None, Layers.GHOSTS, Colors.SELECTED)
@@ -58,6 +57,7 @@ class Quoridor(Game):
 		self.reset_state()
 
 		self.click[1] = lambda e: self.on_click(self.point(*e.pos))
+		# self.keyPress[self.keys.cancelQuoridor] = lambda _: (setattr(self, 'state', 'start'), setattr(self, 'selected', None))
 
 	def load_state(self, state):
 		for l in [Layers.WALLS, Layers.PAWNS]: self.clearLayer(l)
@@ -112,8 +112,6 @@ class Quoridor(Game):
 		self.selected = None
 		return True
 
-
-# to test the game, we need this:
 if __name__=='__main__':
     pygame.init()
     run_local(Quoridor, sys.argv[1:])

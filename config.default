@@ -13,6 +13,7 @@ fastForward             END
 skipTurn                f
 toggleLive              l
 printState              BACKQUOTE
+reloadState				ESCAPE
 # pan                   right click and drag
 # zoom                  scroll wheel
 
@@ -24,7 +25,6 @@ cancelPiece             ESCAPE
 
 ###     go
 placeGhost              SPACE
-clearGuides             ESCAPE
 # place piece           left click
 
 ###     jrap

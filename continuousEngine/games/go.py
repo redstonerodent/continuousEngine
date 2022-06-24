@@ -178,9 +178,6 @@ class Go(Game):
         self.keyPress[self.keys.skipTurn] = lambda e: self.attemptMove({"player":self.turn, "action":"skip"})
 
         self.keyPress[self.keys.placeGhost] = lambda _: None if self.blockers or not on_board(self.mousePos()) else (lambda ghost: setattr(ghost, 'GETcolor', lambda g: Colors.blocker if ghost in g.blockers else Colors.ghost))(Circle(self, Layers.PIECES['GHOST'], Colors.ghost, self.mousePos(), piece_rad))
-        self.keyPress[self.keys.clearGuides] = lambda _: ([setattr(p.guide, 'visible', False) for t in self.teams for p in self.layers[Layers.PIECES[t]]],
-                                                            setattr(self.nextPiece.guide, 'visible', False),
-                                                            self.clearLayer(Layers.PIECES['GHOST']))
 
         self.is_over = lambda: self.passes == 2
         self.winner = lambda: max(self.teams, key=lambda t: self.capturedCount[self.next_turn(t)] + self.territory[t])

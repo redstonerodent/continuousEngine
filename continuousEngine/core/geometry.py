@@ -73,9 +73,9 @@ nearest_on_disk = lambda x, p, r: p + ((x-p) @ min(r, (x >> p)**.5))
 slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5))(nearest_on_line(p,p1,p2))
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
-# the list of line segments in the intersection of the circle of radius r centered at the origin and the polygon with points pts
+# the list of line segments in the intersection of the disk of radius r centered at the origin and the polygon with points pts
 intersect_polygon_circle_segments = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
-# area of the intersection of the circle of radius r centered at p and the polygon with vertices pts
+# area of the intersection of the disk of radius r centered at p and the polygon with vertices pts
 intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1], p, r) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or r**2*pi)(intersect_polygon_circle_segments(pts, p, r))
 
 # combat floating point errors. In particular, tangent circles shouldn't intersect

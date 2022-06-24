@@ -159,7 +159,7 @@ class Trans(Game):
 
         self.click[1] = lambda _: self.on_click()
 
-        self.keyPress[self.keys.cancelTree] = lambda e: self.prep_turn()
+        # self.keyPress[self.keys.cancelTree] = lambda e: self.prep_turn()
 
         self.reset_state()
         if not self.headless: self.reset_view()
@@ -213,6 +213,8 @@ class Trans(Game):
 
         for t,l in goals:
             TransGoal(self, t, Point(*l))
+
+        self.prep_turn()
 
 
     def prep_turn(self, team=None):
