@@ -3,7 +3,7 @@ from continuousEngine import *
 class Layers:
 	BOARD = 1
 	WALLS = 6
-	PAWNS = 5
+	PAWNS = 2
 	GHOSTS = 3
 
 class Colors:
@@ -25,15 +25,16 @@ class Constants:
 	MOVE_DIST = 1
 
 class Wall(Segment):
-	def __init__(self, game, p1, p2, layer = Layers.WALLS, color = Colors.WALLS):
-		super().__init__(game, layer, color, p1, p2)
+	def __init__(self, game, p1, p2, layer = Layers.WALLS):
+		super().__init__(game, layer, None, p1, p2)
+		self.GETcolor = lambda g: Colors.WRONG if self in g.blockers else Colors.WALLS
 
 class Pawn(BorderDisk):
 	def __init__(self, game, team, loc):
 		super().__init__(game, Layers.PAWNS, Colors.PAWN[team], None, loc, Constants.PAWN_RAD)
 		self.team = team
 		self.GETborder_color = lambda g: \
-			Colors.SELECTED if g.selected == self or g.current_pawn == self and self in g.blockers else \
+			Colors.SELECTED if g.current_pawn == self and self in g.blockers and g.state == 'start' else \
 			Colors.WRONG if self in g.blockers else \
 			Colors.TURN if g.current_pawn == self else \
 			Colors.PAWN[self.team]
@@ -43,17 +44,20 @@ class Quoridor(Game):
 		self.team_count = int(teams)
 		super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous quoridor', spread=Constants.BOARD_RAD, **kwargs)
 
-		Circle(self, Layers.BOARD, Colors.BOARD, Point(0,0), Constants.BOARD_RAD)
+		self.border = Circle(self, Layers.BOARD, None, Point(0,0), Constants.BOARD_RAD)
+		self.border.GETcolor = lambda g: [Colors.BOARD, Colors.WRONG][g.border in g.blockers]
 
-		self.wall_ghost = Wall(self, None, None, Layers.GHOSTS, Colors.SELECTED)
+		self.wall_ghost = Wall(self, None, None, Layers.GHOSTS)
 		self.wall_ghost.GETvisible = lambda g: g.state == 'wall'
+		self.wall_ghost.GETcolor = lambda g: Colors.WRONG if g.blockers else Colors.SELECTED
 		self.wall_ghost.GETp1 = lambda g: g.selected
-		self.wall_ghost.GETp2 = lambda g: g.selected + (g.mousePos() - g.selected) @ Constants.WALL_LEN
+		self.wall_ghost.GETp2 = lambda g: g.wall_end(g.selected, g.mousePos())
 
-		self.pawn_ghost = Disk(self, Layers.GHOSTS, None, None, Constants.PAWN_RAD)
+		self.pawn_ghost = BorderDisk(self, Layers.GHOSTS, None, None, None, Constants.PAWN_RAD)
 		self.pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
-		self.pawn_ghost.GETcolor = lambda g: Colors.PAWN[g.turn]
-		self.pawn_ghost.GETloc = lambda g: nearest_on_disk(g.mousePos(), g.selected.loc, Constants.MOVE_DIST)
+		self.pawn_ghost.GETfill_color = lambda g: Colors.PAWN[g.turn]
+		self.pawn_ghost.GETborder_color = lambda g: Colors.WRONG if g.blockers else Colors.SELECTED
+		self.pawn_ghost.GETloc = lambda g: g.pawn_target(g.selected.loc, g.mousePos())
 
 		self.reset_state()
 
@@ -72,6 +76,9 @@ class Quoridor(Game):
 	def make_initial_state(self):
 		teams = Constants.TEAMS[:self.team_count]
 		return (teams[0], teams, [], [(t, Point(0,0,Constants.PAWN_START,2*pi*i/len(teams)).coords) for i,t in enumerate(teams)])
+
+	wall_end = lambda self, p1, p2: p1 + (p2 - p1) @ Constants.WALL_LEN
+	pawn_target = lambda self, p1, p2: nearest_on_disk(p2, p1, Constants.MOVE_DIST)
 
 	def on_click(self, loc):
 		if self.state == 'start':
@@ -92,20 +99,16 @@ class Quoridor(Game):
 
 	def attemptGameMove(self, move):
 		if move['type'] == 'pawn':
-			start = self.current_pawn.loc
-			end = Point(*move['location'])
-			end = nearest_on_disk(end, start, Constants.MOVE_DIST)
-			if Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2: return
+			target = self.pawn_target(self.current_pawn.loc, Point(*move['location']))
+			if self.find_blockers('pawn', self.current_pawn, Point(*move['location'])): return
 			self.record_state()
-			self.current_pawn.loc = end
+			self.current_pawn.loc = target
 		elif move['type'] == 'wall':
 			p1 = Point(*move['p1'])
 			p2 = Point(*move['p2'])
-			p2 = p1 + (p2-p1) @ Constants.WALL_LEN
-			if Point(0,0) >> p1 > Constants.BOARD_RAD**2: return
-			if Point(0,0) >> p2 > Constants.BOARD_RAD**2: return
+			if self.find_blockers('wall', p1, p2): return
 			self.record_state()
-			Wall(self, p1, p2)
+			Wall(self, p1, self.wall_end(p1, p2))
 		return True
 
 	def prep_turn(self):
@@ -114,15 +117,23 @@ class Quoridor(Game):
 		self.blockers = []
 		self.current_pawn = next(p for p in self.layers[Layers.PAWNS] if p.team == self.turn)
 
-	def process(self):
+	def find_blockers(self, state, selected, mouse):
 		if self.state == 'start':
-			blockers = [p for p in self.layers[Layers.PAWNS] if p.loc >> self.mousePos() < Constants.PAWN_RAD**2]
+			return [p for p in self.layers[Layers.PAWNS] if p.loc >> mouse < Constants.PAWN_RAD**2] + \
+				[self.border] * (Point(0,0) >> mouse > Constants.BOARD_RAD**2)
 		if self.state == 'pawn':
-			blockers = [p for p in self.layers[Layers.PAWNS] if p != self.selected and p.loc >> self.pawn_ghost.loc < (2*Constants.PAWN_RAD)**2] + \
-				[w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, self.pawn_ghost.loc, Constants.PAWN_RAD)]
+			target = self.pawn_target(selected.loc, mouse)
+			return [p for p in self.layers[Layers.PAWNS] if p != selected and p.loc >> target < (2*Constants.PAWN_RAD)**2] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, target, Constants.PAWN_RAD)] + \
+				[self.border] * (Point(0,0) >> self.pawn_ghost.loc > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2)
 		if self.state == 'wall':
-			blockers = [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(self.wall_gost.p1, self.wall_ghost.p2, p.loc, Constants.PAWN_RAD)] + \
-				[w for w in self.layers[Layers.WALLS] if intersect_segments(self.wall_gost.p1, self.wall_ghost.p2, w.p1, w.p2)]
+			p2 = self.wall_end(selected, mouse)
+			return [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(selected, p2, p.loc, Constants.PAWN_RAD)] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segments(selected, p2, w.p1, w.p2)] + \
+				[self.border] * (Point(0,0) >> selected > Constants.BOARD_RAD**2 or Point(0,0) >> p2 > Constants.BOARD_RAD**2)
+
+	def process(self):
+		self.blockers = self.find_blockers(self.state, self.selected, self.mousePos())
 
 if __name__=='__main__':
     pygame.init()
