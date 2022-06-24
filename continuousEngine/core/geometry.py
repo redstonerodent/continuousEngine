@@ -43,7 +43,7 @@ polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(p
 
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
 above_line = lambda x, p1, p2: (p2-p1)^(x-p1) < 0
-# do line segments a-b and x-y intersect?
+# do line segments a-b and x-y intersect? (note: function names don't distinguish between ones that return a boolean (like this one) and ones that return a tuple of intersections)
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
 # is b between a and c, assuming all three are colinear?
@@ -91,6 +91,9 @@ intersect_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))
     )(dist_to_line(p,a,b))
 # intersections of segment a-b and circle of radius r centered at p. a tuple with 0 to 2 elements.
 intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if between(a,x,b))
+
+# does segment a-b intersect the disk of radius r centered at p?
+intersect_segment_disk = lambda a,b,p,r: (lambda its: bool(its) and (between(a,its[0],b) or between(a,its[1],b) or between(its[0],a,its[1])))(intersect_line_circle(a,b,p,r))
 
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))

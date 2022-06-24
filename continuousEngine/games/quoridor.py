@@ -32,10 +32,11 @@ class Pawn(BorderDisk):
 	def __init__(self, game, team, loc):
 		super().__init__(game, Layers.PAWNS, Colors.PAWN[team], None, loc, Constants.PAWN_RAD)
 		self.team = team
-		self.GETborder_color = lambda g: Colors.SELECTED if g.selected == self \
-			else [Colors.WRONG, Colors.SELECTED][self.team == g.turn] if g.state=='start' and self.loc >> g.mousePos() < Constants.PAWN_RAD**2 \
-			else Colors.TURN if self.team == g.turn \
-			else Colors.PAWN[self.team]
+		self.GETborder_color = lambda g: \
+			Colors.SELECTED if g.selected == self or g.current_pawn == self and self in g.blockers else \
+			Colors.WRONG if self in g.blockers else \
+			Colors.TURN if g.current_pawn == self else \
+			Colors.PAWN[self.team]
 
 class Quoridor(Game):
 	def __init__(self, teams=2, **kwargs):
@@ -44,20 +45,19 @@ class Quoridor(Game):
 
 		Circle(self, Layers.BOARD, Colors.BOARD, Point(0,0), Constants.BOARD_RAD)
 
-		wall_ghost = Wall(self, None, None, Layers.GHOSTS, Colors.SELECTED)
-		wall_ghost.GETvisible = lambda g: g.state == 'wall'
-		wall_ghost.GETp1 = lambda g: g.selected
-		wall_ghost.GETp2 = lambda g: g.selected + (g.mousePos() - g.selected) @ Constants.WALL_LEN
+		self.wall_ghost = Wall(self, None, None, Layers.GHOSTS, Colors.SELECTED)
+		self.wall_ghost.GETvisible = lambda g: g.state == 'wall'
+		self.wall_ghost.GETp1 = lambda g: g.selected
+		self.wall_ghost.GETp2 = lambda g: g.selected + (g.mousePos() - g.selected) @ Constants.WALL_LEN
 
-		pawn_ghost = Disk(self, Layers.GHOSTS, None, None, Constants.PAWN_RAD)
-		pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
-		pawn_ghost.GETcolor = lambda g: Colors.PAWN[g.turn]
-		pawn_ghost.GETloc = lambda g: nearest_on_disk(g.mousePos(), g.selected.loc, Constants.MOVE_DIST)
+		self.pawn_ghost = Disk(self, Layers.GHOSTS, None, None, Constants.PAWN_RAD)
+		self.pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
+		self.pawn_ghost.GETcolor = lambda g: Colors.PAWN[g.turn]
+		self.pawn_ghost.GETloc = lambda g: nearest_on_disk(g.mousePos(), g.selected.loc, Constants.MOVE_DIST)
 
 		self.reset_state()
 
 		self.click[1] = lambda e: self.on_click(self.point(*e.pos))
-		# self.keyPress[self.keys.cancelQuoridor] = lambda _: (setattr(self, 'state', 'start'), setattr(self, 'selected', None))
 
 	def load_state(self, state):
 		for l in [Layers.WALLS, Layers.PAWNS]: self.clearLayer(l)
@@ -65,8 +65,7 @@ class Quoridor(Game):
 		self.teams = teams.copy()
 		[Wall(self, Point(*p1), Point(*p2)) for p1, p2 in walls]
 		[Pawn(self, team, Point(*loc)) for team,loc in pawns]
-		self.state = 'start'
-		self.selected = None
+		self.prep_turn()
 
 	save_state = lambda self: (self.turn, self.teams.copy(), [(w.p1.coords, w.p2.coords) for w in self.layers[Layers.WALLS]], [(p.team, p.loc.coords) for p in self.layers[Layers.PAWNS]])
 
@@ -93,13 +92,12 @@ class Quoridor(Game):
 
 	def attemptGameMove(self, move):
 		if move['type'] == 'pawn':
-			pawn = next(p for p in self.layers[Layers.PAWNS] if p.team == self.turn)
-			start = pawn.loc
+			start = self.current_pawn.loc
 			end = Point(*move['location'])
 			end = nearest_on_disk(end, start, Constants.MOVE_DIST)
 			if Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2: return
 			self.record_state()
-			pawn.loc = end
+			self.current_pawn.loc = end
 		elif move['type'] == 'wall':
 			p1 = Point(*move['p1'])
 			p2 = Point(*move['p2'])
@@ -108,9 +106,23 @@ class Quoridor(Game):
 			if Point(0,0) >> p2 > Constants.BOARD_RAD**2: return
 			self.record_state()
 			Wall(self, p1, p2)
+		return True
+
+	def prep_turn(self):
 		self.state = 'start'
 		self.selected = None
-		return True
+		self.blockers = []
+		self.current_pawn = next(p for p in self.layers[Layers.PAWNS] if p.team == self.turn)
+
+	def process(self):
+		if self.state == 'start':
+			blockers = [p for p in self.layers[Layers.PAWNS] if p.loc >> self.mousePos() < Constants.PAWN_RAD**2]
+		if self.state == 'pawn':
+			blockers = [p for p in self.layers[Layers.PAWNS] if p != self.selected and p.loc >> self.pawn_ghost.loc < (2*Constants.PAWN_RAD)**2] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, self.pawn_ghost.loc, Constants.PAWN_RAD)]
+		if self.state == 'wall':
+			blockers = [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(self.wall_gost.p1, self.wall_ghost.p2, p.loc, Constants.PAWN_RAD)] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segments(self.wall_gost.p1, self.wall_ghost.p2, w.p1, w.p2)]
 
 if __name__=='__main__':
     pygame.init()
