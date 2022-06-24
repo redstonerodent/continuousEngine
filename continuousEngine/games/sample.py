@@ -3,8 +3,6 @@
 
 # of course we want to import this
 from continuousEngine import *
-# and I'll use pi a little bit later
-from math import pi
 
 # let's start by defining some constants that we'll use later
 # I generally put these in separate classes, but it doesn't really matter

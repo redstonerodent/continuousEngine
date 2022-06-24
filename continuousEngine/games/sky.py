@@ -99,7 +99,7 @@ class Sky(Game):
         self.click[1] = lambda e: (lambda x,y:(setattr(self.selector, 'loc', Point(int(x), int(y))) if 0<=x<=n and 0<=y<=n else self.addDot(x,y)))(*self.point(*e.pos))
         # middle click and drag
         self.drag[1] = lambda e: (lambda x,y:self.addDot(x,y))(*self.point(*e.pos))
-        self.numKey = lambda c: (self.record_state(), setattr(guess[self.selector.loc.x][self.selector.loc.y],'text',c))
+        self.numKey = lambda c: (self.record_state(), setattr(guess[int(self.selector.loc.x)][int(self.selector.loc.y)],'text',c))
 
 
         # debug
@@ -143,7 +143,7 @@ class Sky(Game):
         self.keyPress[self.keys.moveDown]       = lambda _: setattr(self.selector, 'loc', Point(self.selector.loc.x, (self.selector.loc.y+1)%(n+allow_out_of_range)))
         self.keyPress[self.keys.moveLeft]       = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x-1)%(n+allow_out_of_range), self.selector.loc.y))
         self.keyPress[self.keys.moveRight]      = lambda _: setattr(self.selector, 'loc', Point((self.selector.loc.x+1)%(n+allow_out_of_range), self.selector.loc.y))
-        self.keyPress[self.keys.delete]         = lambda _: (self.record_state(), setattr(guess[self.selector.loc.x][self.selector.loc.y],'text',0))
+        self.keyPress[self.keys.delete]         = lambda _: (self.record_state(), setattr(guess[int(self.selector.loc.x)][int(self.selector.loc.y)],'text',0))
         self.keyPress[self.keys.resetColors]    = lambda _: self.clearCache()
         self.keyPress[self.keys.clearTrials]    = lambda _: self.clearLayer(Layers.TRIALS)
         self.keyPress[self.keys.toggleGrid]     = lambda _: setattr(self.grid,'visible',not self.grid.visible)
