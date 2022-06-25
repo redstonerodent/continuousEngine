@@ -414,12 +414,16 @@ class Rectangle(Renderable):
     def render(self):
         pygame.draw.rect(self.game.screen, self.color, pygame.Rect(*self.game.pixel(self.loc), int(self.dx*self.game.scale), int(self.dy*self.game.scale)))
 
-class FilledPolygon(Renderable):
-    def __init__(self, game, layer, color, points):
+class Polygon(Renderable):
+    def __init__(self, game, layer, color, points, width=3, realWidth=False):
         super().__init__(game, layer)
-        self.color, self.points = color, points
+        self.color, self.points, self.width, self.realWidth = color, points, width, realWidth
     def render(self):
-        drawPolygon(self.game, self.color, self.points)
+        drawPolygon(self.game, self.color, self.points, self.width, self.realWidth)
+
+class FilledPolygon(Polygon):
+    def __init__(self, game, layer, color, points):
+        super().__init__(game, layer, color, points, 0)
 
 class Circle(Renderable):
     def __init__(self, game, layer, color, loc, r, width=3, realRadius=True):

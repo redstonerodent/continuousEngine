@@ -101,6 +101,12 @@ intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-ax
 # is point p in the convex polygon with vertices poly, in counterclockwise order?
 point_in_polygon = lambda p, poly: all(above_line(p, poly[i-1], poly[i]) for i in range(len(poly)))
 
+# does segment a-b intersect (filled) convex polygon poly?
+intersect_segment_conv_polygon = lambda a, b, poly: point_in_polygon(a,poly) or any(intersect_segments(a,b, poly[i-1], poly[i]) for i in range(len(poly)))
+
+# does the disk centered at p with radius r intersect (filled) convex polygon poly?
+intersect_circle_conv_polygon = lambda p, r, poly: point_in_polygon(p, poly) or any(intersect_segment_circle(poly[i-1], poly[i], p, r) for i in range(len(poly)))
+
 def intersect_polygon_halfplane(polygon, axis, sign, position):
     # the intersection of the polygon (list of points) with the half-plane described by axis, sign, position
     # the equation for the half-plane is <Z><rel>position, where Z={0:x,1:y}[axis] and rel={1:>,-1:<}[sign]
