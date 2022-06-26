@@ -2,10 +2,10 @@ from continuousEngine import *
 
 class Layers:
 	BOARD = 1
-	WALLS = 6
-	PAWNS = 2
-	GHOSTS = 3
-	GUIDE = 10
+	WALLS = 8
+	PAWNS = 4
+	GHOSTS = 6
+	GUIDE = 3
 
 class Colors:
 	BACKGROUND = (181, 108, 53)
@@ -45,8 +45,8 @@ class Quoridor(Game):
 		self.team_count = int(teams)
 		super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous quoridor', spread=Constants.BOARD_RAD, **kwargs)
 
-		self.border = Circle(self, Layers.BOARD, None, Point(0,0), Constants.BOARD_RAD)
-		self.border.GETcolor = lambda g: [Colors.BOARD, Colors.WRONG][g.border in g.blockers]
+		self.border = Circle(self, Layers.BOARD, Colors.BOARD, Point(0,0), Constants.BOARD_RAD)
+		# self.border.GETcolor = lambda g: [Colors.BOARD, Colors.WRONG][g.border in g.blockers]
 
 		wall_ghost = Wall(self, None, None, Layers.GHOSTS)
 		wall_ghost.GETvisible = lambda g: g.state == 'wall'
@@ -60,8 +60,9 @@ class Quoridor(Game):
 		pawn_ghost.GETborder_color = lambda g: Colors.WRONG if g.blockers else Colors.SELECTED
 		pawn_ghost.GETloc = lambda g: g.pawn_target(g.selected.loc, g.mousePos())
 
-		move_guide = Polygon(self, Layers.GUIDE, Colors.WRONG, None)
+		move_guide = FilledPolygon(self, Layers.GUIDE, None, None)
 		move_guide.GETvisible = lambda g: g.state == 'pawn'
+		move_guide.GETcolor = lambda g: Colors.PAWN[g.turn]
 		move_guide.GETpoints = lambda g: self.move_rect(g.selected.loc, g.mousePos())
 
 		self.reset_state()
@@ -116,6 +117,7 @@ class Quoridor(Game):
 			p1 = Point(*move['p1'])
 			p2 = Point(*move['p2'])
 			if self.find_blockers('wall', p1, p2): return
+			if p1 == p2: return
 			self.record_state()
 			Wall(self, p1, self.wall_end(p1, p2))
 		return True

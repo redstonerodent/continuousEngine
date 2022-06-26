@@ -157,7 +157,7 @@ class Game:
     viewChange = lambda self: None
     # for anything that should be recomputed whenever the window size changes
     resize = lambda self: None
-    # for anything that should be recomputed before each turn
+    # for anything that should be recomputed before each turn; if you use this you should probably have load_state call it
     prep_turn = lambda self: None
         
     # should be overwritten by user
