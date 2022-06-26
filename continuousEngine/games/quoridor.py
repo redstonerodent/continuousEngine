@@ -58,12 +58,12 @@ class Quoridor(Game):
 		pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
 		pawn_ghost.GETfill_color = lambda g: Colors.PAWN[g.turn]
 		pawn_ghost.GETborder_color = lambda g: Colors.WRONG if g.blockers else Colors.SELECTED
-		pawn_ghost.GETloc = lambda g: g.pawn_target(g.selected.loc, g.mousePos())
+		pawn_ghost.GETloc = lambda g: g.pawn_target(g.selected, g.mousePos())
 
 		move_guide = FilledPolygon(self, Layers.GUIDE, None, None)
 		move_guide.GETvisible = lambda g: g.state == 'pawn'
 		move_guide.GETcolor = lambda g: Colors.PAWN[g.turn]
-		move_guide.GETpoints = lambda g: self.move_rect(g.selected.loc, g.mousePos())
+		move_guide.GETpoints = lambda g: self.move_rect(g.selected, g.mousePos())
 
 		self.reset_state()
 
@@ -84,11 +84,23 @@ class Quoridor(Game):
 		return (teams[0], teams, [], [(t, Point(0,0,Constants.PAWN_START,2*pi*i/len(teams)).coords) for i,t in enumerate(teams)])
 
 	wall_end = lambda self, p1, p2: p1 + (p2 - p1) @ Constants.WALL_LEN
-	pawn_target = lambda self, p1, p2: nearest_on_disk(p2, p1, Constants.MOVE_DIST)
-	def move_rect(self, p1, p2):
-		p2 = self.pawn_target(p1, p2)
-		delta = ~(p2-p1) @ Constants.PAWN_RAD
-		return [p1+delta, p1-delta, p2-delta, p2+delta]
+	pawn_target = lambda self, p1, p2: nearest_on_disk(p2, p1.loc, Constants.MOVE_DIST)
+
+	# def pawn_target(self, pawn, end):
+	# 	# player attempts to move the pawn to end
+	# 	# where does it actually go?
+	# 	end = nearest_on_disk(end, pawn.loc, Constants.MOVE_DIST) # first cap at MOVE_DIST
+	# 	while (b := next(self.find_blockers('pawn', start, end), None)): # if blocked, back up to be tangent to the blocker
+	# 		if b := self.border:
+	# 			end = start
+	# 		elif type(b)
+	# 	return end
+
+
+	def move_rect(self, pawn, end):
+		end = self.pawn_target(pawn, end)
+		delta = ~(end-pawn.loc) @ Constants.PAWN_RAD
+		return [end+delta, end-delta, pawn.loc-delta, pawn.loc+delta]
 
 	def on_click(self, loc):
 		if self.state == 'start':
@@ -109,13 +121,13 @@ class Quoridor(Game):
 
 	def attemptGameMove(self, move):
 		if move['type'] == 'pawn':
-			target = self.pawn_target(self.current_pawn.loc, Point(*move['location']))
-			if self.find_blockers('pawn', self.current_pawn, Point(*move['location'])): return
+			target = self.pawn_target(self.current_pawn, Point(*move['location']))
+			if self.find_blockers('pawn', self.current_pawn, target): return
 			self.record_state()
 			self.current_pawn.loc = target
 		elif move['type'] == 'wall':
 			p1 = Point(*move['p1'])
-			p2 = Point(*move['p2'])
+			p2 = self.wall_end(p1, Point(*move['p2']))
 			if self.find_blockers('wall', p1, p2): return
 			if p1 == p2: return
 			self.record_state()
@@ -128,24 +140,24 @@ class Quoridor(Game):
 		self.blockers = []
 		self.current_pawn = next(p for p in self.layers[Layers.PAWNS] if p.team == self.turn)
 
-	def find_blockers(self, state, selected, mouse):
+	def find_blockers(self, state, selected, end, raw=False):
 		if self.state == 'start':
-			return [p for p in self.layers[Layers.PAWNS] if p.loc >> mouse < Constants.PAWN_RAD**2] + \
-				[self.border] * (Point(0,0) >> mouse > Constants.BOARD_RAD**2)
+			return [p for p in self.layers[Layers.PAWNS] if p.loc >> end < Constants.PAWN_RAD**2] + \
+				[self.border] * (Point(0,0) >> end > Constants.BOARD_RAD**2)
 		if self.state == 'pawn':
-			target = self.pawn_target(selected.loc, mouse)
-			rect = self.move_rect(selected.loc, mouse)
-			return [p for p in self.layers[Layers.PAWNS] if p != selected and (p.loc >> target < (2*Constants.PAWN_RAD)**2 or intersect_circle_conv_polygon(p.loc, Constants.PAWN_RAD, rect))] + \
-				[w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, target, Constants.PAWN_RAD) or intersect_segment_conv_polygon(w.p1, w.p2, rect)] + \
-				[self.border] * (Point(0,0) >> target > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2)
+			if raw: end = self.pawn_target(selected, end)
+			rect = self.move_rect(selected, end)
+			return [p for p in self.layers[Layers.PAWNS] if p != selected and (p.loc >> end < (2*Constants.PAWN_RAD)**2 or intersect_circle_conv_polygon(p.loc, Constants.PAWN_RAD, rect))] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, end, Constants.PAWN_RAD) or intersect_segment_conv_polygon(w.p1, w.p2, rect)] + \
+				[self.border] * (Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2)
 		if self.state == 'wall':
-			p2 = self.wall_end(selected, mouse)
-			return [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(selected, p2, p.loc, Constants.PAWN_RAD)] + \
-				[w for w in self.layers[Layers.WALLS] if intersect_segments(selected, p2, w.p1, w.p2)] + \
-				[self.border] * (Point(0,0) >> selected > Constants.BOARD_RAD**2 or Point(0,0) >> p2 > Constants.BOARD_RAD**2)
+			if raw: end = self.wall_end(selected, end)
+			return [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(selected, end, p.loc, Constants.PAWN_RAD)] + \
+				[w for w in self.layers[Layers.WALLS] if intersect_segments(selected, end, w.p1, w.p2)] + \
+				[self.border] * (Point(0,0) >> selected > Constants.BOARD_RAD**2 or Point(0,0) >> end > Constants.BOARD_RAD**2)
 
 	def process(self):
-		self.blockers = self.find_blockers(self.state, self.selected, self.mousePos())
+		self.blockers = self.find_blockers(self.state, self.selected, self.mousePos(), True)
 
 if __name__=='__main__':
     pygame.init()
