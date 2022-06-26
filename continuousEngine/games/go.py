@@ -52,7 +52,6 @@ class Layers:
     GUIDES      = 1.5
     PIECES      = {'white':2, 'black':2.1, 'GHOST':2.2, 'NEW':5}
     COUNT       = 10
-    DEBUG       = 20
 
 class Colors:
     fill        = {'white': (205,205,205), 'black': (50, 50, 50 )}
@@ -65,7 +64,6 @@ class Colors:
     background  = (212,154,61)
     text        = {'white': (255,255,255), 'black': (0,0,0), 'GAMEOVER': (230,20,128)}
     boundary    = (0,0,0)
-    debug       = [(255,0,0),(0,255,0),(0,0,255)]
     ghost       = (128,128,128)
     territory   = {'white': (222,174,81), 'black': (192,134,41)}
 
@@ -97,12 +95,6 @@ class GoVoronoi(CachedImg):
             self.mask.blit(self.scratch, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
             return self.mask
         super().__init__(game, layer, None, gen)
-
-class GoDebugger(Renderable):
-    render = lambda self: (
-        [(lambda col: [self.debugLine(col, *e) for e in self.game.edges[t] if set(e) <= cmp])([random.randint(0,255) for _ in '123']) for t in self.game.teams for cmp in self.game.components[t]],
-        [self.debugLine(Colors.debug[0], p.loc, lib) for t in self.game.teams for p in self.game.layers[Layers.PIECES[t]] for lib in self.game.liberties[p.loc]]
-        )
 
 class Go(Game):
     make_initial_state = lambda self: ('black', {t:0 for t in self.teams}, {t:set() for t in self.teams}, 0)
@@ -136,10 +128,7 @@ class Go(Game):
 
         FixedText(self, Layers.COUNT, Colors.text['black'], self.font, None, -30,30, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['white'], g.territory['black'], g.capturedCount['white'] + g.territory['black'])
         FixedText(self, Layers.COUNT, Colors.text['white'], self.font, None, -30,60, halign='r', valign='t', hborder='r').GETtext = lambda g: '{} + {:4.1f} = {:5.1f}'.format(g.capturedCount['black'], g.territory['white'], g.capturedCount['black'] + g.territory['white'])
-        self.debugger = GoDebugger(self, Layers.DEBUG)
-        self.debugger.visible = False
 
-        # debug
         self.edges = {t:set() for t in self.teams}
         self.components = {t:[] for t in self.teams}
         self.captures = set()

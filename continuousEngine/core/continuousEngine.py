@@ -250,15 +250,17 @@ class Game:
         self.prep_turn()
         return True
 
-def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=True, surface=None):
+def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius=True, surface=None, borderGrowth=1):
     # draws a circle with given center and radius
     # if width is given, draws the boundary; if width is 0, fills the circle
     # realWidth/Radius=False  -> given in pixels (on screen) 
     # realWidth/Radius=True -> given in points (in-game distance)
+    # borderGrowth controls how the border is placed: 1 -> radius at inner edge; 0 -> radius at outer edge; 1/2 -> radius in center
     if surface == None: surface = game.screen
     if realWidth: width *= game.scale
+    if realRadius: radius *= game.scale
 
-    pygame.draw.circle(surface, color, game.pixel(center), int(radius*(game.scale if realRadius else 1)+width), int(width))
+    pygame.draw.circle(surface, color, game.pixel(center), int(radius+width*borderGrowth), int(width))
 
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
@@ -315,8 +317,6 @@ class Renderable:
         self.visible = True
     def render(self):
         pass
-    def debugLine(self, color, p1, p2, width=3):
-        pygame.draw.line(self.game.screen, color, self.game.pixel(p1), self.game.pixel(p2), width)
 
 class Background(Renderable):
     def __init__(self, game, color):
@@ -324,7 +324,6 @@ class Background(Renderable):
         self.color = color
     def render(self):
         self.game.screen.fill(self.color)
-
 
 class Segment(Renderable):
     def __init__(self, game, layer, color, p1, p2, width=3, realWidth=False):
@@ -426,13 +425,13 @@ class FilledPolygon(Polygon):
         super().__init__(game, layer, color, points, 0)
 
 class Circle(Renderable):
-    def __init__(self, game, layer, color, loc, r, width=3, realRadius=True):
+    def __init__(self, game, layer, color, loc, r, width=3, **kwargs):
         super().__init__(game, layer)
-        self.color, self.loc, self.r, self.width, self.realRadius = color, loc, r, width, realRadius
+        self.color, self.loc, self.r, self.width, self.kwargs = color, loc, r, width, kwargs
     def render(self, color=None, width=None):
         if color == None: color = self.color
         if width == None: width = self.width
-        drawCircle(self.game, color, self.loc, self.r, width, realRadius=self.realRadius)
+        drawCircle(self.game, color, self.loc, self.r, width, **self.kwargs)
 
 class Disk(Circle):
     def __init__(self, *args, **kwargs):

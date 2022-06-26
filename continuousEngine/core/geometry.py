@@ -70,11 +70,13 @@ nearest_on_circle = lambda x, p, r: p + ((x-p) @ r) if x != p else p + Point(r,0
 nearest_on_disk = lambda x, p, r: p + ((x-p) @ min(r, (x >> p)**.5))
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
-slide_to_circle = lambda p1, p2, p, r: p1 if p1>>p < r**2 else (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5))(nearest_on_line(p,p1,p2))
+slide_to_circle = lambda p1, p2, p, r: (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5) * (-1)**(p1 >> p < r**2))(nearest_on_line(p,p1,p2))
+# the result of moving p1 towards p2 until it's on the disk of radius r centered at p
+slide_to_disk = lambda p1, p2, p, r: p1 if p1>>p < r**2 else slide_to_circle(p1, p2, p, r)
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
 sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
 # the list of line segments in the intersection of the disk of radius r centered at the origin and the polygon with points pts
-intersect_polygon_circle_segments = lambda pts, p, r: [[slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_circle(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
+intersect_polygon_circle_segments = lambda pts, p, r: [[slide_to_disk(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_disk(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
 # area of the intersection of the disk of radius r centered at p and the polygon with vertices pts
 intersect_polygon_circle_area = lambda pts, p, r: (lambda segments: polygon_area(sum(segments, [])) + sum(sliver_area(segments[(i+1)%len(segments)][0], segments[i][1], p, r) for i in range(len(segments)) if segments[i][1] != segments[(i+1)%len(segments)][0]) or r**2*pi)(intersect_polygon_circle_segments(pts, p, r))
 
@@ -93,10 +95,13 @@ intersect_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))
 intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if between(a,x,b))
 
 # does segment a-b intersect the disk of radius r centered at p?
-intersect_segment_disk = lambda a,b,p,r: (lambda its: bool(its) and (between(a,its[0],b) or between(a,its[1],b) or between(its[0],a,its[1])))(intersect_line_circle(a,b,p,r))
+intersect_segment_disk = lambda a,b,p,r: dist_to_segment(p, a, b) < r
 
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersect_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))
+
+# intersection of the lines a-b and c-d. probably a div by 0 if they're parallel or degenerate
+intersect_lines = lambda a,b,c,d: (lambda ha, hb: (b*ha + a*hb) / (ha+hb))(dist_above_line(a,c,d), -dist_above_line(b,c,d))
 
 # is point p in the convex polygon with vertices poly, in counterclockwise order?
 point_in_polygon = lambda p, poly: all(above_line(p, poly[i-1], poly[i]) for i in range(len(poly)))
@@ -145,9 +150,9 @@ def intersect_polygon_circle_arcs(pts, p, r):
     for i in range(len(pts)):
         if pts[i]>>p >= r**2:
             if nearest_on_segment(p, pts[i], pts[(i+1)%len(pts)])>>p < r**2:
-                ends.append(atan2(*(slide_to_circle(pts[i], pts[(i+1)%len(pts)], p, r) - p)))
+                ends.append(atan2(*(slide_to_disk(pts[i], pts[(i+1)%len(pts)], p, r) - p)))
             if nearest_on_segment(p, pts[i], pts[i-1])>>p < r**2:
-                starts.append(atan2(*(slide_to_circle(pts[i], pts[i-1], p, r) - p)))
+                starts.append(atan2(*(slide_to_disk(pts[i], pts[i-1], p, r) - p)))
 
     return [(s, min(ends, key=lambda e: (e-s)%(2*pi))) for s in starts]
 

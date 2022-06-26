@@ -108,7 +108,7 @@ class JrapVoronoi(CachedImg):
         # relies on voronoi vertices being listed 'backwards'
         self.uncovered_arcs = {p: intersect_polygon_circle_arcs(self.diagram.voronoi_vertices[p], Point(0,0), board_rad) for p,_ in cells}
         # vertices on the board and intersections with the boundary
-        self.board_pts = {p: (lambda pts: sum(([pts[i]] if on_board(pts[i]) else [slide_to_circle(pts[i], pts[i-1], Point(0,0), board_rad)]*on_board(pts[i-1])+[slide_to_circle(pts[i], pts[(i+1)%len(pts)], Point(0,0), board_rad)]*on_board(pts[(i+1)%len(pts)]) for i in range(len(pts))),[]))(self.diagram.voronoi_vertices[p]) for p,_ in cells}
+        self.board_pts = {p: (lambda pts: sum(([pts[i]] if on_board(pts[i]) else [slide_to_disk(pts[i], pts[i-1], Point(0,0), board_rad)]*on_board(pts[i-1])+[slide_to_disk(pts[i], pts[(i+1)%len(pts)], Point(0,0), board_rad)]*on_board(pts[(i+1)%len(pts)]) for i in range(len(pts))),[]))(self.diagram.voronoi_vertices[p]) for p,_ in cells}
 
         self.game.clearCache()
 
