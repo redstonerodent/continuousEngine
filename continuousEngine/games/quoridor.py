@@ -91,30 +91,70 @@ class Quoridor(Game):
 	wall_end = lambda self, p1, p2: p1 + (p2 - p1) @ Constants.WALL_LEN
 
 	def pawn_target(self, pawn, end):
-		# player attempts to move the pawn to end
+		# player attempts to move pawn to end
 		# where does it actually go?
-		end = nearest_on_disk(end, pawn.loc, Constants.MOVE_DIST) # first cap at MOVE_DIST
-		last = []
-		while (b := next(iter(self.find_pawn_blockers(pawn, end)), None)): # if blocked, back up to be tangent to the blocker
+		blockers = [] # to indicate which thing(s) blocked you
+
+		# 1: cap at MOVE_DIST
+		end = nearest_on_disk(end, pawn.loc, Constants.MOVE_DIST)
+		
+		# 2: get blocked by walls and border
+		for b in self.find_pawn_blockers(pawn, end): # if blocked, back up to be tangent to the blocker
 			print('dodging', b)
 			if b == self.border:
 				print('border')
-				end = slide_to_circle(end, pawn.loc, Point(0,0), Constants.BOARD_RAD - Constants.PAWN_RAD)
+				if Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2:
+					end = slide_to_circle(end, pawn.loc, Point(0,0), Constants.BOARD_RAD - Constants.PAWN_RAD)
 			elif isinstance(b, Wall):
 				print('wall')
-				# slide end to the oval around the wall
-				delta = (~(b.p1-b.p2) @ Constants.PAWN_RAD)*(-1)**above_line(pawn.loc, b.p1, b.p2)
-				if intersect_segments(pawn.loc, end, b.p1+delta, b.p2+delta):
-					end = intersect_lines(pawn.loc, end, b.p1 + delta, b.p2 + delta)
-				else:
-					end = min(sum((intersect_segment_circle(pawn.loc, end, p, Constants.PAWN_RAD) for p in [b.p1, b.p2]),()), key=lambda p: pawn.loc >> p)
+				if intersect_segment_disk(b.p1, b.p2, end, Constants.PAWN_RAD) or intersect_segment_conv_polygon(b.p1, b.p2, self.move_rect(pawn, end)):
+					# slide end to the oval around the wall
+					delta = (~(b.p1-b.p2) @ Constants.PAWN_RAD)*(-1)**above_line(pawn.loc, b.p1, b.p2)
+					if intersect_segments(pawn.loc, end, b.p1+delta, b.p2+delta):
+						end = intersect_lines(pawn.loc, end, b.p1 + delta, b.p2 + delta)
+					else:
+						end = min(sum((intersect_segment_circle(pawn.loc, end, p, Constants.PAWN_RAD) for p in [b.p1, b.p2]),()), key=lambda p: pawn.loc >> p)
 			elif isinstance(b, Pawn):
 				print('pawn')
-				end = slide_to_circle(end, pawn.loc, b.loc, 2*Constants.PAWN_RAD)
+				continue
+				# end = slide_to_circle(end, pawn.loc, b.loc, 2*Constants.PAWN_RAD)
 			print('dodged')
-			last = [b]
+			blockers = [b]
 			end -= (end - pawn.loc) @ epsilon # avoid floating point issues
-		return end, last
+
+		# 3: if the final position overlaps a pawn, move past to tangent
+		ps = [p for p in self.layers[Layers.PAWNS] if p != pawn and p.loc >> end < (2*Constants.PAWN_RAD)**2]
+		blockers += ps
+		if len(ps) > 1: raise NotImplementedError() # todo idk what should happen here yet
+		elif ps:
+			print('jumping')
+			p_on = ps[0]
+			start = pawn.loc # temporarily modifying this
+			pawn.loc = corner = end
+			end = slide_to_circle(end, 2*end - pawn.loc, p_on.loc, 2*Constants.PAWN_RAD)
+
+			# the move makes a sharp turn at corner, which is where it'd end if there weren't a pawn
+			# 4: change the angle of the leg after corner to avoid collisions, bending away from p_on
+			last = []
+			while (b := next(self.find_pawn_blockers(pawn, end), None)): # todo: figure out geometry
+				print('rolling', b)
+				if b == self.border:
+					print('border')
+					break
+				elif isinstance(b, Wall):
+					print('wall')
+					break
+				elif isinstance(b, Pawn):
+					print('pawn')
+					break
+				print('rolled')
+				last = [b]
+				end -= (end - pawn.loc) @ epsilon
+
+
+			pawn.loc = start
+			blockers += last
+		return end, blockers #, corner
 
 
 	def move_rect(self, pawn, end):
