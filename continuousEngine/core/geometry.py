@@ -93,6 +93,8 @@ intersect_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))
     )(dist_to_line(p,a,b))
 # intersections of segment a-b and circle of radius r centered at p. a tuple with 0 to 2 elements.
 intersect_segment_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if between(a,x,b))
+# intersections of ray a->b and circle with radius r centered at p. a tuple with 0-2 elements.
+intersect_ray_circle = lambda a, b, p, r: tuple(x for x in intersect_line_circle(a,b,p,r) if (b-a)&(x-a) > 0)
 
 # does segment a-b intersect the disk of radius r centered at p?
 intersect_segment_disk = lambda a,b,p,r: dist_to_segment(p, a, b) < r
