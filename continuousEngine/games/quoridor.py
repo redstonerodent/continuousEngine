@@ -14,6 +14,7 @@ class Colors:
 	PAWN = {'white':(255,255,255), 'brown':(105, 63, 24), 'black':(0,0,0), 'red':(201, 26, 6)}
 	SELECTED = (0,255,0)
 	WRONG = (255,0,0)
+	CORNER = (230,230,0)
 	TURN = (0,200,200)
 
 class Constants:
@@ -53,30 +54,25 @@ class Quoridor(Game):
 		wall_ghost.GETp1 = lambda g: g.selected
 		wall_ghost.GETp2 = lambda g: g.wall_end(g.selected, g.mousePos())
 
+		pawn_corner_ghost = Pawn(self, None, None, Layers.GHOSTS)
+		pawn_corner_ghost.GETvisible = lambda g: g.state == 'pawn' and g.corner
+		pawn_corner_ghost.border_color = Colors.CORNER
+		pawn_corner_ghost.GETloc = lambda g: g.corner
+
 		pawn_ghost = Pawn(self, None, None, Layers.GHOSTS)
 		pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
-		pawn_ghost.GETfill_color = lambda g: Colors.PAWN[g.turn]
 		pawn_ghost.border_color = Colors.SELECTED
 		pawn_ghost.GETloc = lambda g: g.curr_target
 
-		pawn_corner_ghost = Circle(self, Layers.GHOSTS, Colors.WRONG, None, Constants.PAWN_RAD)
-		pawn_corner_ghost.GETvisible = lambda g: g.state == 'pawn' and g.corner
-		pawn_corner_ghost.GETloc = lambda g: g.corner
+		move_guide_1 = FilledPolygon(self, Layers.GUIDE, None, None)
+		move_guide_1.GETvisible = lambda g: g.state == 'pawn'
+		move_guide_1.GETpoints = lambda g: g.move_rect(g.selected.loc, g.corner or g.curr_target)
 
-		pawn_step2_ghost = Polygon(self, Layers.GHOSTS, Colors.WRONG, None)
-		pawn_step2_ghost.GETvisible = lambda g: g.state == 'pawn' and g.corner
-		pawn_step2_ghost.GETpoints = lambda g: g.move_rect(g.corner, g.curr_target)
-
-		move_guide = FilledPolygon(self, Layers.GUIDE, None, None)
-		move_guide.GETvisible = lambda g: g.state == 'pawn'
-		move_guide.GETcolor = lambda g: Colors.PAWN[g.turn]
-		move_guide.GETpoints = lambda g: g.move_rect(g.selected.loc, g.curr_target)
-
-		if 1:
-			a = Segment(self, 100, (255,0,0), None, None)
-			a.GETvisible = lambda g: g.state == 'pawn'
-			a.GETp1 = lambda g: g.selected.loc
-			a.GETp2 = lambda g: g.mousePos()
+		move_guide_2 = FilledPolygon(self, Layers.GUIDE, None, None)
+		move_guide_2.GETvisible = lambda g: g.state == 'pawn' and g.corner
+		move_guide_2.GETpoints = lambda g: g.move_rect(g.corner, g.curr_target)
+		
+		pawn_corner_ghost.GETfill_color = pawn_ghost.GETfill_color = move_guide_1.GETcolor = move_guide_2.GETcolor = lambda g: Colors.PAWN[g.turn]
 
 		self.reset_state()
 
