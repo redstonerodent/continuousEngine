@@ -126,7 +126,6 @@ class Quoridor(Game):
 		blockers += ps
 		if len(ps) > 1: raise NotImplementedError() # todo idk what should happen here yet
 		elif ps:
-			print('jumping')
 			p_on = ps[0]
 			corner = end
 			end = slide_to_circle(end, 2*end - pawn.loc, p_on.loc, 2*Constants.PAWN_RAD)
@@ -135,15 +134,11 @@ class Quoridor(Game):
 			# 4: change the angle of the leg after corner to avoid collisions, bending away from p_on
 			last = []
 			sign = (corner-pawn.loc)^(p_on.loc-pawn.loc) or 1
-			print(sign)
 			pick_candidate = lambda cs: max((c for c in cs if ((end-corner)^(c-corner)) * sign < 0), key=lambda c: (end-corner) & (c-corner))
 			while (b := next(iter(self.find_pawn_blockers(pawn, end, corner, [pawn, p_on])), None)): # todo: figure out geometry
-				print('rolling', b)
 				if b == self.border:
-					print('border')
 					candidates = intersect_circles(p_on.loc, Point(0,0), 2*Constants.PAWN_RAD, Constants.BOARD_RAD - Constants.PAWN_RAD)
 				elif isinstance(b, Wall):
-					print('wall')
 					delta = (~(b.p1-b.p2) @ Constants.PAWN_RAD)
 					# intersections of oval around b with circle around p_on
 					candidates = sum(( 
@@ -159,16 +154,13 @@ class Quoridor(Game):
 					# remove some illegal ones
 					candidates = [p for p in candidates if not intersect_segment_conv_polygon(b.p1, b.p2, self.move_rect(corner, p))]
 					# in theory there should be exactly two candidates now
+					if len(candidates) != 2: print(f'WARNING: there are {len(candidates)} candidates; expected 2')
 
 				elif isinstance(b, Pawn):
-					print('pawn')
 					candidates = intersect_circles(p_on.loc, b.loc, 2*Constants.PAWN_RAD)
-				print(candidates)
-				print([((end-corner)^(c-corner)) for c in candidates])
 				end = pick_candidate(candidates)
 				end += ~(sign * (end-p_on.loc)) @ 100*epsilon
 
-				print('rolled')
 				last = [b]
 
 
