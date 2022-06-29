@@ -262,6 +262,16 @@ def drawCircle(game, color, center, radius, width=0, realWidth=False, realRadius
 
     pygame.draw.circle(surface, color, game.pixel(center), int(radius+width*borderGrowth), int(width))
 
+def drawArc(game, color, center, radius, start_angle, stop_angle, width=3, realWidth=False, realRadius=True, surface=None, borderGrowth=1):
+    if surface == None: surface = game.screen
+    if realWidth: width *= game.scale
+    if realRadius: radius *= game.scale
+
+    radius = int(radius + width*borderGrowth)
+    x,y = game.pixel(center)
+    rect = pygame.Rect(x-radius, y-radius, 2*radius, 2*radius)
+    pygame.draw.arc(surface, color, rect, -stop_angle, -start_angle, width) # negative because coordinate system is flipped
+
 def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     # draws a polygon with vertices ps
     # if width is given, draws the boundary; if width is 0, fills the polygon
