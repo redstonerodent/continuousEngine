@@ -20,18 +20,7 @@ puzzle6 = [
     [2,3,5,4,1,6]
 ]
 
-<<<<<<< Updated upstream
 solution = puzzle4
-=======
-maybe_broken = [
-    [1,1,1,1],
-    [4,1,3,1],
-    [1,1,1,1],
-    [1,1,1,3],
-]
-
-solution = maybe_broken
->>>>>>> Stashed changes
 
 # size of instance
 n=len(solution)
@@ -115,7 +104,7 @@ class Sky(Game):
 
         # debug
         # show all visible skyscapers
-        if 1:
+        if 0:
             [(lambda i,j: setattr(
                 Rectangle(self, Layers.SQUARES, win_color, Point(i+.1, j+.1), .8, .8),'GETvisible',
                 lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in visible(solution,*t.loc))(g.layers[Layers.TRIALS][-1])
@@ -123,14 +112,14 @@ class Sky(Game):
             for j in range(n) for i in range(n)]
 
         # show skyscrapers in line
-        if 1:
+        if 0:
             [(lambda i,j: setattr(
                 Disk(self, Layers.SQUARES, debug_color, Point(i+.5, j+.5), .3),'GETvisible',
                 lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in map(lambda x:x[1],posVisible(*t.loc, *g.selector.loc)))(g.layers[Layers.TRIALS][-1])
                 ))(i,j) 
             for j in range(n) for i in range(n)]
         # show visible skyscrapers in line
-        if 1:
+        if 0:
             [(lambda i,j: setattr(
                 Disk(self, Layers.SQUARES, highlight_color, Point(i+.5, j+.5), .2),'GETvisible',
                 lambda g: Layers.TRIALS in g.layers and g.layers[Layers.TRIALS] and (lambda t: (i,j) in visibleInDir(solution,posVisible(*t.loc, *g.selector.loc)))(g.layers[Layers.TRIALS][-1])
@@ -138,14 +127,14 @@ class Sky(Game):
             for j in range(n) for i in range(n)]
 
         # draw line to top right corner of selected square
-        if 1:
+        if 0:
             L = Line(self, Layers.TRIALS+1, debug_color, None, None)
             L.GETp1 = lambda g:g.selector.loc
             L.GETp2 = lambda g:g.layers[Layers.TRIALS][-1].loc
             L.GETvisible = lambda g:Layers.TRIALS in g.layers and g.layers[Layers.TRIALS]
 
         # show actual heights
-        if 1:
+        if 0:
             [[Text(self, Layers.GUESS, text_color,self.font,solution[i][j], Point(i+.25,j+.25)) for j in range(n)] for i in range(n)]
 
         allow_out_of_range = 1
