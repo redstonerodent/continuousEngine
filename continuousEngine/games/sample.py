@@ -134,6 +134,9 @@ class Sample(Game):
 
 		# -----
 
+		# we'd like to call prep_turn() to on initialization to prep the first turn
+		self.prep_turn()
+
 		# to make it clearer whose turn it is, let's change the color of the circle at the mouse
 		# we could do that in prep_turn, but let's do it my making the color dynamic:
 		self.mouse_disk.GETfill_color = lambda g: Colors.PIECE[g.turn]
