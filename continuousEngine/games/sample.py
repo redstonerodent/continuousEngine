@@ -87,7 +87,7 @@ class Sample(Game):
         self.clearLayer(Layers.MOUSE)
 
         # now let's bind the object to mouse_disk
-        self.mouse_disk = BorderDisk(self, Layers.MOUSE, Colors.MOUSE, Colors.OUTLINE, None, Constants.MOUSE_RAD, realRadius=False)        
+        self.mouse_disk = BorderDisk(self, Layers.MOUSE, Colors.MOUSE, Colors.OUTLINE, None, Constants.MOUSE_RAD, realRadius=False)
         # and then we can set its dynamic loc
         self.mouse_disk.GETloc = lambda g: g.mousePos()
         # this accomplishes the same thing, but now we can easily reference that renderable if we want
@@ -98,7 +98,7 @@ class Sample(Game):
 
         # now let's make those moving triangles I promised
         # first we want to specify how the game encodes its state
-        # so I'll define load_state and save_state below
+        # so I'll define load_state, save_state, and make_initial_state below
         # go read those, and then return here
 
         # -----
@@ -187,7 +187,7 @@ class Sample(Game):
     def load_state(self, state):
         # first we should clear the current game state
         self.clearLayer(Layers.PIECE)
-        
+
         # the state passed to load_state should be jsonifiable
         # let's have it be a tuple of
         #    the current turn,
