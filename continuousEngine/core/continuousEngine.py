@@ -1,4 +1,4 @@
-import sys, pygame, asyncio, threading, os, shutil, importlib, time
+import sys, pygame, asyncio, threading, os, shutil, importlib, time, math
 from continuousEngine.core.geometry import *
 
 # current games, as {file: class_name}
@@ -433,6 +433,18 @@ class Polygon(Renderable):
 class FilledPolygon(Polygon):
     def __init__(self, game, layer, color, points):
         super().__init__(game, layer, color, points, 0)
+
+class PolygonIcon(Renderable):
+    # regular polygon representing a point, fixed size in pixels
+    def __init__(self, game, layer, center, sides, fill_color, border_color, radius, line_width,rotation=math.pi):
+        # radius, line_width in pixels
+        super().__init__(game, layer)
+        self.offsets = [(radius*math.sin(math.pi*(2/sides*i+1)), radius*math.cos(math.pi*(2/sides*i+1))) for i in range(sides)]
+        self.center, self.fill_color, self.border_color, self.line_width = center, fill_color, border_color, line_width
+    def render(self):
+        x,y = self.game.pixel(self.center)
+        pygame.draw.polygon(self.game.screen, self.fill_color, [(x+dx, y+dy) for dx,dy in self.offsets])
+        # todo: edges
 
 class Circle(Renderable):
     def __init__(self, game, layer, color, loc, r, width=3, **kwargs):
