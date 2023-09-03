@@ -145,7 +145,7 @@ class Quoridor(Game):
 			last = []
 			sign = (corner-pawn.loc)^(p_on.loc-pawn.loc) or 1
 			pick_candidate = lambda cs: max((c for c in cs if ((end-corner)^(c-corner)) * sign < 0), key=lambda c: (end-corner) & (c-corner))
-			while (b := next(iter(self.find_pawn_blockers(pawn, end, corner, [pawn, p_on])), None)): # todo: figure out geometry
+			while (b := next(iter(self.find_pawn_blockers(pawn, end, corner, [pawn, p_on])), None)):
 				if isinstance(b, Border):
 					candidates = intersect_circles(p_on.loc, Point(0,0), 2*Constants.PAWN_RAD, Constants.BOARD_RAD - Constants.PAWN_RAD)
 				elif isinstance(b, Wall):

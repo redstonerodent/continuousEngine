@@ -13,7 +13,7 @@ fastForward             END
 skipTurn                f
 toggleLive              l
 printState              BACKQUOTE
-reloadState				ESCAPE
+reloadState             ESCAPE
 # pan                   right click and drag
 # zoom                  scroll wheel
 

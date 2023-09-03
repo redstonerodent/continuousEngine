@@ -76,7 +76,7 @@ In all commands, `args` is passed to the game class. Currently the only use is t
 
 `continuous-server [ip]`
 
-`ip` defaults to localhost. The server will save it state (and load state on startup) as `serverstate` in the directory the command is run.
+`ip` defaults to localhost. The server will save its state (and load state on startup) as `serverstate` in the directory the command is run.
 
 ### To connect to a server
 
