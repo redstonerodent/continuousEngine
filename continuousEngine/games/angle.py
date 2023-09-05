@@ -59,7 +59,7 @@ class Angle(Game):
         try:
             self.puzzle = parse_file(file)
         except Exception as e:
-            print(e)
+            print(f'failed to load puzzle (using default): {e}')
             self.puzzle = default_puzzle
 
         self.turn = 'solver'
