@@ -9,6 +9,7 @@ ALL_GAMES = {
     'jrap' : 'Jrap',
     'sky' : 'Sky',
     'trans' : 'Trans',
+    'angle' : 'Angle',
     'sample' : 'Sample',
     }
 
@@ -27,7 +28,7 @@ MONO_FONTS = [
     'monospace',
     'mono'
 ]
-    
+
 class Game:
     # def pygame_event_loop(self, loop):
     #     while 1:
@@ -99,7 +100,7 @@ class Game:
             for line in f:
                 if line[0] not in "#\n":
                     (lambda k,v: keysdict.__setitem__(k, getattr(pygame, 'K_'+v)))(*line.split())
-        
+
         self.keys = type('',(),keysdict)
 
         self.keyPress = {
@@ -110,13 +111,13 @@ class Game:
             self.keys.panLeft       : lambda e: self.pan(self.panDist,0),
             self.keys.panRight      : lambda e: self.pan(-self.panDist,0),
             self.keys.resetView     : lambda e: self.reset_view(),
-            self.keys.resetGame     : lambda e: (self.record_state(), self.reset_state()),
-            self.keys.fastForward   : lambda e: (self.history.append(self.save_state()), self.history.extend(reversed(self.future)), self.future.clear(), self.load_state(self.history.pop())),
-            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop())) if self.history else None,
-            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop())) if self.future else None,
+            self.keys.resetGame     : lambda e: (self.record_state(), self.reset_state(), self.prep_turn()),
+            self.keys.fastForward   : lambda e: (self.history.append(self.save_state()), self.history.extend(reversed(self.future)), self.future.clear(), self.load_state(self.history.pop()), self.prep_turn()),
+            self.keys.undo          : lambda e: (self.future.append(self.save_state()), self.load_state(self.history.pop()), self.prep_turn()) if self.history else None,
+            self.keys.redo          : lambda e: (self.history.append(self.save_state()), self.load_state(self.future.pop()), self.prep_turn()) if self.future else None,
             self.keys.printState    : lambda e: print(self.save_state()),
             self.keys.skipTurn      : lambda e: (setattr(self, 'turn', self.next_turn()), self.prep_turn()),
-            self.keys.reloadState   : lambda e: self.load_state(self.save_state()),
+            self.keys.reloadState   : lambda e: (self.load_state(self.save_state()), self.prep_turn()),
         }
 
         self.drag = {
@@ -147,7 +148,7 @@ class Game:
         self.enforce_time = bool(timectrl)
         if timectrl:
             self.timer = TimerInfo(self, timectrl)
-    
+
     is_over = lambda: False
     winner = lambda: None
 
@@ -159,7 +160,7 @@ class Game:
     resize = lambda self: None
     # for anything that should be recomputed before each turn; if you use this you should probably have load_state call it
     prep_turn = lambda self: None
-        
+
     # should be overwritten by user
     save_state = lambda self: None # returns description of state
     load_state = lambda self, _: None # implements description of state
@@ -288,7 +289,7 @@ def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
         if len(ps) >= 3:
             pygame.draw.polygon(surface, color, [game.pixel(p) for p in ps])
 
-def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, caps=(True,True)): 
+def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, caps=(True,True)):
     # draws a line with ends capped by circles, better than pygame.draw.line
     # realWidth=False  -> width given in pixels (on screen) 
     # realWidth=True -> width given in points (in-game distance)
@@ -298,7 +299,7 @@ def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, cap
     dp = ~(p2-p1) @ (width/2)
 
     drawPolygon(game, color, [p1+dp, p2+dp, p2-dp, p1-dp], surface=surface)
-    
+
     if caps[0]: drawCircle(game, color, p1, width/2, realWidth=realWidth, surface=surface)
     if caps[1]: drawCircle(game, color, p2, width/2, realWidth=realWidth, surface=surface)
 
@@ -439,12 +440,15 @@ class PolygonIcon(Renderable):
     def __init__(self, game, layer, center, sides, fill_color, border_color, radius, line_width,rotation=math.pi):
         # radius, line_width in pixels
         super().__init__(game, layer)
-        self.offsets = [(radius*math.sin(math.pi*(2/sides*i+1)), radius*math.cos(math.pi*(2/sides*i+1))) for i in range(sides)]
-        self.center, self.fill_color, self.border_color, self.line_width = center, fill_color, border_color, line_width
+        self.offsets = [(radius*math.sin(rotation+math.pi*2/sides*i),
+                         radius*math.cos(rotation+math.pi*2/sides*i)) for i in range(sides)]
+        self.center, self.sides, self.fill_color, self.border_color, self.line_width = center, sides, fill_color, border_color, line_width
     def render(self):
         x,y = self.game.pixel(self.center)
-        pygame.draw.polygon(self.game.screen, self.fill_color, [(x+dx, y+dy) for dx,dy in self.offsets])
-        # todo: edges
+        points = [(x+dx, y+dy) for dx,dy in self.offsets]
+        pygame.draw.polygon(self.game.screen, self.fill_color, points)
+        pygame.draw.lines(self.game.screen, self.border_color, True, points, width=self.line_width)
+        # todo: make this not look terrible when the lines are thick
 
 class Circle(Renderable):
     def __init__(self, game, layer, color, loc, r, width=3, **kwargs):

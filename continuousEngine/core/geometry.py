@@ -1,5 +1,4 @@
 from math import atan2, pi, cos, sin
-
 # for debugging
 trace = lambda x, *y: (print(x), print(*y),x)[2]
 tracefn = lambda f: lambda *args: trace(f(*args), *args)
@@ -36,7 +35,6 @@ class Point:
     __rshift__ = lambda p1, p2: +(p1-p2)
     # p1 & p2: dot product of p1 and p2
     __and__ = lambda p1, p2: sum(p1[i]*p2[i] for i in range(2))
-
 
 # area of polygon with vertices pts, counterclockwise
 polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(pts))) / 2
@@ -301,3 +299,9 @@ def minimum_spanning_tree(points):
         for x in new: components[x] = new
     return ans
 minimum_spanning_tree_size = lambda points: sum((p>>q)**.5 for p,q in minimum_spanning_tree(points))
+
+# given a list of points, give the bounding rectangle (as a pair of points)
+bounding_box = lambda points: (Point(min(p.x for p in points),
+                                     min(p.y for p in points)),
+                               Point(max(p.x for p in points),
+                                     max(p.y for p in points)))

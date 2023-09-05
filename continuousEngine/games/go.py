@@ -243,7 +243,7 @@ class Go(Game):
             new_edges |= filter_edges({e for e in self.potentialEdges[self.turn] if set(e)<=near_capture}, {e for e in self.potentialEdges[opp] if self.captures.isdisjoint(e)} | boundary_cuts(pieces[opp]))
             # some components are merged by the new edges
             my_cmps = components(None, list(new_edges), self.components[self.turn]+[{pos}])
-            
+
             # one of our components is captured if...
             self.captures |= union(cmp for cmp in my_cmps if
                                     # it's not an isolated piece with nothing nearby...

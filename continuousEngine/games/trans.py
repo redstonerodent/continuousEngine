@@ -214,8 +214,6 @@ class Trans(Game):
         for t,l in goals:
             TransGoal(self, t, Point(*l))
 
-        self.prep_turn()
-
 
     def prep_turn(self, team=None):
         team = team or self.turn
