@@ -40,10 +40,10 @@ puzzle2 = [ # nu_n_notami | https://puzz.link/p?angleloop/9/9/1a96b0b3b2b5c0a2bb
     ((5,9), 5),
 ]
 
-puzzle = puzzle2
+puzzle = puzzle1
 
 # rotate it by some angle, for extra fun
-t = .3
+t = 0#.3
 puzzle = [((math.cos(t)*x-math.sin(t)*y, math.sin(t)*x+math.cos(t)*y), s) for (x,y), s in puzzle]
 
 class Layers:
@@ -166,12 +166,11 @@ class Angle(Game):
                 c.illegal = True
                 continue
             p, q = edges[c.center]
-            d = (p-c.center) & (q-c.center)
-            print(d)
+            x,y = p-c.center, q-c.center
             c.illegal = {
-                    3: lambda x: x<epsilon,
-                    4: lambda x: abs(x)>epsilon,
-                    5: lambda x: x>-epsilon }[c.sides](d)
+                    3: lambda x,y: x&y<epsilon,
+                    4: lambda x,y: abs(x&y)>epsilon,
+                    5: lambda x,y: x&y>-epsilon or abs((x&y)**2 - +x*+y) < epsilon }[c.sides](x,y)
         # intersecting edges
         for e1 in self.edges.segments:
             for e2 in self.edges.segments:
