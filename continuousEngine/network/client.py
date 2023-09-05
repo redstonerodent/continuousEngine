@@ -52,6 +52,7 @@ class NetworkGame:
                 self.server_history = e.history
                 self.update_to_server_state()
                 self.game.initialState = (self.server_history+[self.server_state])[0]
+                self.game.reset_view()
         self.game.handlers[pygame.USEREVENT] = f
 
         def f(_):

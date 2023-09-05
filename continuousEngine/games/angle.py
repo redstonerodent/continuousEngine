@@ -1,50 +1,23 @@
 from continuousEngine import *
 
+default_puzzle = [
+        ((0,0), 4),
+        ((0,1), 4),
+        ((2,0), 5),
+        ((3,1), 3),
+    ]
 
-puzzle1 = [ # xoned72 | https://puzz.link/p?angleloop/7/7/b1c4a3c0a1a5b4c3c0c3b3a3c0b1a0a0b
-    ((0,0), 4),
-    ((3,0), 5),
-    ((1,1), 3),
-    ((6,1), 5),
-    ((0,2), 3),
-    ((3,2), 3),
-    ((2,3), 4),
-    ((0,4), 5),
-    ((5,4), 5),
-    ((7,4), 5),
-    ((4,5), 4),
-    ((1,6), 3),
-    ((6,6), 5),
-    ((0,7), 4),
-    ((7,7), 4),
-    ((3,7), 3),
-    ((5,7), 3),
-    ((7,7), 4),
-]
-
-puzzle2 = [ # nu_n_notami | https://puzz.link/p?angleloop/9/9/1a96b0b3b2b5c0a2bb95b3b7a1c90c2c3
-    ((2,0), 3),
-    ((0,2), 4),
-    ((2,2), 4),
-    ((7,2), 4),
-    ((1,3), 4),
-    ((8,3), 5),
-    ((0,4), 3),
-    ((4,4), 4),
-    ((5,4), 4),
-    ((2,6), 4),
-    ((7,6), 4),
-    ((6,7), 3),
-    ((9,7), 5),
-    ((1,9), 5),
-    ((5,9), 5),
-]
-
-puzzle = puzzle1
-
-# rotate it by some angle, for extra fun
-t = 0#.3
-puzzle = [((math.cos(t)*x-math.sin(t)*y, math.sin(t)*x+math.cos(t)*y), s) for (x,y), s in puzzle]
+def parse_file(file):
+    with open(file) as f:
+        out = []
+        for l in f.readlines():
+            if l[0] == '#':
+                continue
+            x, y, s = l.split()
+            if s not in ['3','4','5']:
+                raise ValueError(f'{s} is an illegal number of sides')
+            out.append(((float(x),float(y)),int(s)))
+    return out
 
 class Layers:
     NEWEDGE = 1
@@ -81,10 +54,13 @@ class Edges(Renderable):
         for e in self.segments:
             drawSegment(self.game, self.color, *e)
 
-
 class Angle(Game):
-    def __init__(self, **kwargs):
-        self.puzzle = puzzle
+    def __init__(self, file=None, **kwargs):
+        try:
+            self.puzzle = parse_file(file)
+        except Exception as e:
+            print(e)
+            self.puzzle = default_puzzle
 
         self.turn = 'solver'
         self.teams = [self.turn]
@@ -101,10 +77,7 @@ class Angle(Game):
         self.background = self.layers[-10**10][0] # hacky
 
         self.reset_state()
-
-        p, q = bounding_box([c.center for c in self.layers[Layers.CLUE]])
-        self.center = p%q
-        self.spread = max((q-p).coords)/2+2
+        if not self.headless: self.reset_view()
 
         self.nearest_clue = lambda p: min(self.layers[Layers.CLUE], key=lambda c: p >> c.center)
 
@@ -118,13 +91,16 @@ class Angle(Game):
         self.handlers[pygame.MOUSEBUTTONUP] = mouseup
 
         self.prep_turn()
-        if not self.headless: self.reset_view()
 
     def load_state(self, state):
         clues, segments = state
         self.clearLayer(Layers.CLUE)
         for c, s in clues: Clue(self, Point(*c), s)
         self.edges.segments = [{Point(*p1), Point(*p2)} for p1, p2 in segments]
+
+        p, q = bounding_box([c.center for c in self.layers[Layers.CLUE]])
+        self.center = p%q
+        self.spread = max((q-p).coords)/2+2
 
     def save_state(self):
         return ([(clue.center.coords, clue.sides) for clue in self.layers[Layers.CLUE]],
@@ -139,7 +115,7 @@ class Angle(Game):
         if p1 == p2:
             return False
         self.record_state()
-        if {self.newedge.p1, p2} in self.edges.segments:
+        if {p1, p2} in self.edges.segments:
             self.edges.segments.remove({p1, p2})
         else:
             self.edges.segments.append({p1, p2})
