@@ -112,13 +112,13 @@ class Angle(Game):
 
         def mouseup(e):
             if e.button != 1: return
-            self.attemptMove({'player':self.turn, 'p1':self.newedge.p1, 'p2':self.point(*e.pos)})
+            self.attemptMove({'player':self.turn, 'p1':self.newedge.p1.coords, 'p2':self.point(*e.pos).coords})
             self.newedge.p1 = None
 
         self.handlers[pygame.MOUSEBUTTONUP] = mouseup
 
         self.prep_turn()
-        self.reset_view()
+        if not self.headless: self.reset_view()
 
     def load_state(self, state):
         clues, segments = state
@@ -134,8 +134,8 @@ class Angle(Game):
         return (self.puzzle, [])
 
     def attemptGameMove(self, move):
-        p1 = self.nearest_clue(move['p1']).center
-        p2 = self.nearest_clue(move['p2']).center
+        p1 = self.nearest_clue(Point(*move['p1'])).center
+        p2 = self.nearest_clue(Point(*move['p2'])).center
         if p1 == p2:
             return False
         self.record_state()
