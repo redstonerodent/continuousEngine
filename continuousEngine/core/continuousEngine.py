@@ -10,6 +10,7 @@ ALL_GAMES = {
     'sky' : 'Sky',
     'trans' : 'Trans',
     'angle' : 'Angle',
+    'kouchoku' : 'Kouchoku',
     'sample' : 'Sample',
     }
 
@@ -437,14 +438,14 @@ class FilledPolygon(Polygon):
 
 class PolygonIcon(Renderable):
     # regular polygon representing a point, fixed size in pixels
-    def __init__(self, game, layer, center, sides, fill_color, border_color, radius, line_width,rotation=math.pi):
+    def __init__(self, game, layer, loc, sides, fill_color, border_color, radius, line_width,rotation=math.pi):
         # radius, line_width in pixels
         super().__init__(game, layer)
         self.offsets = [(radius*math.sin(rotation+math.pi*2/sides*i),
                          radius*math.cos(rotation+math.pi*2/sides*i)) for i in range(sides)]
-        self.center, self.sides, self.fill_color, self.border_color, self.line_width = center, sides, fill_color, border_color, line_width
+        self.loc, self.sides, self.fill_color, self.border_color, self.line_width = loc, sides, fill_color, border_color, line_width
     def render(self):
-        x,y = self.game.pixel(self.center)
+        x,y = self.game.pixel(self.loc)
         points = [(x+dx, y+dy) for dx,dy in self.offsets]
         pygame.draw.polygon(self.game.screen, self.fill_color, points)
         pygame.draw.lines(self.game.screen, self.border_color, True, points, width=self.line_width)

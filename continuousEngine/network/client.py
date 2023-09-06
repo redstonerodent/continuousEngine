@@ -23,7 +23,7 @@ class NetworkGame:
     In offline mode, the game works exactly as if you were not connected
     In live mode, loading state is disabled, and the game tracks the server's state. 
     Attempting to make a move results in it being sent to the server; no change is made to your local gamestate.
-    
+
     """
     def __init__(self,game, timectrl):
         self.game = game
@@ -59,7 +59,7 @@ class NetworkGame:
             self.live_mode = not self.live_mode
             self.update_to_server_state()
         self.game.keyPress[self.game.keys.toggleLive] = f
-        
+
         if game.allow_skip:
             pass
         else:

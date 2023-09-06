@@ -1,10 +1,10 @@
 from continuousEngine import *
 
 default_puzzle = [
-        ((0,0), 4),
-        ((0,1), 4),
-        ((2,0), 5),
-        ((3,1), 3),
+        ((0,0), None),
+        ((0,1), 'A'),
+        ((1,1), None),
+        ((1,0), 'B'),
     ]
 
 def parse_file(file):
@@ -13,10 +13,9 @@ def parse_file(file):
         for l in f.readlines():
             if l[0] == '#':
                 continue
-            x, y, s = l.split()
-            if s not in ['3','4','5']:
-                raise ValueError(f'{s} is an illegal number of sides')
-            out.append(((float(x),float(y)),int(s)))
+            x, y, *s = l.split()
+            s = (s+[None])[0] # leave blank for dot, represented as None
+            out.append(((float(x),float(y)),s))
     return out
 
 class Layers:
@@ -24,26 +23,34 @@ class Layers:
     EDGE = 2
     BADEDGE = 3
     CLUE = 4
+    CLUETEXT = 5
 class Colors:
-    CLUE = {3:(80,80,80), 4:(160,160,160), 5:(240,240,240)}
-    CLUEBORDER = (30,30,30)
+    CLUE = (255,255,255)
+    CLUEBORDER = (20,20,20)
+    CLUEDOT = (30,30,30)
     EDGE = (0,0,0)
     NEWEDGE = (0,0,255)
     ILLEGAL = (255,0,0)
     BACKGROUND = (245,245,235)
     WIN = (120,245,120)
+    FONT = (0,0,0)
 
 class Constants:
     CLUERAD = 20
     CLUEBORDER = 3
+    DOTRAD = 10
 
-class Clue(PolygonIcon):
-    def __init__(self, game, loc, sides):
-        # 3=acute, 4=right, 5=obtuse
-        super().__init__(game, Layers.CLUE, loc, sides,
-                None, Colors.CLUEBORDER, Constants.CLUERAD, Constants.CLUEBORDER,
-                rotation=math.pi/4 if sides==4 else math.pi)
-        self.GETfill_color = lambda g: Colors.ILLEGAL if self.illegal else Colors.CLUE[sides]
+class Clue(BorderDisk):
+    def __init__(self, game, loc, symbol):
+        super().__init__(game, Layers.CLUE, None,
+                Colors.CLUEBORDER, loc, Constants.CLUERAD if symbol else Constants.DOTRAD,
+                width=Constants.CLUEBORDER, realRadius=False)
+        normal_color = Colors.CLUE if symbol else Colors.CLUEDOT,
+        self.GETfill_color = lambda g: Colors.ILLEGAL if self.illegal else normal_color
+        self.loc, self.symbol = loc, symbol
+
+        if symbol and not game.headless:
+            Text(game, Layers.CLUETEXT, Colors.FONT, game.font, symbol, loc)
 
 class Edges(Renderable):
     def __init__(self, game, layer, color):
@@ -54,7 +61,7 @@ class Edges(Renderable):
         for e in self.segments:
             drawSegment(self.game, self.color, *e)
 
-class Angle(Game):
+class Kouchoku(Game):
     def __init__(self, file=None, **kwargs):
         try:
             self.puzzle = parse_file(file)
@@ -94,7 +101,7 @@ class Angle(Game):
 
     def load_state(self, state):
         clues, segments = state
-        self.clearLayer(Layers.CLUE)
+        for l in [Layers.CLUE, Layers.CLUETEXT]: self.clearLayer(l)
         for c, s in clues: Clue(self, Point(*c), s)
         self.edges.segments = [{Point(*p1), Point(*p2)} for p1, p2 in segments]
 
@@ -102,8 +109,11 @@ class Angle(Game):
         self.center = p%q
         self.spread = max((q-p).coords)/2+2
 
+        self.clue_map = {c.loc:c.symbol for c in self.layers[Layers.CLUE]}
+        self.clue_set = {c.symbol for c in self.layers[Layers.CLUE]} - {None}
+
     def save_state(self):
-        return ([(clue.loc.coords, clue.sides) for clue in self.layers[Layers.CLUE]],
+        return ([(clue.loc.coords, clue.symbol) for clue in self.layers[Layers.CLUE]],
                 [(p1.coords, p2.coords) for p1, p2 in self.edges.segments])
 
     def make_initial_state(self):
@@ -126,7 +136,6 @@ class Angle(Game):
         for c in self.layers[Layers.CLUE]:
             c.illegal = False
         self.bad_edges.segments = []
-        self.background.color = Colors.BACKGROUND
 
         # make adjacency list
         edges = {c.loc:[] for c in self.layers[Layers.CLUE]}
@@ -134,24 +143,11 @@ class Angle(Game):
             edges[p].append(q)
             edges[q].append(p)
 
-        # too high degree or wrong angle
-        for c in self.layers[Layers.CLUE]:
-            if len(edges[c.loc]) < 2:
-                continue
-            if len(edges[c.loc]) > 2:
-                c.illegal = True
-                continue
-            p, q = edges[c.loc]
-            x,y = p-c.loc, q-c.loc
-            c.illegal = {
-                    3: lambda x,y: x&y<epsilon,
-                    4: lambda x,y: abs(x&y)>epsilon,
-                    5: lambda x,y: x&y>-epsilon or abs((x&y)**2 - +x*+y) < epsilon }[c.sides](x,y)
-
-        # intersecting edges
+        # intersecting nonperpendicular edges
         for e1 in self.edges.segments:
             for e2 in self.edges.segments:
-                if not (e1 & e2) and intersect_segments(*e1, *e2):
+                a,b,c,d = *e1,*e2
+                if not (e1 & e2) and intersect_segments(*e1, *e2) and abs((a-b)&(c-d)) > epsilon:
                     self.bad_edges.segments += [e1,e2]
 
         # edge through vertex
@@ -160,6 +156,17 @@ class Angle(Game):
                 if c.loc not in e and dist_to_segment(c.loc, *e) < epsilon:
                     c.illegal = True
                     self.bad_edges.segments.append(e)
+
+        # too high degree
+        for c in self.layers[Layers.CLUE]:
+            if len(edges[c.loc]) > 2:
+                c.illegal = True
+
+        # connected different symbols
+        for e in self.edges.segments:
+            p,q = e
+            if len({self.clue_map[p], self.clue_map[q]}-{None})==2:
+                self.bad_edges.segments.append(e)
 
         # stop if any problems so far
         if self.bad_edges.segments or any(c.illegal for c in self.layers[Layers.CLUE]):
@@ -181,13 +188,29 @@ class Angle(Game):
             if v == v0 and len(cycle) < len(edges):
                 self.bad_edges.segments.extend([{cycle[i], cycle[i-1]} for i in range(len(cycle))])
 
-        # again stop if issues
-        if self.bad_edges.segments:
+        # stop if issues, or if not a full loop yet
+        if self.bad_edges.segments or len(self.edges.segments) < len(self.layers[Layers.CLUE]):
             return
 
-        self.background.color = Colors.WIN if all(len(edges[v])==2 for v in edges) else Colors.BACKGROUND
+        # matching clues not consecutive: assumes there's a single cycle and no connected different clues
+        # just checks if more than 2 edges between s clues and dots
+        counts = {s:0 for s in self.clue_set}
+        for e in self.edges.segments:
+            ss = {self.clue_map[v] for v in e}
+            print(ss)
+            if len(ss) == 2:
+                s, = ss - {None}
+                counts[s] += 1
+        print(counts)
+        for c in self.layers[Layers.CLUE]:
+            if c.symbol and counts[c.symbol] != 2:
+                c.illegal = True
 
+        if any(c.illegal for c in self.layers[Layers.CLUE]):
+            return
+
+        self.background.color = Colors.WIN
 
 if __name__=="__main__":
     pygame.init()
-    run_local(Angle, sys.argv[1:])
+    run_local(Kouchoku, sys.argv[1:])

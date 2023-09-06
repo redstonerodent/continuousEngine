@@ -18,6 +18,8 @@ These are the specific continuous versions of games that have been implemented s
 * `go.py`: Go
 * `jrap.py`:  based on [Penguin Trap](https://boardgamegeek.com/boardgame/225981/penguin-trap))
 * `trans.py`: based on Trans America / Trans Europa / etc.
+* `angle.py`: [Angle Loop](https://puzz.link/rules.html?angleloop)
+* `kouchoku.py`: [Kouchoku](https://puzz.link/rules.html?kouchoku)
 
 ### Network
 
@@ -50,7 +52,7 @@ You will need Python 3.7 or later (for async) and pygame 2.0.0 or later. Everyth
 
 ### Python
 
-You can get Python 3.9 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.9`). I suggest making 3.9 the default Python version, which (at least on Ubuntu) you can do with `update-alternatives`; otherwise, replace `python` with `python3.9` in all the following commands.
+You can get Python 3.9 from [Python's website](https://www.python.org/), or, if you're on Linux, probably with your package manager (on Ubuntu using apt, `sudo apt install python3.9`).
 
 ### Pygame
 
@@ -70,7 +72,9 @@ To update, run `git pull`. If the update adds a command, you need to run `setup.
 
 `continuous-game [-g game] [args ...]`
 
-In all commands, `args` is passed to the game class. Currently the only use is to specify the number of players in `jrap` or `trans`.
+In all commands, `args` is passed to the game class. This is used by
+* `jrap` and `trans`, for the number bf players.
+* `angle` and `kouchoku`, for the file to read a puzzle from.
 
 ### To start a server
 
@@ -93,9 +97,9 @@ Arguments:
 * `-u`, `--user`: username to use, defaults to `anonymous`.
 * `-n`, `--new`: force creating a new game rather than joining an existing one
 
-Any additional arguments are passed to the constructor for the game that gets created. For instance, `python client.py -g jrap -n -t silver 4` will create a new 4-player jrap game with a random id, and put you on team `silver`.
+Any additional arguments are passed to the constructor for the game that gets created. For instance, `continuous-client -g jrap -n -t silver 4` will create a new 4-player jrap game with a random id, and put you on team `silver`.
 
-Currently `chess`, `go`, `jrap`, `reversi`, and `trans` have network play.
+Currently `chess`, `go`, `jrap`, `reversi`, `trans`, `angle`, and `kouchoku` have network play.
 
 ### To play AIs against each other
 
