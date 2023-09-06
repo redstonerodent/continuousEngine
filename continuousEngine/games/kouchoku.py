@@ -11,7 +11,7 @@ def parse_file(file):
     with open(file) as f:
         out = []
         for l in f.readlines():
-            if l[0] == '#':
+            if l[0] == '#' or l == '\n':
                 continue
             x, y, *s = l.split()
             s = (s+[None])[0] # leave blank for dot, represented as None

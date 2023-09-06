@@ -11,7 +11,7 @@ def parse_file(file):
     with open(file) as f:
         out = []
         for l in f.readlines():
-            if l[0] == '#':
+            if l[0] == '#' or l == '\n':
                 continue
             x, y, s = l.split()
             if s not in ['3','4','5']:
@@ -143,10 +143,11 @@ class Angle(Game):
                 continue
             p, q = edges[c.loc]
             x,y = p-c.loc, q-c.loc
+            normdot = x&y/(+x*+y)**.5
             c.illegal = {
-                    3: lambda x,y: x&y<epsilon,
-                    4: lambda x,y: abs(x&y)>epsilon,
-                    5: lambda x,y: x&y>-epsilon or abs((x&y)**2 - +x*+y) < epsilon }[c.sides](x,y)
+                    3: lambda d: d<epsilon,
+                    4: lambda d: abs(d)>epsilon,
+                    5: lambda d: d>-epsilon or abs(d+1) < epsilon }[c.sides](normdot)
 
         # intersecting edges
         for e1 in self.edges.segments:
