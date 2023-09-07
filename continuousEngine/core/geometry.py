@@ -41,7 +41,8 @@ polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(p
 
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
 above_line = lambda x, p1, p2: (p2-p1)^(x-p1) < 0
-# do line segments a-b and x-y intersect? (note: function names don't distinguish between ones that return a boolean (like this one) and ones that return a tuple of intersections)
+# do line segments a-b and x-y intersect?
+# functions named "intersect_..." return a boolean, ones named "intersection_..." return a (list of) Point
 intersect_segments = lambda a,b,x,y: above_line(a,b,x) != above_line(a,b,y) and above_line(x,y,a) != above_line(x,y,b)
 
 # is b between a and c, assuming all three are colinear?
@@ -86,13 +87,13 @@ intersection_circles = lambda p1, p2, r1, r2=None: (lambda r2, dsq: (lambda m: (
             )(~(p2-p1) @ ((r1**2-(p1>>m) + epsilon)**.5))
         )(p1 + (p2-p1)@((r1**2-r2**2+dsq) / 2 / (dsq**.5))) if abs(r1-r2) < dsq**.5 < r1+r2 else ()
     )(r2 or r1, p1>>p2)
-# intersections of line a-b and circle of radius r centered at p. a tuple with either 0 or 2 elements.
-intersection_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: (m+d,m-d))(nearest_on_line(p,a,b), (b-a) @ ((r**2-dist**2)**.5 + epsilon)) if dist<r else ()
+# intersections of line a-b and circle of radius r centered at p. a list with either 0 or 2 elements.
+intersection_line_circle = lambda a, b, p, r: (lambda dist: (lambda m,d: [m+d,m-d])(nearest_on_line(p,a,b), (b-a) @ ((r**2-dist**2)**.5 + epsilon)) if dist<r else []
     )(dist_to_line(p,a,b))
-# intersections of segment a-b and circle of radius r centered at p. a tuple with 0 to 2 elements.
-intersection_segment_circle = lambda a, b, p, r: tuple(x for x in intersection_line_circle(a,b,p,r) if between(a,x,b))
-# intersections of ray a->b and circle with radius r centered at p. a tuple with 0-2 elements.
-intersection_ray_circle = lambda a, b, p, r: tuple(x for x in intersection_line_circle(a,b,p,r) if (b-a)&(x-a) > 0)
+# intersections of segment a-b and circle of radius r centered at p. a list with 0 to 2 elements.
+intersection_segment_circle = lambda a, b, p, r: [x for x in intersection_line_circle(a,b,p,r) if between(a,x,b)]
+# intersections of ray a->b and circle with radius r centered at p. a list with 0-2 elements.
+intersection_ray_circle = lambda a, b, p, r: [x for x in intersection_line_circle(a,b,p,r) if (b-a)&(x-a) > 0]
 
 # does segment a-b intersect the disk of radius r centered at p?
 intersect_segment_disk = lambda a,b,p,r: dist_to_segment(p, a, b) < r
@@ -124,6 +125,21 @@ def intersection_polygon_halfplane(polygon, axis, sign, position):
         else:
             vertices.extend(intersection_line_border(polygon[i], polygon[j], axis, position) for j in [i-1,(i+1)%len(polygon)] if half_plane(polygon[j]))
     return [vertices[i] for i in range(len(vertices)) if vertices[i-1] != vertices[i]]
+
+# intersections of line a-b with oval centered at segment p-q with radius r
+def intersection_line_oval(a, b, p, q, r):
+    delta = ~(p-q)@r
+    ans = []
+    for i in [-1,1]: # intersections with straight edges
+        if between(p+i*delta, (x:=intersect_lines(a,b,p+i*delta,q+i*delta), q+i*delta)):
+            ans.append(x)
+    for (c,i) in [(p,1), (q,-1)]:
+        for x in intersection_line_circle(a,b,c,r):
+            if (x-c)&(p-q)*i >= 0:
+                ans.append(x)
+    return ans
+
+intersection_segment_oval = lambda a,b,p,q,r: [x for x in intersection_line_oval(a,b,p,q,r) if between(a,x,b)]
 
 def convex_hull(points):
     # a list of points on the convex hull, in counterclockwise order (increasing angle)
