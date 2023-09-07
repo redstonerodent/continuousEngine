@@ -44,7 +44,7 @@ nearby = lambda p1, p2: p1>>p2 < (4*piece_rad)**2
 # are pieces centered at p1 p2 close enough that they might block each others' movement?
 sorta_nearby = lambda p1, p2: p1>>p2 < (6*piece_rad)**2
 # centers of circles tangent to both circles centered at p1 and p2
-double_tangents = lambda p1, p2: intersect_circles(p1, p2, 2*piece_rad)
+double_tangents = lambda p1, p2: intersection_circles(p1, p2, 2*piece_rad)
 
 class Layers:
     TERRITORY   = 0.5

@@ -286,7 +286,7 @@ def drawPolygon(game, color, ps, width=0, realWidth=False, surface=None):
     else:
         # for performance, only draw the portion of the polygon which is on the screen
         for asp in [(0,1,game.x_min()), (0,-1,game.x_max()),(1,1,game.y_min()), (1,-1,game.y_max())]:
-            ps = intersect_polygon_halfplane(ps, *asp)
+            ps = intersection_polygon_halfplane(ps, *asp)
         if len(ps) >= 3:
             pygame.draw.polygon(surface, color, [game.pixel(p) for p in ps])
 
@@ -306,7 +306,7 @@ def drawSegment(game, color, p1, p2, width=3, realWidth=False, surface=None, cap
 
 def drawRay(game, color, loc, dir, width=2, realWidth=False, surface=None):
     # draws a ray from loc to the edge of the screen, in direction dir
-    end = max((p for p in (intersect_line_border(loc, loc+dir, axis, pos) for axis, pos in [(0,game.x_min()),(0,game.x_max()),(1,game.y_min()),(1,game.y_max())] if dir[axis] != 0) if not between(loc+dir, loc, p)), key=lambda p:p>>loc, default=loc)
+    end = max((p for p in (intersection_line_border(loc, loc+dir, axis, pos) for axis, pos in [(0,game.x_min()),(0,game.x_max()),(1,game.y_min()),(1,game.y_max())] if dir[axis] != 0) if not between(loc+dir, loc, p)), key=lambda p:p>>loc, default=loc)
     drawSegment(game, color, loc, end, width, realWidth, surface, (True, False))
 
 class Renderable:

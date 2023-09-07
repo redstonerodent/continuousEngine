@@ -22,7 +22,7 @@ overlap = lambda p1, p2: p1>>p2 < (2*piece_rad)**2
 # combat floating point errors. In particular, tangent circles shouldn't intersect
 epsilon = 10**-10
 # centers of circles tangent to both circles centered at p1 and p2
-double_tangents = lambda p1, p2: intersect_circles(p1, p2, 2*piece_rad)
+double_tangents = lambda p1, p2: intersection_circles(p1, p2, 2*piece_rad)
 # centers of some circles tangent to the circle centered at x on opposite sides,
 #   such that one intersects the line from p1 to p2 in each region of angles in which a tangent circle can intersect the line
 # if the circle intersects the line, gives one on each side in the direction parallel to the line

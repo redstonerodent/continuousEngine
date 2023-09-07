@@ -48,7 +48,7 @@ class JrapHole(Renderable):
         # angular intervals the polygon covers
         poly_ints = intersect_polygon_circle_arcs(self.poly, Point(0,0), board_rad)
         # angular intervals circles cover
-        circle_ints = [(atan2(*a),atan2(*b)) for a,b in filter(lambda x:x, ((intersect_circles(Point(0,0), p, board_rad, hammer_rad)) for p in self.hits))]
+        circle_ints = [(atan2(*a),atan2(*b)) for a,b in filter(lambda x:x, ((intersection_circles(Point(0,0), p, board_rad, hammer_rad)) for p in self.hits))]
         self.intervals = poly_ints+circle_ints
 
 
