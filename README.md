@@ -73,7 +73,7 @@ To update, run `git pull`. If the update adds a command, you need to run `setup.
 `continuous-game [-g game] [args ...]`
 
 In all commands, `args` is passed to the game class. This is used by
-* `jrap` and `trans`, for the number bf players.
+* `jrap` and `trans`, for the number of players.
 * `angle` and `kouchoku`, for the file to read a puzzle from.
 
 ### To start a server
