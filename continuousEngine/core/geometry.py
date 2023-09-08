@@ -69,7 +69,7 @@ nearest_on_circle = lambda x, p, r: p + ((x-p) @ r) if x != p else p + Point(r,0
 nearest_on_disk = lambda x, p, r: p + ((x-p) @ min(r, (x >> p)**.5))
 
 # the result of moving p1 towards p2 until it's on the circle of radius r centered at p
-slide_to_circle = lambda p1, p2, p, r: (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5) * (-1)**(p1 >> p < r**2))(nearest_on_line(p,p1,p2))
+slide_to_circle = lambda p1, p2, p, r: (lambda nearest: nearest + ((p1-p2) @ (r**2 - (nearest>>p))**.5) * (-1)**(p1 >> p <= r**2))(nearest_on_line(p,p1,p2))
 # the result of moving p1 towards p2 until it's on the disk of radius r centered at p
 slide_to_disk = lambda p1, p2, p, r: p1 if p1>>p < r**2 else slide_to_circle(p1, p2, p, r)
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
@@ -101,8 +101,8 @@ intersect_segment_disk = lambda a,b,p,r: dist_to_segment(p, a, b) < r
 # intersection of the line p1-p2 and the line Z=postion, where Z={0:x,1:y}[axis]. Usually this is the border of the screen
 intersection_line_border = lambda p1, p2, axis, position: Point(*((position,)*(1-axis)+(p1[1-axis] + (p2-p1)[1-axis] * (position-p1[axis]) / (p2-p1)[axis],)+(position,)*axis))
 
-# intersection of the lines a-b and c-d. probably a div by 0 if they're parallel or degenerate
-intersection_lines = lambda a,b,c,d: (lambda ha, hb: (b*ha + a*hb) / (ha+hb))(dist_above_line(a,c,d), -dist_above_line(b,c,d))
+# intersection of the lines a-b and c-d. hack to avoid div by 0
+intersection_lines = lambda a,b,c,d: (lambda ha, hb: Point(0,0) if ha+hb==0 else (b*ha + a*hb) / (ha+hb))(dist_above_line(a,c,d), -dist_above_line(b,c,d))
 
 # is point p in the convex polygon with vertices poly, in counterclockwise order?
 point_in_polygon = lambda p, poly: all(above_line(p, poly[i-1], poly[i]) for i in range(len(poly)))
@@ -129,17 +129,22 @@ def intersection_polygon_halfplane(polygon, axis, sign, position):
 # intersections of line a-b with oval centered at segment p-q with radius r
 def intersection_line_oval(a, b, p, q, r):
     delta = ~(p-q)@r
-    ans = []
-    for i in [-1,1]: # intersections with straight edges
-        if between(p+i*delta, (x:=intersect_lines(a,b,p+i*delta,q+i*delta), q+i*delta)):
-            ans.append(x)
-    for (c,i) in [(p,1), (q,-1)]:
-        for x in intersection_line_circle(a,b,c,r):
-            if (x-c)&(p-q)*i >= 0:
-                ans.append(x)
-    return ans
+    return \
+        [x for i in [-1,1] if between(p+i*delta, (x:=intersection_lines(a,b,p+i*delta,q+i*delta)), q+i*delta)] + \
+        [x for (c,i) in [(p,1), (q,-1)] for x in intersection_line_circle(a,b,c,r) if (x-c)&(p-q)*i >= 0]
 
+# intersections of segment a-b with oval centered at segment p-q with radius r
 intersection_segment_oval = lambda a,b,p,q,r: [x for x in intersection_line_oval(a,b,p,q,r) if between(a,x,b)]
+
+# intersections of circle centered at a with radius s with oval centered at segment p-q with radius r
+def intersection_circle_oval(a, s, p, q, r):
+    delta = ~(p-q)@r
+    return \
+        [x for i in [-1,1] for x in intersection_segment_circle(p+i*delta,q+i*delta,a,s)] + \
+        [x for (u,v) in [(p,q), (q,p)] for x in intersection_circles(a,u,s,r) if (x-u)&(u-v) >= 0]
+
+# tangencies of lines through a tangent to circle at p with radius r
+tangents_to_circle = lambda a,p,r: intersection_circles(p,a%p,r,(p >> a)**.5/2)
 
 def convex_hull(points):
     # a list of points on the convex hull, in counterclockwise order (increasing angle)

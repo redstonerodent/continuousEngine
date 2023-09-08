@@ -2,7 +2,7 @@ from continuousEngine import *
 
 class Layers:
     BOARD = 1
-    WALLS = 8
+    WALL = 8
     PAWNS = 4
     GHOSTS = 6
     GUIDE = 3
@@ -10,7 +10,7 @@ class Layers:
 class Colors:
     BACKGROUND = (181, 108, 53)
     BOARD = (0,0,0)
-    WALLS = (219, 159, 75)
+    WALL = (219, 159, 75)
     PAWN = {'white':(255,255,255), 'brown':(105, 63, 24), 'black':(0,0,0), 'red':(201, 26, 6)}
     SELECTED = (0,255,0)
     WRONG = (255,0,0)
@@ -23,13 +23,13 @@ class Constants:
     PAWN_RAD = .5
     WALL_LEN = 2
     BOARD_RAD = 5
-    PAWN_START = BOARD_RAD - PAWN_RAD
+    PAWN_LIMIT = BOARD_RAD - PAWN_RAD
     MOVE_DIST = 1
 
 class Wall(Segment):
-    def __init__(self, game, p1, p2, layer = Layers.WALLS):
+    def __init__(self, game, p1, p2, layer = Layers.WALL):
         super().__init__(game, layer, None, p1, p2)
-        self.GETcolor = lambda g: Colors.WRONG if self in g.blockers else Colors.WALLS
+        self.GETcolor = lambda g: Colors.WRONG if self in g.blockers else Colors.WALL
 
 class Pawn(BorderDisk):
     def __init__(self, game, team, loc, layer = Layers.PAWNS):
@@ -43,7 +43,8 @@ class Pawn(BorderDisk):
 
 class Border(Circle):
     def __init__(self, game):
-        super().__init__(game, Layers.BOARD, Colors.BOARD, Point(0,0), Constants.BOARD_RAD)
+        super().__init__(game, Layers.BOARD, None, Point(0,0), Constants.BOARD_RAD)
+        self.GETcolor = lambda g: Colors.WRONG if self in g.blockers else Colors.BOARD
     def render(self):
         super().render()
         for i,t in enumerate(self.game.teams):
@@ -55,7 +56,7 @@ class Quoridor(Game):
         self.team_count = int(teams)
         super().__init__(backgroundColor=Colors.BACKGROUND, name='continuous quoridor', spread=Constants.BOARD_RAD, **kwargs)
 
-        Border(self)
+        self.border = Border(self)
 
         wall_ghost = Wall(self, None, None, Layers.GHOSTS)
         wall_ghost.GETvisible = lambda g: g.state == 'wall'
@@ -88,18 +89,18 @@ class Quoridor(Game):
         self.click[1] = lambda e: self.on_click(self.point(*e.pos))
 
     def load_state(self, state):
-        for l in [Layers.WALLS, Layers.PAWNS]: self.clearLayer(l)
+        for l in [Layers.WALL, Layers.PAWNS]: self.clearLayer(l)
         self.turn, teams, walls, pawns = state
         self.teams = teams.copy()
         [Wall(self, Point(*p1), Point(*p2)) for p1, p2 in walls]
         [Pawn(self, team, Point(*loc)) for team,loc in pawns]
         self.prep_turn()
 
-    save_state = lambda self: (self.turn, self.teams.copy(), [(w.p1.coords, w.p2.coords) for w in self.layers[Layers.WALLS]], [(p.team, p.loc.coords) for p in self.layers[Layers.PAWNS]])
+    save_state = lambda self: (self.turn, self.teams.copy(), [(w.p1.coords, w.p2.coords) for w in self.layers[Layers.WALL]], [(p.team, p.loc.coords) for p in self.layers[Layers.PAWNS]])
 
     def make_initial_state(self):
         teams = Constants.TEAMS[:self.team_count]
-        return (teams[0], teams, [], [(t, Point(0,0,Constants.PAWN_START,2*pi*i/len(teams)).coords) for i,t in enumerate(teams)])
+        return (teams[0], teams, [], [(t, Point(0,0,Constants.PAWN_LIMIT-epsilon,2*pi*i/len(teams)).coords) for i,t in enumerate(teams)])
 
     wall_end = lambda self, p1, p2: p1 + (p2 - p1) @ Constants.WALL_LEN
 
@@ -112,70 +113,57 @@ class Quoridor(Game):
         # 1: cap at MOVE_DIST
         end = nearest_on_disk(end, pawn.loc, Constants.MOVE_DIST)
 
-        # 2: get blocked by walls and border
-        for b in self.nonpawn_pawn_blockers(pawn, end): # if blocked, only move until tangent to the (first) blocker
-            if isinstance(b, Border):
-                if Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2:
-                    end = slide_to_circle(end, pawn.loc, Point(0,0), Constants.BOARD_RAD - Constants.PAWN_RAD)
-            elif isinstance(b, Wall):
-                if intersect_segment_disk(b.p1, b.p2, end, Constants.PAWN_RAD) or intersect_segment_conv_polygon(b.p1, b.p2, self.move_rect(pawn.loc, end)):
-                    # slide end to the oval around the wall
-                    delta = (~(b.p1-b.p2) @ Constants.PAWN_RAD)
-                    candidates = [] # list of intersections with oval
-                    for i in [1,-1]: # straight edges
-                        if intersect_segments(pawn.loc, end, b.p1+i*delta, b.p2+i*delta):
-                            candidates += intersection_lines(pawn.loc, end, b.p1 + delta, b.p2 + delta)
-                    else:
-                        end = min(sum((intersection_segment_circle(pawn.loc, end, p, Constants.PAWN_RAD) for p in [b.p1, b.p2]),()), key=lambda p: pawn.loc >> p)
-            else:
-                raise ValueError
-            blockers = [b] # todo: only set if real
+        # 2: get blocked by border and walls, and adjust to the first tangency
+        if +end > Constants.PAWN_LIMIT**2:
+            end = slide_to_circle(pawn.loc, end, Point(0,0), Constants.PAWN_LIMIT)
+            blockers = [self.border]
+        for b in self.layers[Layers.WALL]:
+            if (x:=intersection_segment_oval(pawn.loc, end, b.p1, b.p2, Constants.PAWN_RAD)):
+                end = min(x, key = lambda x: pawn.loc >> x)
+                blockers = [b]
+        if blockers:
             end -= (end - pawn.loc) @ epsilon # avoid floating point issues
 
-        # 3: if the final position overlaps a pawn, move past to tangent
+        # 3: if the final position overlaps a pawn...
         ps = self.pawn_pawn_blockers(pawn, end)
         blockers += ps
-        if len(ps) > 1: raise NotImplementedError # todo idk what should happen here yet
+        if len(ps) > 1: raise NotImplementedError # todo idk what should happen here (when it overlaps two pawns)
         elif ps:
             p_on = ps[0]
             corner = end
+            # 3a: continue past the pawn to tangency
             end = slide_to_circle(end, 2*end - pawn.loc, p_on.loc, 2*Constants.PAWN_RAD)
 
-            # the move makes a sharp turn at corner, which is where it'd end if there weren't a pawn
-            # 4: change the angle of the leg after corner to avoid collisions, bending away from p_on
-            last = []
-            sign = (corner-pawn.loc)^(p_on.loc-pawn.loc) or 1
-            pick_candidate = lambda cs: max((c for c in cs if ((end-corner)^(c-corner)) * sign < 0), key=lambda c: (end-corner) & (c-corner))
-            while (b := next(iter(self.pawn_pawn_blockers(pawn, end, [p_on]) + self.nonpawn_pawn_blockers(pown, end, corner)), None)):
+            # 3b: the move makes a sharp turn at corner, which is where it'd end if there weren't a pawn
+            # change the angle of the leg after corner to avoid collisions, bending away from p_on, remaining tangent
+            last_blocker = []
+            sign = (corner-pawn.loc)^(p_on.loc-pawn.loc) or 1 # direction to adjust
+            while (b := next(iter(self.pawn_pawn_blockers(pawn, end, [p_on]) + self.nonpawn_pawn_blockers(pawn, end, corner)), None)):
                 if isinstance(b, Border):
                     candidates = intersection_circles(p_on.loc, Point(0,0), 2*Constants.PAWN_RAD, Constants.BOARD_RAD - Constants.PAWN_RAD)
                 elif isinstance(b, Wall):
                     delta = (~(b.p1-b.p2) @ Constants.PAWN_RAD)
-                    # intersections of oval around b with circle around p_on
-                    candidates = sum(( 
-                        # type 1: tangent to wall
-                        [p for p in intersection_segment_circle(b.p1+s*delta, b.p2+s*delta, p_on.loc, 2*Constants.PAWN_RAD)] +
-                        # type 2: touching endpoint of wall
-                        [p for p in intersection_circles(p1, p_on.loc, Constants.PAWN_RAD, 2*Constants.PAWN_RAD) if above_line(p, p1, p1-s*delta)] +
-                        # type 3: slides past endpoint of wall
-                        [p for l in intersection_circles(p1, corner, Constants.PAWN_RAD, ((corner >> p1) - Constants.PAWN_RAD**2)**.5) for p in intersection_ray_circle(corner, l, p_on.loc, 2*Constants.PAWN_RAD) if between(corner, l, p)]
-                        for p1, p2, s in [(b.p1, b.p2, 1), (b.p2, b.p1, -1)]),
-                        [])
+                    # 2 kinds of candidate: intersections with oval around b
+                    # and moves tangent to the oval, so the path touches the end of the wall
+                    candidates = \
+                        intersection_circle_oval(p_on.loc, 2*Constants.PAWN_RAD, b.p1, b.p2, Constants.PAWN_RAD) + \
+                        [p for u, v in [(b.p1, b.p2), (b.p2, b.p1)] for l in tangents_to_circle(corner, u, Constants.PAWN_RAD) if (l-u)&(u-v)>=0 for p in intersection_ray_circle(corner, l, p_on.loc, 2*Constants.PAWN_RAD) if between(corner, l, p)]
 
-                    # remove some illegal ones
+                    # remove illegal ones
                     candidates = [p for p in candidates if not intersect_segment_conv_polygon(b.p1, b.p2, self.move_rect(corner, p))]
                     # in theory there should be exactly two candidates now
                     if len(candidates) != 2: print(f'WARNING: there are {len(candidates)} candidates; expected 2')
 
                 elif isinstance(b, Pawn):
                     candidates = intersection_circles(p_on.loc, b.loc, 2*Constants.PAWN_RAD)
-                end = pick_candidate(candidates)
-                end += ~(sign * (end-p_on.loc)) @ 100*epsilon
+                end = max((c for c in candidates if ((end-corner)^(c-corner)) * sign < 0), key=lambda c: (end-corner) & (c-corner))
 
-                last = [b]
+                last_blocker = [b]
 
 
-            blockers += last
+            # avoid floating point issues
+            end += ~(sign * (end-p_on.loc)) @ epsilon
+            blockers += last_blocker
         return end, blockers, corner
 
     def move_rect(self, loc, end):
@@ -221,7 +209,7 @@ class Quoridor(Game):
 
     def nonpawn_pawn_blockers(self, pawn, end, loc = None):
         rect = self.move_rect(loc or pawn.loc, end)
-        return  [w for w in self.layers[Layers.WALLS] if intersect_segment_disk(w.p1, w.p2, end, Constants.PAWN_RAD) or intersect_segment_conv_polygon(w.p1, w.p2, rect)] + \
+        return  [w for w in self.layers[Layers.WALL] if intersect_segment_disk(w.p1, w.p2, end, Constants.PAWN_RAD) or intersect_segment_conv_polygon(w.p1, w.p2, rect)] + \
                 [b for b in self.layers[Layers.BOARD] if (Point(0,0) >> end > (Constants.BOARD_RAD - Constants.PAWN_RAD)**2)]
 
     def pawn_pawn_blockers(self, pawn, end, ignore = []):
@@ -229,7 +217,7 @@ class Quoridor(Game):
 
     def wall_blockers(self, start, end):
         return [p for p in self.layers[Layers.PAWNS] if intersect_segment_disk(start, end, p.loc, Constants.PAWN_RAD)] + \
-            [w for w in self.layers[Layers.WALLS] if intersect_segments(start, end, w.p1, w.p2)] + \
+            [w for w in self.layers[Layers.WALL] if intersect_segments(start, end, w.p1, w.p2)] + \
             [b for b in self.layers[Layers.BOARD] if (Point(0,0) >> start > Constants.BOARD_RAD**2 or Point(0,0) >> end > Constants.BOARD_RAD**2)]
 
     def pawns_under(self, pt):
