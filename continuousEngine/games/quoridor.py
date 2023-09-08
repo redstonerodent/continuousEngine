@@ -22,7 +22,7 @@ class Constants:
     # game units
     PAWN_RAD = .5
     WALL_LEN = 2
-    BOARD_RAD = 5
+    BOARD_RAD = 3#5
     PAWN_LIMIT = BOARD_RAD - PAWN_RAD
     MOVE_DIST = 1
 
@@ -135,9 +135,10 @@ class Quoridor(Game):
             end = slide_to_circle(end, 2*end - pawn.loc, p_on.loc, 2*Constants.PAWN_RAD)
 
             # 3b: the move makes a sharp turn at corner, which is where it'd end if there weren't a pawn
-            # change the angle of the leg after corner to avoid collisions, bending away from p_on, remaining tangent
+            # change the angle of the leg after corner to avoid collisions, remaining tangent
             last_blocker = []
-            sign = (corner-pawn.loc)^(p_on.loc-pawn.loc) or 1 # direction to adjust
+            # we will bend in the direction base on which side of p_on the corner is
+            sign = above_line(corner, pawn.loc, p_on.loc)
             while (b := next(iter(self.pawn_pawn_blockers(pawn, end, [p_on]) + self.nonpawn_pawn_blockers(pawn, end, corner)), None)):
                 if isinstance(b, Border):
                     candidates = intersection_circles(p_on.loc, Point(0,0), 2*Constants.PAWN_RAD, Constants.BOARD_RAD - Constants.PAWN_RAD)
@@ -149,25 +150,27 @@ class Quoridor(Game):
                         intersection_circle_oval(p_on.loc, 2*Constants.PAWN_RAD, b.p1, b.p2, Constants.PAWN_RAD) + \
                         [p for u, v in [(b.p1, b.p2), (b.p2, b.p1)] for l in tangents_to_circle(corner, u, Constants.PAWN_RAD) if (l-u)&(u-v)>=0 for p in intersection_ray_circle(corner, l, p_on.loc, 2*Constants.PAWN_RAD) if between(corner, l, p)]
 
-                    # remove illegal ones
+                    # remove candidates that would involve moving through the wall
                     candidates = [p for p in candidates if not intersect_segment_conv_polygon(b.p1, b.p2, self.move_rect(corner, p))]
-                    # in theory there should be exactly two candidates now
+                    # in theory there should be exactly two candidates now (one on each side of the wall)
                     if len(candidates) != 2: print(f'WARNING: there are {len(candidates)} candidates; expected 2')
 
                 elif isinstance(b, Pawn):
                     candidates = intersection_circles(p_on.loc, b.loc, 2*Constants.PAWN_RAD)
-                end = max((c for c in candidates if ((end-corner)^(c-corner)) * sign < 0), key=lambda c: (end-corner) & (c-corner))
+                # pick the candidate so the path bends in the direction indicated by sign
+                # there should always be exactly one of them
+                end, = [c for c in candidates if above_line(c, corner, end) == sign]
+                # avoid floating point issues
+                end += ~((-1)**sign * (p_on.loc-end)) @ epsilon
 
                 last_blocker = [b]
 
 
-            # avoid floating point issues
-            end += ~(sign * (end-p_on.loc)) @ epsilon
             blockers += last_blocker
         return end, blockers, corner
 
-    def move_rect(self, loc, end):
-        delta = ~(end-loc) @ Constants.PAWN_RAD
+    def move_rect(self, loc, end): # rectangle that the pawn moves through
+        delta = ~(end-loc) @ (Constants.PAWN_RAD - epsilon)
         return [end-delta, end+delta, loc+delta, loc-delta]
 
     def on_click(self, loc):
