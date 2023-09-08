@@ -25,6 +25,7 @@ class Constants:
     BOARD_RAD = 3#5
     PAWN_LIMIT = BOARD_RAD - PAWN_RAD
     MOVE_DIST = 1
+    GOAL_WIDTH = 5
 
 class Wall(Segment):
     def __init__(self, game, p1, p2, layer = Layers.WALL):
@@ -49,7 +50,7 @@ class Border(Circle):
         super().render()
         for i,t in enumerate(self.game.teams):
             mid = 2*pi*i/len(self.game.teams) + pi
-            drawArc(self.game, Colors.PAWN[t], Point(0,0), Constants.BOARD_RAD, mid - pi/6, mid + pi/6, width=5, borderGrowth=0)
+            drawArc(self.game, Colors.PAWN[t], Point(0,0), Constants.BOARD_RAD, mid - pi/6, mid + pi/6, width=Constants.GOAL_WIDTH, borderGrowth=0)
 
 class Quoridor(Game):
     def __init__(self, teams=2, **kwargs):
@@ -107,7 +108,7 @@ class Quoridor(Game):
     def pawn_target(self, pawn, end):
         # player attempts to move pawn to end
         # where does it actually go?
-        blockers = [] # to indicate which thing(s) blocked you
+        blockers = []
         corner = None
 
         # 1: cap at MOVE_DIST
@@ -134,9 +135,13 @@ class Quoridor(Game):
             # 3a: continue past the pawn to tangency
             end = slide_to_circle(end, 2*end - pawn.loc, p_on.loc, 2*Constants.PAWN_RAD)
 
+            # everything the new location overlaps is a blocker
+            blockers += self.pawn_pawn_blockers(pawn, end, [p_on]) + self.nonpawn_pawn_blockers(pawn, end, corner)
+            # as is the last thing in its way while adjusting
+            last_blocker = None
+
             # 3b: the move makes a sharp turn at corner, which is where it'd end if there weren't a pawn
             # change the angle of the leg after corner to avoid collisions, remaining tangent
-            last_blocker = []
             # we will bend in the direction base on which side of p_on the corner is
             sign = above_line(corner, pawn.loc, p_on.loc)
             while (b := next(iter(self.pawn_pawn_blockers(pawn, end, [p_on]) + self.nonpawn_pawn_blockers(pawn, end, corner)), None)):
@@ -163,10 +168,10 @@ class Quoridor(Game):
                 # avoid floating point issues
                 end += ~((-1)**sign * (p_on.loc-end)) @ epsilon
 
-                last_blocker = [b]
+                last_blocker = b
 
 
-            blockers += last_blocker
+            if last_blocker: blockers.append(last_blocker)
         return end, blockers, corner
 
     def move_rect(self, loc, end): # rectangle that the pawn moves through
