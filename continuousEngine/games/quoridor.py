@@ -80,38 +80,37 @@ class Graph:
             if p in self.edges: ans[p] |= self.edges[p]
             if p in other.edges: ans[p] |= other.edges[p]
         return Graph(ans)
-    def negative_cycle(self, weight):
-        # bellman-ford
-        value = {p:0 for p in self.edges}
-        parent = {p:None for p in self.edges}
+    def nontrivial_cycle(self, weight):
+        # weight is antisymmetric
+        # we want a cycle with nonzero cost, i.e. noncontractible
+        # find a spanning forest to define contractible "canonical" paths between vertices
+        # for each edge not in the tree, check whether the cycle it makes is contractible
 
-        weights = {(p,q): weight(p,q) for p,qs in self.edges.items() for q in qs}
-
-        # this is pretty slow on dense instances
-        # todo: do something smarter than bellman-ford
-        # e.g. the weights have a lot of structure and bellman-ford is wasteful
-        for _ in self.edges: # repeat |V| times
-            for p,qs in self.edges.items():
-                for q in qs:
-                    if (x := value[p] + weights[p,q]) < value[q] - epsilon:
-                        value[q], parent[q] = x, p
-
-        for p in self.edges:
-            for q in self.edges[p]:
-                if value[p] + weight(p,q) < value[q] - epsilon:
-                    # follow parent pointers to find negative cycle
-                    seen = {q}
-                    while p not in seen:
-                        seen.add(p)
-                        p = parent[p]
-                    start, p = p, parent[p]
-                    cycle = [start]
-                    while p != start:
-                        cycle.append(p)
-                        p = parent[p]
-                    return cycle
+        # bfs to tend towards short cycles
+        parent = {}
+        value = {}
+        ancestors = lambda p: [p] + ancestors(parent[p]) if p else []
+        while (p := next((p for p in self.edges if p not in parent), None)):
+            to_process = [p]
+            parent[p] = None
+            value[p] = 0
+            while to_process:
+                to_process.remove(p := to_process[0])
+                for q in self.edges[p]:
+                    if q in parent:
+                        if abs(value[q] - value[p] - weight(p,q)) > epsilon:
+                            # found a noncontractible cycle
+                            # walk up ancestors to list vertices in it
+                            ps = ancestors(p)[::-1]
+                            for v in ancestors(q):
+                                if v in ps:
+                                    return ps[ps.index(v):]
+                                ps.append(v)
+                    else:
+                        to_process.append(q)
+                        parent[q] = p
+                        value[q] = value[p] + weight(p,q)
         return None
-
 
 class Quoridor(Game):
     def __init__(self, teams=2, **kwargs):
@@ -123,8 +122,6 @@ class Quoridor(Game):
         self.wall_ghost = Wall(self, None, None, Layers.GHOST)
         self.wall_ghost.GETvisible = lambda g: g.state == 'wall'
         self.wall_ghost.GETcolor = lambda g: Colors.WRONG if g.blockers else Colors.SELECTED
-        self.wall_ghost.GETp1 = lambda g: g.selected
-        self.wall_ghost.GETp2 = lambda g: g.wall_end(g.selected, g.mousePos())
 
         pawn_corner_ghost = Pawn(self, None, None, None, Layers.GHOST)
         pawn_corner_ghost.GETvisible = lambda g: g.state == 'pawn' and g.corner
@@ -134,15 +131,15 @@ class Quoridor(Game):
         pawn_ghost = Pawn(self, None, None, None, Layers.GHOST)
         pawn_ghost.GETvisible = lambda g: g.state == 'pawn'
         pawn_ghost.border_color = Colors.SELECTED
-        pawn_ghost.GETloc = lambda g: g.curr_target
+        pawn_ghost.GETloc = lambda g: g.target
 
         move_guide_1 = FilledPolygon(self, Layers.GUIDE, None, None)
         move_guide_1.GETvisible = lambda g: g.state == 'pawn'
-        move_guide_1.GETpoints = lambda g: g.move_rect(g.selected.loc, g.corner or g.curr_target)
+        move_guide_1.GETpoints = lambda g: g.move_rect(g.selected.loc, g.corner or g.target)
 
         move_guide_2 = FilledPolygon(self, Layers.GUIDE, None, None)
         move_guide_2.GETvisible = lambda g: g.state == 'pawn' and g.corner
-        move_guide_2.GETpoints = lambda g: g.move_rect(g.corner, g.curr_target)
+        move_guide_2.GETpoints = lambda g: g.move_rect(g.corner, g.target)
 
         pawn_corner_ghost.GETfill_color = pawn_ghost.GETfill_color = move_guide_1.GETcolor = move_guide_2.GETcolor = lambda g: Colors.PAWN[g.turn]
 
@@ -262,16 +259,15 @@ class Quoridor(Game):
 
     def attemptGameMove(self, move):
         if move['type'] == 'pawn':
-            target, *_ = self.pawn_target(self.current_pawn, Point(*move['location']))
+            self.process('pawn', self.current_pawn, Point(*move['location']))
             self.record_state()
-            self.current_pawn.loc = target
+            self.current_pawn.loc = self.target
         elif move['type'] == 'wall':
-            p1 = Point(*move['p1'])
-            p2 = self.wall_end(p1, Point(*move['p2']))
-            if self.wall_blockers(p1, p2): return
-            if p1 == p2: return
+            if (p1:=Point(*move['p1'])) == (p2:=Point(*move['p2'])): return
+            self.process('wall', p1, p2)
+            if self.blockers: return
             self.record_state()
-            Wall(self, p1, self.wall_end(p1, p2))
+            Wall(self, self.wall_ghost.p1, self.wall_ghost.p2)
         return True
 
     def prep_turn(self):
@@ -331,20 +327,25 @@ class Quoridor(Game):
     def pawns_under(self, pt):
         return [p for p in self.layers[Layers.PAWN] if p.loc >> pt < Constants.PAWN_RAD**2]
 
-    def process(self):
+    def process(self, state = None, sel = None, pt = None):
         if self.mousePos():
             self.graph = self.graph_cache # remove when done
             self.cycle = []
-            if self.state == 'start':
-                self.blockers = self.pawns_under(self.mousePos())
-            elif self.state == 'pawn':
-                self.curr_target, self.blockers, self.corner = self.pawn_target(self.selected, self.mousePos())
-            elif self.state == 'wall':
+            state = state or self.state
+            sel = sel or self.selected
+            pt = pt or self.mousePos()
+            if state == 'start':
+                self.blockers = self.pawns_under(pt)
+            elif state == 'pawn':
+                self.target, self.blockers, self.corner = self.pawn_target(sel, pt)
+            elif state == 'wall':
+                self.wall_ghost.p1 = sel
+                self.wall_ghost.p2 = self.wall_end(sel, pt)
                 self.blockers = self.wall_blockers(self.wall_ghost.p1, self.wall_ghost.p2)
                 if self.blockers: return
-                self.graph = self.graph_cache + self.bottlenecks(self.wall_ghost)
+                self.graph = self.graph_cache + self.bottlenecks(self.wall_ghost) # todo: don't store this
                 for pawn in self.layers[Layers.PAWN]:
-                    if (cycle := self.graph.negative_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
+                    if (cycle := self.graph.nontrivial_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
                         # mark objects involved in cycle as blockers
                         for p in cycle:
                             if +p > Constants.BOARD_RAD**2:
