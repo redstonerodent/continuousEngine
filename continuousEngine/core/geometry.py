@@ -39,6 +39,11 @@ class Point:
 # area of polygon with vertices pts, counterclockwise
 polygon_area = lambda pts: sum(pts[i] ^ pts[(i+1)%len(pts)] for i in range(len(pts))) / 2
 
+# angle abc, from 0 to tau
+angle = lambda a,b,c: (atan2(*(c-b)) - atan2(*(a-b)))%(2*pi)
+# angle abc, from -pi to pi
+signed_angle = lambda a,b,c: (angle(a,b,c)+pi)%(2*pi)-pi
+
 # is x 'above' the line from p1 to p2; i.e. on your left when going from p1 to p2?
 above_line = lambda x, p1, p2: (p2-p1)^(x-p1) < 0
 # do line segments a-b and x-y intersect?
@@ -73,7 +78,7 @@ slide_to_circle = lambda p1, p2, p, r: (lambda nearest: nearest + ((p1-p2) @ (r*
 # the result of moving p1 towards p2 until it's on the disk of radius r centered at p
 slide_to_disk = lambda p1, p2, p, r: p1 if p1>>p < r**2 else slide_to_circle(p1, p2, p, r)
 # area of the portion of the circle of radius r centered at p on the side of chord a-b, assuming a -> b is counterclockwise
-sliver_area = lambda a, b, p, r: (atan2(*(b-p))-atan2(*(a-p)))%(2*pi) * r**2 / 2 - polygon_area([p, b, a])
+sliver_area = lambda a, b, p, r: angle(a,p,b) * r**2 / 2 - polygon_area([p, b, a])
 # the list of line segments in the intersection of the disk of radius r centered at the origin and the polygon with points pts
 intersect_polygon_circle_segments = lambda pts, p, r: [[slide_to_disk(pts[i], pts[(i+1)%len(pts)], p, r), slide_to_disk(pts[(i+1)%len(pts)], pts[i], p, r)] for i in range(len(pts)) if pts[i]>>p < r**2 or pts[(i+1)%len(pts)]>>p < r**2 or (lambda nearest: between(pts[i], nearest, pts[(i+1)%len(pts)]) and nearest>>p < r**2)(nearest_on_line(p, pts[i], pts[(i+1)%len(pts)]))]
 # area of the intersection of the disk of radius r centered at p and the polygon with vertices pts

@@ -173,10 +173,9 @@ class Go(Game):
 
 
     def attemptGameMove(self, move):
-        # print(move, flush=True)        
         self.record_state()
         self.clearLayer(Layers.PIECES['GHOST'])
-        
+
         if move["action"] == "place":
             pos = Point(*move["location"])
             self.updateMove(pos)
@@ -220,7 +219,7 @@ class Go(Game):
 
             # the pieces in the opponent's components we might capture (i.e. those with a piece within 6r), in components according to the new graph
             opp_cmps = components(union(cmp for cmp in self.components[opp] if any(sorta_nearby(pos, p) for p in cmp)), list(opp_edges))
-            
+
             # an opponent's component is captured if...
             self.captures = union(cmp for cmp in opp_cmps if
                                     # it's not an isolated piece with nothing nearby...

@@ -191,7 +191,6 @@ class Reversi(Game):
 
 
     def attemptGameMove(self, move):
-        print(move, flush=True)
         pos = Point(*move["location"])
         self.updateMove(pos)
         if self.blockers or not self.pivots: return False
