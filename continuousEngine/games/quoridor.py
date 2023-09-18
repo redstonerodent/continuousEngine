@@ -42,16 +42,6 @@ class Pawn(BorderDisk):
             Colors.TURN if g.current_pawn == self else \
             Colors.PAWN[self.team]
 
-class Debugger(Renderable):
-    def render(self):
-        for p in self.game.graph.edges:
-            for q in self.game.graph.edges[p]:
-                drawSegment(self.game, (255,255,0), p,q, width=1)
-        for p in self.game.graph.edges:
-            drawCircle(self.game, (120,120,0), p, 5, realRadius=False)
-        for i in range(len(self.game.cycle)):
-            drawSegment(self.game, (120,120,0), self.game.cycle[i-1], self.game.cycle[i], width=3)
-
 class Border(Circle):
     def __init__(self, game):
         super().__init__(game, Layers.BOARD, None, Point(0,0), Constants.BOARD_RAD)
@@ -142,10 +132,6 @@ class Quoridor(Game):
         move_guide_2.GETpoints = lambda g: g.move_rect(g.corner, g.target)
 
         pawn_corner_ghost.GETfill_color = pawn_ghost.GETfill_color = move_guide_1.GETcolor = move_guide_2.GETcolor = lambda g: Colors.PAWN[g.turn]
-
-        self.debug = Debugger(self, 1000)
-        self.debug.visible = False
-        self.keyPress[pygame.K_SPACE] = lambda e: setattr(self.debug, 'visible', not self.debug.visible)
 
         self.reset_state()
 
@@ -259,9 +245,7 @@ class Quoridor(Game):
 
     def attemptGameMove(self, move):
         if move['type'] == 'pawn':
-            print('processing', move)
             self.process('pawn', self.current_pawn, Point(*move['location']))
-            print('processed')
             self.record_state()
             self.current_pawn.loc = self.target
         elif move['type'] == 'wall':
@@ -277,7 +261,7 @@ class Quoridor(Game):
         self.selected = None
         self.blockers = []
         self.current_pawn = next(p for p in self.layers[Layers.PAWN] if p.team == self.turn)
-        self.graph_cache = self.bottlenecks()
+        self.graph = self.bottlenecks()
 
     def bottlenecks(self, wall=None):
         # graph of bottlenecks pawns can't fit through
@@ -330,8 +314,6 @@ class Quoridor(Game):
         return [p for p in self.layers[Layers.PAWN] if p.loc >> pt < Constants.PAWN_RAD**2]
 
     def process(self, state = None, sel = None, pt = None):
-        self.graph = self.graph_cache # remove when done
-        self.cycle = []
         state = state or self.state
         sel = sel or self.selected
         pt = pt or self.mousePos()
@@ -340,15 +322,17 @@ class Quoridor(Game):
             self.blockers = self.pawns_under(pt)
         elif state == 'pawn':
             self.target, self.blockers, self.corner = self.pawn_target(sel, pt)
-            print('XXXX',self.target)
         elif state == 'wall':
             self.wall_ghost.p1 = sel
             self.wall_ghost.p2 = self.wall_end(sel, pt)
             self.blockers = self.wall_blockers(self.wall_ghost.p1, self.wall_ghost.p2)
             if self.blockers: return
-            self.graph = self.graph_cache + self.bottlenecks(self.wall_ghost) # todo: don't store this
+
+            # check if placing this wall would cut off any pawns
+            graph = self.graph + self.bottlenecks(self.wall_ghost)
             for pawn in self.layers[Layers.PAWN]:
-                if (cycle := self.graph.nontrivial_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
+                if (cycle := graph.nontrivial_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
+                    self.blockers.append(pawn)
                     # mark objects involved in cycle as blockers
                     for p in cycle:
                         if +p > Constants.BOARD_RAD**2:
@@ -358,7 +342,6 @@ class Quoridor(Game):
                     self.cycle = cycle
                     return
 
-# todo: mark blocked pawn
 # todo: battlecode support
 # todo: define winning
 
