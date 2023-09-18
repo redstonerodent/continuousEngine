@@ -259,7 +259,9 @@ class Quoridor(Game):
 
     def attemptGameMove(self, move):
         if move['type'] == 'pawn':
+            print('processing', move)
             self.process('pawn', self.current_pawn, Point(*move['location']))
+            print('processed')
             self.record_state()
             self.current_pawn.loc = self.target
         elif move['type'] == 'wall':
@@ -328,32 +330,37 @@ class Quoridor(Game):
         return [p for p in self.layers[Layers.PAWN] if p.loc >> pt < Constants.PAWN_RAD**2]
 
     def process(self, state = None, sel = None, pt = None):
-        if self.mousePos():
-            self.graph = self.graph_cache # remove when done
-            self.cycle = []
-            state = state or self.state
-            sel = sel or self.selected
-            pt = pt or self.mousePos()
-            if state == 'start':
-                self.blockers = self.pawns_under(pt)
-            elif state == 'pawn':
-                self.target, self.blockers, self.corner = self.pawn_target(sel, pt)
-            elif state == 'wall':
-                self.wall_ghost.p1 = sel
-                self.wall_ghost.p2 = self.wall_end(sel, pt)
-                self.blockers = self.wall_blockers(self.wall_ghost.p1, self.wall_ghost.p2)
-                if self.blockers: return
-                self.graph = self.graph_cache + self.bottlenecks(self.wall_ghost) # todo: don't store this
-                for pawn in self.layers[Layers.PAWN]:
-                    if (cycle := self.graph.nontrivial_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
-                        # mark objects involved in cycle as blockers
-                        for p in cycle:
-                            if +p > Constants.BOARD_RAD**2:
-                                self.blockers.extend(self.layers[Layers.BOARD])
-                            else:
-                                self.blockers.extend(w for w in self.layers[Layers.WALL] if dist_to_segment(p, w.p1, w.p2) < epsilon)
-                        self.cycle = cycle
-                        return
+        self.graph = self.graph_cache # remove when done
+        self.cycle = []
+        state = state or self.state
+        sel = sel or self.selected
+        pt = pt or self.mousePos()
+        if not pt: return
+        if state == 'start':
+            self.blockers = self.pawns_under(pt)
+        elif state == 'pawn':
+            self.target, self.blockers, self.corner = self.pawn_target(sel, pt)
+            print('XXXX',self.target)
+        elif state == 'wall':
+            self.wall_ghost.p1 = sel
+            self.wall_ghost.p2 = self.wall_end(sel, pt)
+            self.blockers = self.wall_blockers(self.wall_ghost.p1, self.wall_ghost.p2)
+            if self.blockers: return
+            self.graph = self.graph_cache + self.bottlenecks(self.wall_ghost) # todo: don't store this
+            for pawn in self.layers[Layers.PAWN]:
+                if (cycle := self.graph.nontrivial_cycle(lambda p,q: signed_angle(p,pawn.loc,q) - signed_angle(p,pawn.goal,q))):
+                    # mark objects involved in cycle as blockers
+                    for p in cycle:
+                        if +p > Constants.BOARD_RAD**2:
+                            self.blockers.extend(self.layers[Layers.BOARD])
+                        else:
+                            self.blockers.extend(w for w in self.layers[Layers.WALL] if dist_to_segment(p, w.p1, w.p2) < epsilon)
+                    self.cycle = cycle
+                    return
+
+# todo: mark blocked pawn
+# todo: battlecode support
+# todo: define winning
 
 
 if __name__=='__main__':

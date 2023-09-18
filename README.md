@@ -18,6 +18,7 @@ These are the specific continuous versions of games that have been implemented s
 * `go.py`: Go
 * `jrap.py`:  based on [Penguin Trap](https://boardgamegeek.com/boardgame/225981/penguin-trap))
 * `trans.py`: based on Trans America / Trans Europa / etc.
+* `quoridor.py` (WIP): based on Quoridor.
 * `angle.py`: [Angle Loop](https://puzz.link/rules.html?angleloop)
 * `kouchoku.py`: [Kouchoku](https://puzz.link/rules.html?kouchoku)
 
@@ -73,7 +74,7 @@ To update, run `git pull`. If the update adds a command, you need to run `setup.
 `continuous-game [-g game] [args ...]`
 
 In all commands, `args` is passed to the game class. This is used by
-* `jrap` and `trans`, for the number of players.
+* `jrap`, `trans`, and `quoridor`, for the number of players.
 * `angle` and `kouchoku`, for the file to read a puzzle from.
 
 ### To start a server
@@ -99,7 +100,7 @@ Arguments:
 
 Any additional arguments are passed to the constructor for the game that gets created. For instance, `continuous-client -g jrap -n -t silver 4` will create a new 4-player jrap game with a random id, and put you on team `silver`.
 
-Currently `chess`, `go`, `jrap`, `reversi`, `trans`, `angle`, and `kouchoku` have network play.
+Currently `chess`, `go`, `jrap`, `reversi`, `trans`, `quoridor`, `angle`, and `kouchoku` have network play.
 
 ### To play AIs against each other
 
